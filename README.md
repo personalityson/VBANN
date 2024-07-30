@@ -8,7 +8,7 @@ You can speed it up 6-10x by downloading and linking to [a prebuilt OpenBLAS dll
 
 ### Why do people use VBA?
 VBA runs on locked-down mandatory corporate Windows laptops with no software installation privileges, firewalled networking and USB ports disabled.<br/>
-Very often VBA is the only solution that can be implemented without approval from the IT department.
+Very often it is the only solution that can be implemented without approval from the IT department.
 
 ### Contributing
 Feel free to open issues or submit pull requests to enhance the functionality of VBANN.
