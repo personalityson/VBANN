@@ -14,4 +14,4 @@ Very often it is the only solution that can be implemented without approval from
 Feel free to open issues or submit pull requests to enhance the functionality of VBANN.
 
 ### License
-This project is licensed under the MIT License.
+This project is licensed under the [MIT License](LICENSE.txt).
