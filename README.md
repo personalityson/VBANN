@@ -1,5 +1,38 @@
 ## VBANN
-![VBANN](https://github.com/user-attachments/assets/2857bf20-bc6c-4d6d-ae50-06b5e156046c)
+
+```vba
+Const MODEL_NAME As String = "MyModel"
+
+Private m_oModel As Sequential
+
+Public Sub SetupAndTrain()
+    Dim lBatchSize As Long
+    Dim lNumEpochs As Long
+    Dim oTrainingSet As DataLoader
+    Dim oTestSet As DataLoader
+    
+    VerifyOpenBlasLibrary
+    
+    lBatchSize = 10
+    lNumEpochs = 50
+    
+    Set oTrainingSet = DataLoader(ImportDatasetFromWorksheet("ConcreteTrain", 8, 1, True), lBatchSize)
+    Set oTestSet = DataLoader(ImportDatasetFromWorksheet("ConcreteTest", 8, 1, True), lBatchSize)
+    
+    Set m_oModel = Sequential(L2Loss(), SGDM())
+    m_oModel.Add FullyConnectedLayer(8, 200)
+    m_oModel.Add LeakyReLULayer()
+    m_oModel.Add FullyConnectedLayer(200, 100)
+    m_oModel.Add LeakyReLULayer()
+    m_oModel.Add FullyConnectedLayer(100, 50)
+    m_oModel.Add LeakyReLULayer()
+    m_oModel.Add FullyConnectedLayer(50, 1)
+    m_oModel.Fit oTrainingSet, oTestSet, lNumEpochs
+    Serialize MODEL_NAME, m_oModel
+    
+    Beep
+End Sub
+```
 
 ### What is VBANN?
 VBANN is a small machine learning framework implemented in VBA, which can be used to set up and train simple neural networks.<br/>
