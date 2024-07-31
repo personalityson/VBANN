@@ -2,7 +2,6 @@
 
 ```vba
 Public Sub SetupAndTrain()
-    Const MODEL_NAME As String = "MyModel"
     Dim lBatchSize As Long
     Dim lNumEpochs As Long
     Dim oTrainingSet As DataLoader
@@ -26,7 +25,7 @@ Public Sub SetupAndTrain()
     oModel.Add LeakyReLULayer()
     oModel.Add FullyConnectedLayer(50, 1)
     oModel.Fit oTrainingSet, oTestSet, lNumEpochs
-    Serialize MODEL_NAME, oModel
+    Serialize "MyModel", oModel
     
     Beep
 End Sub
