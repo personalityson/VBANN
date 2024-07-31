@@ -45,7 +45,7 @@ VBA runs on locked-down mandatory corporate Windows laptops with no software ins
 Very often it is the only solution that can be implemented without approval from the IT department.
 
 ### Contributing
-Feel free to open issues or submit pull requests to enhance the functionality of VBANN.
+Feel free to open issues or submit custom layers to enhance the functionality of VBANN.
 
 ### License
 This project is licensed under the [MIT License](LICENSE.txt).
