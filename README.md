@@ -16,8 +16,8 @@ Public Sub SetupAndTrain()
     lBatchSize = 10
     lNumEpochs = 50
     
-    Set oTrainingSet = DataLoader(ImportDatasetFromWorksheet("ConcreteTrain", 8, 1, True), lBatchSize)
-    Set oTestSet = DataLoader(ImportDatasetFromWorksheet("ConcreteTest", 8, 1, True), lBatchSize)
+    Set oTrainingSet = DataLoader(ImportDatasetFromWorksheet("Train", 8, 1, True), lBatchSize)
+    Set oTestSet = DataLoader(ImportDatasetFromWorksheet("Test", 8, 1, True), lBatchSize)
     
     Set m_oModel = Sequential(L2Loss(), SGDM())
     m_oModel.Add FullyConnectedLayer(8, 200)
