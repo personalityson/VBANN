@@ -712,8 +712,3 @@ Public Sub LogError(ByVal sSource As String, _
         Application.GoTo .Cells(lLastRow + 1, 1)
     End With
 End Sub
-
-Sub Test()
-    MsgBox Val("-0,004")
-    MsgBox CDbl("-0,004")
-End Sub

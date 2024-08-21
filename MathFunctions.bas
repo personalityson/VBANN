@@ -628,23 +628,3 @@ Private Function ComputeMatMulWithBlas(ByVal A As Tensor, _
     dgemm sTransA, sTransB, m, n, k, 1#, A.Address, A.Size(1), B.Address, B.Size(1), 1#, C.Address, C.Size(1)
     Set ComputeMatMulWithBlas = C
 End Function
-
-Sub TestBlas()
-    Dim A As Tensor
-    Dim B As Tensor
-    Dim C As Tensor
-    Dim lStart As Long
-    Dim lEnd As Long
-    Dim k As Long
-    
-    Set A = Uniform(Array(100, 100))
-    Set B = Uniform(Array(100, 100))
-    
-    lStart = GetTickCount()
-    For k = 1 To 10000
-        Set C = VecSubCRev(5, B)
-    Next k
-    lEnd = GetTickCount()
-
-    MsgBox (lEnd - lStart) / 1000
-End Sub
