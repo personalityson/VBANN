@@ -7,7 +7,11 @@ Public Function Zeros(ByVal vShape As Variant) As Tensor
 End Function
 
 Public Function Ones(ByVal vShape As Variant) As Tensor
-    Set Ones = Full(vShape, 1)
+    Set Ones = New Tensor
+    With Ones
+        .Resize vShape
+        .FillConstant 1
+    End With
 End Function
 
 Public Function Full(ByVal vShape As Variant, _
@@ -15,41 +19,27 @@ Public Function Full(ByVal vShape As Variant, _
     Set Full = New Tensor
     With Full
         .Resize vShape
-        .Fill dblValue
+        .FillConstant dblValue
     End With
 End Function
 
 Public Function Uniform(ByVal vShape As Variant, _
-                        ByVal dblLow As Double, _
-                        ByVal dblHigh As Double) As Tensor
-    Dim i As Long
-    Dim A_() As Double
-    
+                        Optional ByVal dblLow As Double = 0, _
+                        Optional ByVal dblHigh As Double = 1) As Tensor
     Set Uniform = New Tensor
     With Uniform
         .Resize vShape
-        .Ravel.CreateAlias A_
-        For i = 1 To .NumElements
-            A_(i) = dblLow + (dblHigh - dblLow) * Rnd()
-        Next i
-        .Ravel.RemoveAlias A_
+        .FillUniform dblLow, dblHigh
     End With
 End Function
 
 Public Function Normal(ByVal vShape As Variant, _
-                       ByVal dblMu As Double, _
-                       ByVal dblSigma As Double) As Tensor
-    Dim i As Long
-    Dim A_() As Double
-    
+                       Optional ByVal dblMu As Double = 0, _
+                       Optional ByVal dblSigma As Double = 1) As Tensor
     Set Normal = New Tensor
     With Normal
         .Resize vShape
-        .Ravel.CreateAlias A_
-        For i = 1 To .NumElements
-            A_(i) = dblMu + dblSigma * NormRand()
-        Next i
-        .Ravel.RemoveAlias A_
+        .FillNormal dblMu, dblSigma
     End With
 End Function
 
@@ -169,9 +159,9 @@ Public Function Unserialize(ByVal sName As String) As ISerializable
 End Function
 
 Public Function TensorFromRange(ByVal rngRange As Range, _
-                                ByVal bTranspose As Boolean) As Tensor
+                                ByVal bTrans As Boolean) As Tensor
     Set TensorFromRange = New Tensor
-    TensorFromRange.FromRange rngRange, bTranspose
+    TensorFromRange.FromRange rngRange, bTrans
 End Function
 
 Public Function TensorFromArray(ByRef adblArray() As Double) As Tensor
@@ -259,6 +249,7 @@ Public Function ImportDatasetFromCsv(ByVal strPath As String, _
                 ReDim Preserve adblInputs(1 To lInputSize, 1 To lNumAllocatedRows)
                 ReDim Preserve adblLabels(1 To lLabelSize, 1 To lNumAllocatedRows)
             End If
+            'vFields = Split(.ReadLine, ",")
             vFields = Split(.ReadLine, ";")
             lNumFields = UBound(vFields) + 1
             If lNumFields < lInputSize + lLabelSize Then
@@ -331,5 +322,4 @@ Public Sub LogToWorksheet(ByVal sName As String, _
             ActiveWindow.FreezePanes = True
         End If
     End With
-
 End Sub

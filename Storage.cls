@@ -66,33 +66,20 @@ Public Sub Resize(ByVal lNumRows As Long, _
     m_lNumRows = lNumRows
     m_lNumCols = lNumCols
     m_lNumElements = m_lNumRows * m_lNumCols
-    If m_lNumElements > 0 Then
-        ReDim m_adblBuffer(1 To m_lNumRows, 1 To m_lNumCols)
-        m_pAddress = VarPtr(m_adblBuffer(1, 1))
+    If m_lNumElements < 1 Then
+        Exit Sub
     End If
-End Sub
-
-Public Sub Fill(ByVal dblValue As Double)
-    Dim i As Long
-    Dim lLength As Long
-    
-    If m_lNumElements > 0 Then
-        m_adblBuffer(1, 1) = dblValue
-        i = 1
-        Do While i < m_lNumElements
-            lLength = MinLng2(i, m_lNumElements - i)
-            CopyMemory ByVal m_pAddress + i * ELEMENT_SIZE, ByVal m_pAddress, lLength * ELEMENT_SIZE
-            i = i + lLength
-        Loop
-    End If
+    ReDim m_adblBuffer(1 To m_lNumRows, 1 To m_lNumCols)
+    m_pAddress = VarPtr(m_adblBuffer(1, 1))
 End Sub
 
 Public Function Clone() As Storage
     Set Clone = New Storage
-    If m_lNumElements > 0 Then
-        Clone.Resize m_lNumRows, m_lNumCols
-        CopyMemory ByVal Clone.Address, ByVal m_pAddress, m_lNumElements * ELEMENT_SIZE
+    If m_lNumElements < 1 Then
+        Exit Function
     End If
+    Clone.Resize m_lNumRows, m_lNumCols
+    CopyMemory ByVal Clone.Address, ByVal m_pAddress, m_lNumElements * ELEMENT_SIZE
 End Function
 
 Public Sub FromArray(ByRef adblArray() As Double)
@@ -100,7 +87,6 @@ Public Sub FromArray(ByRef adblArray() As Double)
     Dim lNumRows As Long
     Dim lNumCols As Long
     Dim i As Long
-    Dim lDimensionSize As Long
     Dim pDescriptor As LongPtr
     Dim pData As LongPtr
     
@@ -113,8 +99,7 @@ Public Sub FromArray(ByRef adblArray() As Double)
     lNumCols = 1
     For i = 1 To lNumDimensions
         lNumRows = lNumRows * lNumCols
-        lDimensionSize = UBound(adblArray, i) - LBound(adblArray, i) + 1
-        lNumCols = lDimensionSize
+        lNumCols = UBound(adblArray, i) - LBound(adblArray, i) + 1
     Next i
     Resize lNumRows, lNumCols
     CopyMemory pDescriptor, ByVal VarPtrArray(adblArray), SIZEOF_LONGPTR
@@ -127,7 +112,7 @@ Public Function ToArray() As Double()
 End Function
 
 Public Sub FromRange(ByVal rngRange As Range, _
-                     Optional bTranspose As Boolean)
+                     Optional bTrans As Boolean)
     Dim lNumRows As Long
     Dim lNumCols As Long
     Dim i As Long
@@ -140,7 +125,7 @@ Public Sub FromRange(ByVal rngRange As Range, _
     With rngRange.Areas(1)
         lNumRows = .Rows.Count
         lNumCols = .Columns.Count
-        If bTranspose Then
+        If bTrans Then
             Resize lNumCols, lNumRows
             For i = 1 To lNumRows
                 For j = 1 To lNumCols

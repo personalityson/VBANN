@@ -80,7 +80,7 @@ Public Sub Init(ByVal oLearnable As Tensor, _
 End Sub
 
 Public Sub ResetGradient()
-    m_oGradient.Fill 0
+    m_oGradient.FillConstant 0
     m_lNumUpdates = 0
 End Sub
 

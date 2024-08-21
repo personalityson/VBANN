@@ -67,7 +67,7 @@ Public Declare PtrSafe Function FormatMessage Lib "kernel32.dll" Alias "FormatMe
                                                                                          ByVal dwLanguageId As Long, _
                                                                                          ByVal lpBuffer As String, _
                                                                                          ByVal nSize As Long, _
-                                                                                         ByRef Arguments As LongPtr) As Long
+                                                                                         ByRef arguments As LongPtr) As Long
 
 Public Declare PtrSafe Function GetTickCount Lib "kernel32.dll" () As Long
 
@@ -206,10 +206,6 @@ Public Function RoundToSignificantDigits(ByVal dblValue As Double, _
     RoundToSignificantDigits = RoundToMultiple(dblValue, dblMultiple, eRoundingType)
 End Function
 
-Public Function NormRand() As Double
-    NormRand = Sqr(-2 * Log(Rnd() + DOUBLE_MIN_ABS)) * Cos(MATH_2PI * Rnd())
-End Function
-
 Public Function GetRank(ByVal vArray As Variant) As Integer
     Const VARIANT_OFFSET_parray As Long = 8
     Dim iVarType As Integer
@@ -227,6 +223,42 @@ Public Function GetRank(ByVal vArray As Variant) As Integer
     End If
     CopyMemory GetRank, ByVal pSafeArray, SIZEOF_INTEGER
 End Function
+
+Public Sub ParseVariantToLongArray(ByVal vValueOrArray As Variant, _
+                                   ByRef lNumElements As Long, _
+                                   ByRef alArray() As Long)
+    Const PROCEDURE_NAME As String = "Tensor.ParseVariantToLongArray"
+    Dim lRank As Long
+    Dim lLBound As Long
+    Dim lUBound As Long
+    Dim i As Long
+    
+    lRank = GetRank(vValueOrArray)
+    Select Case lRank
+        Case -1
+            lNumElements = 1
+            ReDim alArray(1 To lNumElements)
+            alArray(1) = CLng(vValueOrArray)
+        Case 0
+            lNumElements = 0
+            Erase alArray
+        Case 1
+            lLBound = LBound(vValueOrArray)
+            lUBound = UBound(vValueOrArray)
+            If lLBound > lUBound Then
+                lNumElements = 0
+                Erase alArray
+            Else
+                lNumElements = lUBound - lLBound + 1
+                ReDim alArray(1 To lNumElements)
+                For i = 1 To lNumElements
+                    alArray(i) = CLng(vValueOrArray(lLBound + i - 1))
+                Next i
+            End If
+        Case Else
+            Err.Raise 5, PROCEDURE_NAME, "Expected a single value, an uninitialized array, or a one-dimensional array."
+    End Select
+End Sub
 
 Public Function Union(ByRef rngRangeA As Range, _
                       ByRef rngRangeB As Range) As Range

@@ -70,11 +70,7 @@ Public Sub Update(ByVal W As Parameter)
     If W Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
     End If
-    If IsBlasAvailable() Then
-        ApplyUpdatesWithBlas W
-    Else
-        ApplyUpdatesNaively W
-    End If
+    ApplyUpdates W
 End Sub
 
 Public Sub Save(ByVal oWorksheet As Serializer)
@@ -127,39 +123,7 @@ Private Sub PutStates(ByVal W As Parameter, _
     End With
 End Sub
 
-Private Sub ApplyUpdatesNaively(ByVal W As Parameter)
-    Dim lNumUpdates As Long
-    Dim i As Long
-    Dim dblLearningRate As Double
-    Dim dblWeightDecay As Double
-    Dim W_() As Double
-    Dim dLdW_() As Double
-    Dim v_() As Double
-    Dim v As Tensor
-    
-    If W.NumUpdates < 1 Then
-        Exit Sub
-    End If
-    GetStates W, v
-    lNumUpdates = W.NumUpdates
-    dblLearningRate = W.LearningRateFactor * m_dblLearningRate
-    dblWeightDecay = W.WeightDecayFactor * m_dblWeightDecay
-    W.Learnable.Ravel.CreateAlias W_
-    W.Gradient.Ravel.CreateAlias dLdW_
-    v.Ravel.CreateAlias v_
-    For i = 1 To W.Learnable.NumElements
-        v_(i) = m_dblMomentum * v_(i) + (1 - m_dblMomentum) * dLdW_(i) / lNumUpdates
-        W_(i) = W_(i) - dblLearningRate * (v_(i) + dblWeightDecay * W_(i))
-    Next i
-    W.Learnable.Ravel.RemoveAlias W_
-    W.Gradient.Ravel.RemoveAlias dLdW_
-    v.Ravel.RemoveAlias v_
-    PutStates W, v
-    W.ResetGradient
-End Sub
-
-Private Sub ApplyUpdatesWithBlas(ByVal W As Parameter)
-    Dim lNumUpdates As Long
+Private Sub ApplyUpdates(ByVal W As Parameter)
     Dim dblLearningRate As Double
     Dim dblWeightDecay As Double
     Dim v As Tensor
@@ -168,11 +132,10 @@ Private Sub ApplyUpdatesWithBlas(ByVal W As Parameter)
         Exit Sub
     End If
     GetStates W, v
-    lNumUpdates = W.NumUpdates
     dblLearningRate = W.LearningRateFactor * m_dblLearningRate
     dblWeightDecay = W.WeightDecayFactor * m_dblWeightDecay
-    daxpby W.Learnable.NumElements, (1 - m_dblMomentum) / lNumUpdates, W.Gradient.Address, 1&, m_dblMomentum, v.Address, 1&
-    daxpby W.Learnable.NumElements, -dblLearningRate, v.Address, 1&, 1 - dblLearningRate * dblWeightDecay, W.Learnable.Address, 1&
+    Set v = VecLinComb(m_dblMomentum, v, (1 - m_dblMomentum) / W.NumUpdates, W.Gradient)
+    Set W.Learnable = VecLinComb(1 - dblLearningRate * dblWeightDecay, W.Learnable, -dblLearningRate, v)
     PutStates W, v
     W.ResetGradient
 End Sub

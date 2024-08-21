@@ -157,42 +157,23 @@ End Sub
 
 Private Sub ApplyUpdates(ByVal W As Parameter)
     Dim lStep As Long
-    Dim lNumUpdates As Long
-    Dim i As Long
-    Dim dblLearningRate As Double
-    Dim dblWeightDecay As Double
     Dim dblAlpha As Double
-    Dim dblMeanGradient As Double
-    Dim W_() As Double
-    Dim dLdW_() As Double
-    Dim m_() As Double
-    Dim v_() As Double
+    Dim dblWeightDecay As Double
     Dim m As Tensor
     Dim v As Tensor
+    Dim dLdW As Tensor
     
     If W.NumUpdates < 1 Then
         Exit Sub
     End If
     GetStates W, lStep, m, v
     lStep = lStep + 1
-    lNumUpdates = W.NumUpdates
-    dblLearningRate = W.LearningRateFactor * m_dblLearningRate
+    dblAlpha = W.LearningRateFactor * m_dblLearningRate * Sqr(1 - m_dblBeta2 ^ lStep) / (1 - m_dblBeta1 ^ lStep)
     dblWeightDecay = W.WeightDecayFactor * m_dblWeightDecay
-    dblAlpha = dblLearningRate * Sqr(1 - m_dblBeta2 ^ lStep) / (1 - m_dblBeta1 ^ lStep)
-    W.Learnable.Ravel.CreateAlias W_
-    W.Gradient.Ravel.CreateAlias dLdW_
-    m.Ravel.CreateAlias m_
-    v.Ravel.CreateAlias v_
-    For i = 1 To W.Learnable.NumElements
-        dblMeanGradient = dLdW_(i) / lNumUpdates
-        m_(i) = m_dblBeta1 * m_(i) + (1 - m_dblBeta1) * dblMeanGradient
-        v_(i) = m_dblBeta2 * v_(i) + (1 - m_dblBeta2) * dblMeanGradient * dblMeanGradient
-        W_(i) = W_(i) - dblAlpha * (m_(i) / (Sqr(v_(i)) + m_dblEpsilon) + dblWeightDecay * W_(i))
-    Next i
-    W.Learnable.Ravel.RemoveAlias W_
-    W.Gradient.Ravel.RemoveAlias dLdW_
-    m.Ravel.RemoveAlias m_
-    v.Ravel.RemoveAlias v_
+    Set dLdW = VecDivC(W.Gradient, W.NumUpdates)
+    Set m = VecLinComb(m_dblBeta1, m, (1 - m_dblBeta1), dLdW)
+    Set v = VecLinComb(m_dblBeta2, v, (1 - m_dblBeta2), VecPow2(dLdW))
+    Set W.Learnable = VecLinComb(1 - dblAlpha * dblWeightDecay, W.Learnable, -dblAlpha, VecDivSqrtAddC(m, v, m_dblEpsilon))
     PutStates W, lStep, m, v
     W.ResetGradient
 End Sub

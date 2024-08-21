@@ -84,8 +84,8 @@ Private Function CalculateOutput(ByVal X As Tensor) As Tensor
     Dim Y As Tensor
     
     Set Y = Zeros(X.Shape)
-    X.Ravel.CreateAlias X_
-    Y.Ravel.CreateAlias Y_
+    X.Flatten.CreateAlias X_
+    Y.Flatten.CreateAlias Y_
     For i = 1 To X.NumElements
         If X_(i) < 0 Then
             Y_(i) = X_(i) * m_dblNegativeSlope
@@ -93,8 +93,8 @@ Private Function CalculateOutput(ByVal X As Tensor) As Tensor
             Y_(i) = X_(i)
         End If
     Next i
-    X.Ravel.RemoveAlias X_
-    Y.Ravel.RemoveAlias Y_
+    X.Flatten.RemoveAlias X_
+    Y.Flatten.RemoveAlias Y_
     Set CalculateOutput = Y
 End Function
 
@@ -107,9 +107,9 @@ Private Function CalculateInputError(ByVal Y As Tensor, _
     Dim dLdX As Tensor
     
     Set dLdX = Zeros(Y.Shape)
-    Y.Ravel.CreateAlias Y_
-    dLdX.Ravel.CreateAlias dLdX_
-    dLdY.Ravel.CreateAlias dLdY_
+    Y.Flatten.CreateAlias Y_
+    dLdX.Flatten.CreateAlias dLdX_
+    dLdY.Flatten.CreateAlias dLdY_
     For i = 1 To Y.NumElements
         If Y_(i) < 0 Then
             dLdX_(i) = dLdY_(i) * m_dblNegativeSlope
@@ -117,9 +117,9 @@ Private Function CalculateInputError(ByVal Y As Tensor, _
             dLdX_(i) = dLdY_(i)
         End If
     Next i
-    Y.Ravel.RemoveAlias Y_
-    dLdX.Ravel.RemoveAlias dLdX_
-    dLdY.Ravel.RemoveAlias dLdY_
+    Y.Flatten.RemoveAlias Y_
+    dLdX.Flatten.RemoveAlias dLdX_
+    dLdY.Flatten.RemoveAlias dLdY_
     Set CalculateInputError = dLdX
 End Function
 

@@ -57,48 +57,14 @@ Public Sub Load(ByVal oWorksheet As Serializer)
     'Do nothing
 End Sub
 
-Private Function SafeSigmoid(ByVal dblValue As Double) As Double
-    If dblValue >= -DOUBLE_MAX_LOG Then
-        SafeSigmoid = 1 / (1 + Exp(-dblValue))
-    End If
-End Function
-
 Private Function CalculateOutput(ByVal X As Tensor) As Tensor
-    Dim i As Long
-    Dim X_() As Double
-    Dim Y_() As Double
-    Dim Y As Tensor
-    
-    Set Y = Zeros(X.Shape)
-    X.Ravel.CreateAlias X_
-    Y.Ravel.CreateAlias Y_
-    For i = 1 To X.NumElements
-        Y_(i) = SafeSigmoid(X_(i))
-    Next i
-    X.Ravel.RemoveAlias X_
-    Y.Ravel.RemoveAlias Y_
-    Set CalculateOutput = Y
+    Set CalculateOutput = VecSigmoid(X)
 End Function
 
 Private Function CalculateInputError(ByVal Y As Tensor, _
                                      ByVal dLdY As Tensor) As Tensor
-    Dim i As Long
-    Dim Y_() As Double
-    Dim dLdX_() As Double
-    Dim dLdY_() As Double
-    Dim dLdX As Tensor
-    
-    Set dLdX = Zeros(Y.Shape)
-    Y.Ravel.CreateAlias Y_
-    dLdX.Ravel.CreateAlias dLdX_
-    dLdY.Ravel.CreateAlias dLdY_
-    For i = 1 To Y.NumElements
-        dLdX_(i) = dLdY_(i) * Y_(i) * (1 - Y_(i))
-    Next i
-    Y.Ravel.RemoveAlias Y_
-    dLdX.Ravel.RemoveAlias dLdX_
-    dLdY.Ravel.RemoveAlias dLdY_
-    Set CalculateInputError = dLdX
+    'dLdY * Y * (1 - Y)
+    Set CalculateInputError = VecMul(VecMul(dLdY, Y), VecSubCRev(1, Y))
 End Function
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
