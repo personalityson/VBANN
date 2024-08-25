@@ -169,11 +169,11 @@ Public Sub Load(ByVal oWorksheet As Serializer)
 End Sub
 
 Private Sub UpdateParameters(ByVal vParameters As Variant)
-    Dim w As Variant
+    Dim W As Variant
     
-    For Each w In vParameters
-        m_oOptimizer.Update w
-    Next w
+    For Each W In vParameters
+        m_oOptimizer.Update W
+    Next W
 End Sub
 
 Private Sub FitOneEpoch(ByVal oTrainingSet As DataLoader)
