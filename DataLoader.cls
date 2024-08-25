@@ -14,8 +14,8 @@ Private m_lBatchSize As Long
 Private m_lNumBatches As Long
 Private m_alItinerary() As Long
 
-Public Property Get BatchSize() As Long
-    BatchSize = m_lBatchSize
+Public Property Get batchSize() As Long
+    batchSize = m_lBatchSize
 End Property
 
 Public Property Get NumBatches() As Long

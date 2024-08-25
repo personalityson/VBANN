@@ -60,7 +60,7 @@ End Sub
 
 Private Function CalculateLoss(ByVal Y As Tensor, _
                                ByVal T As Tensor) As Tensor
-    Set CalculateLoss = VecMulC(0.5, VecPow2(VecSub(Y, T)))
+    Set CalculateLoss = VecMulC(VecPow2(VecSub(Y, T)), 0.5)
 End Function
 
 Private Function CalculateOutputError(ByVal Y As Tensor, _

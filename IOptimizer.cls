@@ -20,7 +20,7 @@ Option Explicit
         '
     End Property
     
-    Public Sub Update(ByVal W As Object)
+    Public Sub Update(ByVal w As Object)
         '
     End Sub
 #Else
@@ -32,7 +32,7 @@ Option Explicit
         '
     End Property
     
-    Public Sub Update(ByVal W As Parameter)
+    Public Sub Update(ByVal w As Parameter)
         '
     End Sub
 #End If

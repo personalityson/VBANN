@@ -64,7 +64,7 @@ End Function
 Private Function CalculateInputError(ByVal Y As Tensor, _
                                      ByVal dLdY As Tensor) As Tensor
     'dLdY * Y * (1 - Y)
-    Set CalculateInputError = VecMul(VecMul(dLdY, Y), VecSubCRev(1, Y))
+    Set CalculateInputError = VecMul(VecMul(dLdY, Y), VecSubCRev(Y, 1))
 End Function
 
 #If USE_LATE_BINDING_IN_INTERFACES Then

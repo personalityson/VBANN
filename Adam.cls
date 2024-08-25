@@ -42,8 +42,8 @@ Public Property Get Beta2() As Double
     Beta2 = m_dblBeta2
 End Property
 
-Public Property Get Epsilon() As Double
-    Epsilon = m_dblEpsilon
+Public Property Get epsilon() As Double
+    epsilon = m_dblEpsilon
 End Property
 
 Public Property Get WeightDecay() As Double
@@ -84,13 +84,13 @@ Public Sub Init(Optional ByVal dblLearningRate As Double = 0.001, _
     m_oStates.RemoveAll
 End Sub
 
-Public Sub Update(ByVal W As Parameter)
+Public Sub Update(ByVal w As Parameter)
     Const PROCEDURE_NAME As String = "Adam.Update"
     
-    If W Is Nothing Then
+    If w Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
     End If
-    ApplyUpdates W
+    ApplyUpdates w
 End Sub
 
 Public Sub Save(ByVal oWorksheet As Serializer)
@@ -123,15 +123,15 @@ Public Sub Load(ByVal oWorksheet As Serializer)
     End With
 End Sub
 
-Private Sub GetStates(ByVal W As Parameter, _
+Private Sub GetStates(ByVal w As Parameter, _
                       ByRef lStep As Long, _
                       ByRef m As Tensor, _
                       ByRef v As Tensor)
     With m_oStates
-        If Not .Exists(W) Then
-            PutStates W, 0&, Zeros(W.Learnable.Shape), Zeros(W.Learnable.Shape)
+        If Not .Exists(w) Then
+            PutStates w, 0&, Zeros(w.Learnable.Shape), Zeros(w.Learnable.Shape)
         End If
-        With .Item(W)
+        With .Item(w)
             lStep = .Item("Step")
             Set m = .Item("Mean")
             Set v = .Item("Variance")
@@ -139,15 +139,15 @@ Private Sub GetStates(ByVal W As Parameter, _
     End With
 End Sub
 
-Private Sub PutStates(ByVal W As Parameter, _
+Private Sub PutStates(ByVal w As Parameter, _
                       ByVal lStep As Long, _
                       ByVal m As Tensor, _
                       ByVal v As Tensor)
     With m_oStates
-        If Not .Exists(W) Then
-            Set .Item(W) = CreateObject("Scripting.Dictionary")
+        If Not .Exists(w) Then
+            Set .Item(w) = CreateObject("Scripting.Dictionary")
         End If
-        With .Item(W)
+        With .Item(w)
             .Item("Step") = lStep
             Set .Item("Mean") = m
             Set .Item("Variance") = v
@@ -155,27 +155,26 @@ Private Sub PutStates(ByVal W As Parameter, _
     End With
 End Sub
 
-Private Sub ApplyUpdates(ByVal W As Parameter)
+Private Sub ApplyUpdates(ByVal w As Parameter)
     Dim lStep As Long
     Dim dblAlpha As Double
     Dim dblWeightDecay As Double
     Dim m As Tensor
     Dim v As Tensor
-    Dim dLdW As Tensor
-    
-    If W.NumUpdates < 1 Then
+
+    If w.NumUpdates < 1 Then
         Exit Sub
     End If
-    GetStates W, lStep, m, v
+    GetStates w, lStep, m, v
     lStep = lStep + 1
-    dblAlpha = W.LearningRateFactor * m_dblLearningRate * Sqr(1 - m_dblBeta2 ^ lStep) / (1 - m_dblBeta1 ^ lStep)
-    dblWeightDecay = W.WeightDecayFactor * m_dblWeightDecay
-    Set dLdW = VecDivC(W.Gradient, W.NumUpdates)
-    Set m = VecLinComb(m_dblBeta1, m, (1 - m_dblBeta1), dLdW)
-    Set v = VecLinComb(m_dblBeta2, v, (1 - m_dblBeta2), VecPow2(dLdW))
-    Set W.Learnable = VecLinComb(1 - dblAlpha * dblWeightDecay, W.Learnable, -dblAlpha, VecDivSqrtAddC(m, v, m_dblEpsilon))
-    PutStates W, lStep, m, v
-    W.ResetGradient
+    dblAlpha = w.LearningRateFactor * m_dblLearningRate * Sqr(1 - m_dblBeta2 ^ lStep) / (1 - m_dblBeta1 ^ lStep)
+    dblWeightDecay = w.WeightDecayFactor * m_dblWeightDecay
+    'Update in-place
+    VecLinComb_I m_dblBeta1, m, (1 - m_dblBeta1) / (w.NumUpdates), w.Gradient
+    VecLinComb_I m_dblBeta2, v, (1 - m_dblBeta2) / (w.NumUpdates * w.NumUpdates), VecPow2(w.Gradient)
+    VecLinComb_I 1 - dblAlpha * dblWeightDecay, w.Learnable, -dblAlpha, VecDivSqrtAddC(m, v, m_dblEpsilon)
+    PutStates w, lStep, m, v
+    w.ResetGradient
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
@@ -187,8 +186,8 @@ End Sub
         LearningRate = dblLearningRate
     End Property
     
-    Private Sub IOptimizer_Update(ByVal W As Object)
-        Update W
+    Private Sub IOptimizer_Update(ByVal w As Object)
+        Update w
     End Sub
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Object)
@@ -207,8 +206,8 @@ End Sub
         LearningRate = dblLearningRate
     End Property
     
-    Private Sub IOptimizer_Update(ByVal W As Parameter)
-        Update W
+    Private Sub IOptimizer_Update(ByVal w As Parameter)
+        Update w
     End Sub
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)

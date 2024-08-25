@@ -130,13 +130,14 @@ End Sub
 
 Private Function CalculateOutput(ByVal X As Tensor) As Tensor
     Dim lBatchSize As Long
-    Dim Z1 As Tensor
-    Dim Z2 As Tensor
-    
+    Dim Y As Tensor
+
     lBatchSize = X.Size(2)
-    Set Z1 = MatMul(m_W.Learnable, X)
-    Set Z2 = MatMul(m_b.Learnable, Ones(lBatchSize), True, True)
-    Set CalculateOutput = VecAdd(Z1, Z2)
+    Set Y = Zeros(Array(m_lOutputSize, lBatchSize))
+    'Update in-place
+    MatMul_I Y, m_W.Learnable, X
+    MatMul_I Y, m_b.Learnable, Ones(lBatchSize), True, True
+    Set CalculateOutput = Y
 End Function
 
 Private Function CalculateInputError(ByVal dLdY As Tensor) As Tensor
@@ -146,14 +147,11 @@ End Function
 Private Sub UpdateGradients(ByVal X As Tensor, _
                             ByVal dLdY As Tensor)
     Dim lBatchSize As Long
-    Dim dLdW As Tensor
-    Dim dLdb As Tensor
     
     lBatchSize = X.Size(2)
-    Set dLdW = MatMul(dLdY, X, , True)
-    Set dLdb = MatMul(dLdY, Ones(lBatchSize))
-    Set m_W.Gradient = VecAdd(m_W.Gradient, dLdW)
-    Set m_b.Gradient = VecAdd(m_b.Gradient, dLdb)
+    'Update in-place
+    MatMul_I m_W.Gradient, dLdY, X, , True
+    MatMul_I m_b.Gradient, dLdY, Ones(lBatchSize)
     m_W.NumUpdates = m_W.NumUpdates + lBatchSize
     m_b.NumUpdates = m_b.NumUpdates + lBatchSize
 End Sub

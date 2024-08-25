@@ -328,14 +328,14 @@ Public Function Complement(ByRef rngRangeA As Range, _
             If rngResult Is Nothing Then
                 Exit For
             End If
-            lStartRowB = rngAreaB.Row
+            lStartRowB = rngAreaB.row
             lStartColB = rngAreaB.Column
             lEndRowB = lStartRowB + rngAreaB.Rows.Count - 1
             lEndColB = lStartColB + rngAreaB.Columns.Count - 1
             Set rngResultCopy = rngResult
             Set rngResult = Nothing
             For Each rngAreaA In rngResultCopy.Areas
-                lStartRowA = rngAreaA.Row
+                lStartRowA = rngAreaA.row
                 lStartColA = rngAreaA.Column
                 lEndRowA = lStartRowA + rngAreaA.Rows.Count - 1
                 lEndColA = lStartColA + rngAreaA.Columns.Count - 1
@@ -379,7 +379,7 @@ Public Function GetFirstRow(ByVal wksWorksheet As Worksheet, _
         Set rngNonEmptyCell = wksWorksheet.Cells.Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
     End If
     If Not rngNonEmptyCell Is Nothing Then
-        GetFirstRow = rngNonEmptyCell.Row
+        GetFirstRow = rngNonEmptyCell.row
     End If
 End Function
 
@@ -397,7 +397,7 @@ Public Function GetLastRow(ByVal wksWorksheet As Worksheet, _
         Set rngNonEmptyCell = wksWorksheet.Cells.Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
     End If
     If Not rngNonEmptyCell Is Nothing Then
-        GetLastRow = rngNonEmptyCell.Row
+        GetLastRow = rngNonEmptyCell.row
     End If
 End Function
 
@@ -602,7 +602,7 @@ Public Function CreateWorksheet(ByVal wbkParent As Workbook, _
     sName = SanitizeWorksheetName(sName)
     If WorksheetExists(wbkParent, sName) Then
         If bOverwrite Then
-            Set wksResult = wbkParent.Worksheets.Add(After:=Parent.Worksheets(sName))
+            Set wksResult = wbkParent.Worksheets.Add(after:=Parent.Worksheets(sName))
             Application.DisplayAlerts = False
             wbkParent.Worksheets(sName).Delete
             Application.DisplayAlerts = bDisplayAlertsSave
@@ -612,7 +612,7 @@ Public Function CreateWorksheet(ByVal wbkParent As Workbook, _
             Exit Function
         End If
     Else
-        Set wksResult = wbkParent.Worksheets.Add(After:=wbkParent.Worksheets(wbkParent.Worksheets.Count))
+        Set wksResult = wbkParent.Worksheets.Add(after:=wbkParent.Worksheets(wbkParent.Worksheets.Count))
     End If
     wksResult.Name = sName
     wksResult.Activate

@@ -81,30 +81,29 @@ Public Function HeNormal(ByVal vShape As Variant, _
     Set HeNormal = Normal(vShape, 0, dblSigma)
 End Function
 
-Public Function Parameter(ByVal oLearnable As Tensor, _
-                          Optional ByVal dblLearningRateFactor As Double = 1, _
-                          Optional ByVal dblWeightDecayFactor As Double = 1) As Parameter
-    Set Parameter = New Parameter
-    Parameter.Init oLearnable, dblLearningRateFactor, dblWeightDecayFactor
+Public Function Adam(Optional ByVal dblLearningRate As Double = 0.001, _
+                     Optional ByVal dblBeta1 As Double = 0.9, _
+                     Optional ByVal dblBeta2 As Double = 0.999, _
+                     Optional ByVal dblEpsilon As Double = 0.00000001, _
+                     Optional ByVal dblWeightDecay As Double = 0.01) As Adam
+    Set Adam = New Adam
+    Adam.Init dblLearningRate, dblBeta1, dblBeta2, dblEpsilon, dblWeightDecay
+End Function
+
+Public Function BCELoss() As BCELoss
+    Set BCELoss = New BCELoss
+End Function
+
+Public Function DataLoader(ByVal oDataset As Dataset, _
+                           ByVal lBatchSize As Long) As DataLoader
+    Set DataLoader = New DataLoader
+    DataLoader.Init oDataset, lBatchSize
 End Function
 
 Public Function FullyConnectedLayer(ByVal lInputSize As Long, _
                                     ByVal lOutputSize As Long) As FullyConnectedLayer
     Set FullyConnectedLayer = New FullyConnectedLayer
     FullyConnectedLayer.Init lInputSize, lOutputSize
-End Function
-
-Public Function LeakyReLULayer(Optional ByVal dblNegativeSlope As Double = 0.01) As LeakyReLULayer
-    Set LeakyReLULayer = New LeakyReLULayer
-    LeakyReLULayer.Init dblNegativeSlope
-End Function
-
-Public Function SigmoidLayer() As SigmoidLayer
-    Set SigmoidLayer = New SigmoidLayer
-End Function
-
-Public Function BCELoss() As BCELoss
-    Set BCELoss = New BCELoss
 End Function
 
 Public Function L1Loss() As L1Loss
@@ -115,13 +114,22 @@ Public Function L2Loss() As L2Loss
     Set L2Loss = New L2Loss
 End Function
 
-Public Function Adam(Optional ByVal dblLearningRate As Double = 0.001, _
-                     Optional ByVal dblBeta1 As Double = 0.9, _
-                     Optional ByVal dblBeta2 As Double = 0.999, _
-                     Optional ByVal dblEpsilon As Double = 0.00000001, _
-                     Optional ByVal dblWeightDecay As Double = 0.01) As Adam
-    Set Adam = New Adam
-    Adam.Init dblLearningRate, dblBeta1, dblBeta2, dblEpsilon, dblWeightDecay
+Public Function LeakyReLULayer(Optional ByVal dblNegativeSlope As Double = 0.01) As LeakyReLULayer
+    Set LeakyReLULayer = New LeakyReLULayer
+    LeakyReLULayer.Init dblNegativeSlope
+End Function
+
+Public Function Parameter(ByVal oLearnable As Tensor, _
+                          Optional ByVal dblLearningRateFactor As Double = 1, _
+                          Optional ByVal dblWeightDecayFactor As Double = 1) As Parameter
+    Set Parameter = New Parameter
+    Parameter.Init oLearnable, dblLearningRateFactor, dblWeightDecayFactor
+End Function
+
+Public Function Sequential(ByVal oCriterion As ICriterion, _
+                           ByVal oOptimizer As IOptimizer) As Sequential
+    Set Sequential = New Sequential
+    Sequential.Init oCriterion, oOptimizer
 End Function
 
 Public Function SGDM(Optional ByVal dblLearningRate As Double = 0.001, _
@@ -131,16 +139,19 @@ Public Function SGDM(Optional ByVal dblLearningRate As Double = 0.001, _
     SGDM.Init dblLearningRate, dblMomentum, dblWeightDecay
 End Function
 
-Public Function DataLoader(ByVal oDataset As Dataset, _
-                           ByVal lBatchSize As Long) As DataLoader
-    Set DataLoader = New DataLoader
-    DataLoader.Init oDataset, lBatchSize
+Public Function SigmoidLayer() As SigmoidLayer
+    Set SigmoidLayer = New SigmoidLayer
 End Function
 
-Public Function Sequential(ByVal oCriterion As ICriterion, _
-                           ByVal oOptimizer As IOptimizer) As Sequential
-    Set Sequential = New Sequential
-    Sequential.Init oCriterion, oOptimizer
+Public Function TensorFromRange(ByVal rngRange As Range, _
+                                ByVal bTrans As Boolean) As Tensor
+    Set TensorFromRange = New Tensor
+    TensorFromRange.FromRange rngRange, bTrans
+End Function
+
+Public Function TensorFromArray(ByRef adblArray() As Double) As Tensor
+    Set TensorFromArray = New Tensor
+    TensorFromArray.FromArray adblArray
 End Function
 
 Public Sub Serialize(ByVal sName As String, _
@@ -156,17 +167,6 @@ Public Function Unserialize(ByVal sName As String) As ISerializable
         .Init sName, False
         Set Unserialize = .ReadObject()
     End With
-End Function
-
-Public Function TensorFromRange(ByVal rngRange As Range, _
-                                ByVal bTrans As Boolean) As Tensor
-    Set TensorFromRange = New Tensor
-    TensorFromRange.FromRange rngRange, bTrans
-End Function
-
-Public Function TensorFromArray(ByRef adblArray() As Double) As Tensor
-    Set TensorFromArray = New Tensor
-    TensorFromArray.FromArray adblArray
 End Function
 
 Public Function ImportDatasetFromWorksheet(ByVal sName As String, _

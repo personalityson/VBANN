@@ -46,6 +46,7 @@ Private m_alOuterStride() As Long
 Private m_lNumElements As Long
 Private m_oData As Storage
 Private m_pDescriptor As LongPtr
+Private m_bIsDescriptorAllocated As Boolean
 
 Public Property Get NumDimensions() As Long
     NumDimensions = m_lNumDimensions
@@ -90,7 +91,6 @@ Public Sub Resize(ByVal vShape As Variant, _
     Else
         AllocateData
     End If
-    AllocateDescriptor
 End Sub
 
 Public Sub Reshape(ByVal vShape As Variant)
@@ -130,14 +130,7 @@ Public Function Slice(ByVal lDimension As Long, _
                       ByVal lStart As Long, _
                       ByVal lEnd As Long) As Tensor
     Const PROCEDURE_NAME As String = "Tensor.Slice"
-    Dim lOldDimensionSize As Long
-    Dim lNewDimensionSize As Long
-    Dim alNewShape() As Long
-    Dim lInnerStride As Long
-    Dim lOuterStride As Long
-    Dim i As Long
-    Dim oResult As Tensor
-    
+
     If lDimension < 1 Or lDimension > m_lNumDimensions Then
         Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
     End If
@@ -147,20 +140,7 @@ Public Function Slice(ByVal lDimension As Long, _
     If lEnd < 1 Or lEnd > m_alShape(lDimension) Then
         Err.Raise 9, PROCEDURE_NAME, "End index must be between 1 and the size of the dimension."
     End If
-    lOldDimensionSize = m_alShape(lDimension)
-    lNewDimensionSize = MaxLng2(0, lEnd - lStart + 1)
-    alNewShape = m_alShape
-    alNewShape(lDimension) = lNewDimensionSize
-    Set oResult = New Tensor
-    oResult.Resize alNewShape
-    lInnerStride = m_alInnerStride(lDimension)
-    lOuterStride = m_alOuterStride(lDimension)
-    For i = 1 To lOuterStride
-        CopyMemory ByVal oResult.Address + ((i - 1) * lNewDimensionSize + (1 - 1)) * lInnerStride * m_oData.ElementSize, _
-                   ByVal m_oData.Address + ((i - 1) * lOldDimensionSize + (lStart - 1)) * lInnerStride * m_oData.ElementSize, _
-                   lNewDimensionSize * lInnerStride * m_oData.ElementSize
-    Next i
-    Set Slice = oResult
+    Set Slice = SliceInternal(lDimension, lStart, lEnd)
 End Function
 
 Public Function Gather(ByVal lDimension As Long, _
@@ -168,43 +148,18 @@ Public Function Gather(ByVal lDimension As Long, _
     Const PROCEDURE_NAME As String = "Tensor.Gather"
     Dim lNumIndices As Long
     Dim alIndices() As Long
-    Dim lOldDimensionSize As Long
-    Dim lNewDimensionSize As Long
-    Dim alNewShape() As Long
-    Dim lInnerStride As Long
-    Dim lOuterStride As Long
     Dim i As Long
-    Dim j As Long
-    Dim lIndex As Long
-    Dim oResult As Tensor
     
     If lDimension < 1 Or lDimension > m_lNumDimensions Then
         Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
     End If
     ParseVariantToLongArray vIndices, lNumIndices, alIndices
     For i = 1 To lNumIndices
-        lIndex = alIndices(i)
-        If lIndex < 1 Or lIndex > m_alShape(lDimension) Then
+        If alIndices(i) < 1 Or alIndices(i) > m_alShape(lDimension) Then
             Err.Raise 9, PROCEDURE_NAME, "Index must be between 1 and the size of the dimension."
         End If
     Next i
-    lOldDimensionSize = m_alShape(lDimension)
-    lNewDimensionSize = MinLng2(lOldDimensionSize, lNumIndices)
-    alNewShape = m_alShape
-    alNewShape(lDimension) = lNewDimensionSize
-    Set oResult = New Tensor
-    oResult.Resize alNewShape
-    lInnerStride = m_alInnerStride(lDimension)
-    lOuterStride = m_alOuterStride(lDimension)
-    For i = 1 To lOuterStride
-        For j = 1 To lNewDimensionSize
-            lIndex = alIndices(j)
-            CopyMemory ByVal oResult.Address + ((i - 1) * lNewDimensionSize + (j - 1)) * lInnerStride * m_oData.ElementSize, _
-                       ByVal m_oData.Address + ((i - 1) * lOldDimensionSize + (lIndex - 1)) * lInnerStride * m_oData.ElementSize, _
-                       lInnerStride * m_oData.ElementSize
-        Next j
-    Next i
-    Set Gather = oResult
+    Set Gather = GatherInternal(lDimension, lNumIndices, alIndices)
 End Function
 
 Public Function ReduceSum(ByVal lDimension As Long) As Tensor
@@ -213,7 +168,7 @@ Public Function ReduceSum(ByVal lDimension As Long) As Tensor
     If lDimension < 1 Or lDimension > m_lNumDimensions Then
         Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
     End If
-    Set ReduceSum = ReduceWithDimension(lDimension, rdcSum)
+    Set ReduceSum = ReduceInternal(lDimension, rdcSum)
 End Function
 
 Public Function ReduceMean(ByVal lDimension As Long) As Tensor
@@ -222,7 +177,7 @@ Public Function ReduceMean(ByVal lDimension As Long) As Tensor
     If lDimension < 1 Or lDimension > m_lNumDimensions Then
         Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
     End If
-    Set ReduceMean = ReduceWithDimension(lDimension, rdcMean)
+    Set ReduceMean = ReduceInternal(lDimension, rdcMean)
 End Function
 
 Public Function ReduceMin(ByVal lDimension As Long) As Tensor
@@ -231,7 +186,7 @@ Public Function ReduceMin(ByVal lDimension As Long) As Tensor
     If lDimension < 1 Or lDimension > m_lNumDimensions Then
         Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
     End If
-    Set ReduceMin = ReduceWithDimension(lDimension, rdcMin)
+    Set ReduceMin = ReduceInternal(lDimension, rdcMin)
 End Function
 
 Public Function ReduceMax(ByVal lDimension As Long) As Tensor
@@ -240,7 +195,7 @@ Public Function ReduceMax(ByVal lDimension As Long) As Tensor
     If lDimension < 1 Or lDimension > m_lNumDimensions Then
         Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
     End If
-    Set ReduceMax = ReduceWithDimension(lDimension, rdcMax)
+    Set ReduceMax = ReduceInternal(lDimension, rdcMax)
 End Function
 
 Public Function ReduceProduct(ByVal lDimension As Long) As Tensor
@@ -249,27 +204,27 @@ Public Function ReduceProduct(ByVal lDimension As Long) As Tensor
     If lDimension < 1 Or lDimension > m_lNumDimensions Then
         Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
     End If
-    Set ReduceProduct = ReduceWithDimension(lDimension, rdcProduct)
+    Set ReduceProduct = ReduceInternal(lDimension, rdcProduct)
 End Function
 
 Public Function Sum() As Double
-    Sum = SumInStride(1, 1, m_lNumElements)
+    Sum = AggregateInternal(rdcSum)
 End Function
 
 Public Function Mean() As Double
-    Mean = MeanInStride(1, 1, m_lNumElements)
+    Mean = AggregateInternal(rdcMean)
 End Function
 
 Public Function Min() As Double
-    Min = MinInStride(1, 1, m_lNumElements)
+    Min = AggregateInternal(rdcMin)
 End Function
 
 Public Function Max() As Double
-    Max = MaxInStride(1, 1, m_lNumElements)
+    Max = AggregateInternal(rdcMax)
 End Function
 
 Public Function Product() As Double
-    Product = ProductInStride(1, 1, m_lNumElements)
+    Product = AggregateInternal(rdcProduct)
 End Function
 
 Public Sub FromRange(ByVal rngRange As Range, _
@@ -318,9 +273,9 @@ End Sub
 Public Function ToArray() As Double()
     Dim A_() As Double
     
-    CreateAlias A_
+    Me.CreateAlias A_
     ToArray = A_
-    RemoveAlias A_
+    Me.RemoveAlias A_
 End Function
 
 Public Sub FillConstant(ByVal dblValue As Double)
@@ -388,6 +343,7 @@ Public Function ShapeEquals(ByVal vShape As Variant) As Boolean
 End Function
 
 Public Sub CreateAlias(ByRef adblAlias() As Double)
+    AllocateDescriptorLazily
     CopyMemory ByVal VarPtrArray(adblAlias), m_pDescriptor, SIZEOF_LONGPTR
 End Sub
 
@@ -431,6 +387,7 @@ Private Sub Reset()
     m_lNumElements = 0
     Set m_oData = New Storage
     m_pDescriptor = NULL_PTR
+    m_bIsDescriptorAllocated = False
 End Sub
 
 Private Sub SetShape(ByVal vShape As Variant)
@@ -526,135 +483,235 @@ Private Sub DestroyDescriptor()
     End If
 End Sub
 
-Private Function ReduceWithDimension(ByVal lDimension As Long, _
-                                     ByVal eReduction As ReductionType) As Tensor
-    Dim lOldDimensionSize As Long
-    Dim lNewDimensionSize As Long
+Private Sub AllocateDescriptorLazily()
+    If Not m_bIsDescriptorAllocated Then
+        AllocateDescriptor
+        m_bIsDescriptorAllocated = True
+    End If
+End Sub
+
+Private Function SliceInternal(ByVal lDimension As Long, _
+                               ByVal lStart As Long, _
+                               ByVal lEnd As Long) As Tensor
+    Dim lOldSize As Long
+    Dim lNewSize As Long
     Dim alNewShape() As Long
     Dim lInnerStride As Long
     Dim lOuterStride As Long
-    Dim lIndexA As Long
-    Dim lIndexR As Long
     Dim i As Long
-    Dim k As Long
-    Dim R_() As Double
     Dim oResult As Tensor
     
-    lOldDimensionSize = m_alShape(lDimension)
-    lNewDimensionSize = 1
+    lOldSize = m_alShape(lDimension)
+    lNewSize = MaxLng2(0, lEnd - lStart + 1)
     alNewShape = m_alShape
-    alNewShape(lDimension) = lNewDimensionSize
+    alNewShape(lDimension) = lNewSize
     Set oResult = New Tensor
     oResult.Resize alNewShape
-    oResult.Flatten.CreateAlias R_
     lInnerStride = m_alInnerStride(lDimension)
     lOuterStride = m_alOuterStride(lDimension)
+    For i = 1 To lOuterStride
+        CopyMemory ByVal oResult.Address + ((i - 1) * lNewSize + (1 - 1)) * lInnerStride * m_oData.ElementSize, _
+                   ByVal m_oData.Address + ((i - 1) * lOldSize + (lStart - 1)) * lInnerStride * m_oData.ElementSize, _
+                   lNewSize * lInnerStride * m_oData.ElementSize
+    Next i
+    Set SliceInternal = oResult
+End Function
+
+Public Function GatherInternal(ByVal lDimension As Long, _
+                               ByVal lNumIndices As Long, _
+                               ByRef alIndices() As Long) As Tensor
+    Dim lOldSize As Long
+    Dim lNewSize As Long
+    Dim alNewShape() As Long
+    Dim lInnerStride As Long
+    Dim lOuterStride As Long
+    Dim i As Long
+    Dim j As Long
+    Dim lIndex As Long
+    Dim oResult As Tensor
+    
+    lOldSize = m_alShape(lDimension)
+    lNewSize = MinLng2(lOldSize, lNumIndices)
+    alNewShape = m_alShape
+    alNewShape(lDimension) = lNewSize
+    Set oResult = New Tensor
+    oResult.Resize alNewShape
+    lInnerStride = m_alInnerStride(lDimension)
+    lOuterStride = m_alOuterStride(lDimension)
+    For i = 1 To lOuterStride
+        For j = 1 To lNewSize
+            lIndex = alIndices(j)
+            CopyMemory ByVal oResult.Address + ((i - 1) * lNewSize + (j - 1)) * lInnerStride * m_oData.ElementSize, _
+                       ByVal m_oData.Address + ((i - 1) * lOldSize + (lIndex - 1)) * lInnerStride * m_oData.ElementSize, _
+                       lInnerStride * m_oData.ElementSize
+        Next j
+    Next i
+    Set GatherInternal = oResult
+End Function
+
+Private Function ReduceInternal(ByVal lDimension As Long, _
+                                ByVal eReduction As ReductionType) As Tensor
+    Dim lOldSize As Long
+    Dim lNewSize As Long
+    Dim alNewShape() As Long
+    Dim lInnerStride As Long
+    Dim lOuterStride As Long
+    Dim i As Long
+    Dim k As Long
+    Dim A_() As Double
+    Dim R_() As Double
+    Dim A As Tensor
+    Dim R As Tensor
+    Dim oResult As Tensor
+    
+    lOldSize = m_alShape(lDimension)
+    lNewSize = 1
+    alNewShape = m_alShape
+    alNewShape(lDimension) = lNewSize
+    Set oResult = New Tensor
+    oResult.Resize alNewShape
+    lInnerStride = m_alInnerStride(lDimension)
+    lOuterStride = m_alOuterStride(lDimension)
+    Set A = Me.View(Array(lInnerStride, lOldSize, lOuterStride))
+    Set R = oResult.View(Array(lInnerStride, lNewSize, lOuterStride))
+    A.CreateAlias A_
+    R.CreateAlias R_
     For i = 1 To lInnerStride
         For k = 1 To lOuterStride
-            lIndexA = (k - 1) * lOldDimensionSize * lInnerStride + i
-            lIndexR = (k - 1) * lNewDimensionSize * lInnerStride + i
             Select Case eReduction
                 Case rdcSum
-                    R_(lIndexR) = SumInStride(lIndexA, lInnerStride, lOldDimensionSize)
+                    R_(i, 1, k) = SumInStride(A_, i, lOldSize, k)
                 Case rdcMean
-                    R_(lIndexR) = MeanInStride(lIndexA, lInnerStride, lOldDimensionSize)
+                    R_(i, 1, k) = MeanInStride(A_, i, lOldSize, k)
                 Case rdcMin
-                    R_(lIndexR) = MinInStride(lIndexA, lInnerStride, lOldDimensionSize)
+                    R_(i, 1, k) = MinInStride(A_, i, lOldSize, k)
                 Case rdcMax
-                    R_(lIndexR) = MaxInStride(lIndexA, lInnerStride, lOldDimensionSize)
+                    R_(i, 1, k) = MaxInStride(A_, i, lOldSize, k)
                 Case rdcProduct
-                    R_(lIndexR) = ProductInStride(lIndexA, lInnerStride, lOldDimensionSize)
+                    R_(i, 1, k) = ProductInStride(A_, i, lOldSize, k)
             End Select
         Next k
     Next i
-    oResult.Flatten.RemoveAlias R_
-    Set ReduceWithDimension = oResult
+    A.RemoveAlias A_
+    R.RemoveAlias R_
+    Set ReduceInternal = oResult
 End Function
 
-Private Function SumInStride(ByVal lStart As Long, _
-                             ByVal lStride As Long, _
-                             ByVal lNumElements As Long) As Double
-    Dim j As Long
+Private Function AggregateInternal(ByVal eReduction As ReductionType) As Double
     Dim A_() As Double
     Dim dblResult As Double
+    
+    With GetContiguousView
+        .CreateAlias A_
+        Select Case eReduction
+            Case rdcSum
+                dblResult = SumInStride(A_, 1, m_lNumElements, 1)
+            Case rdcMean
+                dblResult = MeanInStride(A_, 1, m_lNumElements, 1)
+            Case rdcMin
+                dblResult = MinInStride(A_, 1, m_lNumElements, 1)
+            Case rdcMax
+                dblResult = MaxInStride(A_, 1, m_lNumElements, 1)
+            Case rdcProduct
+                dblResult = ProductInStride(A_, 1, m_lNumElements, 1)
+        End Select
+        .RemoveAlias A_
+    End With
+    AggregateInternal = dblResult
+End Function
 
+Private Function GetContiguousView() As Tensor
+    Static s_oContiguousView As Tensor
+    Dim bIsDirty As Boolean
+    
+    If s_oContiguousView Is Nothing Then
+        bIsDirty = True
+    ElseIf s_oContiguousView.Address <> m_oData.Address Then
+        bIsDirty = True
+    End If
+    If bIsDirty Then
+        Set s_oContiguousView = Me.View(Array(1, m_lNumElements, 1))
+    End If
+    Set GetContiguousView = s_oContiguousView
+End Function
+
+Private Function SumInStride(ByRef A_() As Double, _
+                             ByVal i As Long, _
+                             ByVal lNumElements As Long, _
+                             ByVal k As Long) As Double
+    Dim j As Long
+    Dim dblResult As Double
+    
     If lNumElements < 1 Then
         Exit Function
     End If
-    Me.Flatten.CreateAlias A_
     dblResult = 0
     For j = 1 To lNumElements
-         dblResult = dblResult + A_(lStart + (j - 1) * lStride)
+         dblResult = dblResult + A_(i, j, k)
     Next j
-    Me.Flatten.RemoveAlias A_
     SumInStride = dblResult
 End Function
 
-Private Function MeanInStride(ByVal lStart As Long, _
-                              ByVal lStride As Long, _
-                              ByVal lNumElements As Long) As Double
+Private Function MeanInStride(ByRef A_() As Double, _
+                              ByVal i As Long, _
+                              ByVal lNumElements As Long, _
+                              ByVal k As Long) As Double
     If lNumElements < 1 Then
         Exit Function
     End If
-    MeanInStride = SumInStride(lStart, lStride, lNumElements) / lNumElements
+    MeanInStride = SumInStride(A_, i, lNumElements, k) / lNumElements
 End Function
 
-Private Function MinInStride(ByVal lStart As Long, _
-                             ByVal lStride As Long, _
-                             ByVal lNumElements As Long) As Double
+Private Function MinInStride(ByRef A_() As Double, _
+                             ByVal i As Long, _
+                             ByVal lNumElements As Long, _
+                             ByVal k As Long) As Double
     Const PROCEDURE_NAME As String = "Tensor.MinInStride"
-    Dim i As Long
-    Dim A_() As Double
+    Dim j As Long
     Dim dblResult As Double
     
     If lNumElements < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Number of elements must be greater than 0."
+        Err.Raise 5, PROCEDURE_NAME, "Reducing over an empty dimension is not allowed."
     End If
-    Me.Flatten.CreateAlias A_
-    dblResult = A_(lStart)
-    For i = 2 To lNumElements
-         dblResult = MinLng2(dblResult, A_(lStart + (i - 1) * lStride))
-    Next i
-    Me.Flatten.RemoveAlias A_
+    dblResult = A_(i, 1, k)
+    For j = 2 To lNumElements
+         dblResult = MinLng2(dblResult, A_(i, j, k))
+    Next j
     MinInStride = dblResult
 End Function
 
-Private Function MaxInStride(ByVal lStart As Long, _
-                             ByVal lStride As Long, _
-                             ByVal lNumElements As Long) As Double
+Private Function MaxInStride(ByRef A_() As Double, _
+                             ByVal i As Long, _
+                             ByVal lNumElements As Long, _
+                             ByVal k As Long) As Double
     Const PROCEDURE_NAME As String = "Tensor.MaxInStride"
-    Dim i As Long
-    Dim A_() As Double
+    Dim j As Long
     Dim dblResult As Double
     
     If lNumElements < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Number of elements must be greater than 0."
+        Err.Raise 5, PROCEDURE_NAME, "Reducing over an empty dimension is not allowed."
     End If
-    Me.Flatten.CreateAlias A_
-    dblResult = A_(lStart)
-    For i = 2 To lNumElements
-         dblResult = MaxLng2(dblResult, A_(lStart + (i - 1) * lStride))
-    Next i
-    Me.Flatten.RemoveAlias A_
+    dblResult = A_(i, 1, k)
+    For j = 2 To lNumElements
+         dblResult = MaxLng2(dblResult, A_(i, j, k))
+    Next j
     MaxInStride = dblResult
 End Function
 
-Private Function ProductInStride(ByVal lStart As Long, _
-                                 ByVal lStride As Long, _
-                                 ByVal lNumElements As Long) As Double
-    Dim i As Long
-    Dim A_() As Double
+Private Function ProductInStride(ByRef A_() As Double, _
+                                 ByVal i As Long, _
+                                 ByVal lNumElements As Long, _
+                                 ByVal k As Long) As Double
+    Dim j As Long
     Dim dblResult As Double
     
     If lNumElements < 1 Then
         Exit Function
     End If
-    Me.Flatten.CreateAlias A_
     dblResult = 1
-    For i = 1 To lNumElements
-        dblResult = dblResult * A_(lStart + (i - 1) * lStride)
-    Next i
-    Me.Flatten.RemoveAlias A_
+    For j = 1 To lNumElements
+        dblResult = dblResult * A_(i, j, k)
+    Next j
     ProductInStride = dblResult
 End Function
 

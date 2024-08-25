@@ -10,9 +10,11 @@ Public Sub SetupAndTrain()
     Dim lNumEpochs As Long
     Dim oTrainingSet As DataLoader
     Dim oTestSet As DataLoader
+    Dim lStart As Long
+    Dim lEnd As Long
     
     lBatchSize = 10
-    lNumEpochs = 40
+    lNumEpochs = 5
     
     Set oTrainingSet = DataLoader(ImportDatasetFromWorksheet("ConcreteTrain", 8, 1, True), lBatchSize)
     Set oTestSet = DataLoader(ImportDatasetFromWorksheet("ConcreteTest", 8, 1, True), lBatchSize)

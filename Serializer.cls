@@ -32,11 +32,11 @@ Public Property Get Worksheet() As Worksheet
     Set Worksheet = m_wksWorksheet
 End Property
 
-Public Property Get Row() As Long
-    Row = m_lRow
+Public Property Get row() As Long
+    row = m_lRow
 End Property
 
-Public Property Let Row(ByVal lRow As Long)
+Public Property Let row(ByVal lRow As Long)
     Const PROCEDURE_NAME As String = "Serializer.Row"
     
     If lRow < 1 Then
