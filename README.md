@@ -8,8 +8,6 @@ Public Sub SetupAndTrain()
     Dim oTestSet As DataLoader
     Dim oModel As Sequential
     
-    VerifyOpenBlasLibrary
-    
     lBatchSize = 10
     lNumEpochs = 50
     
