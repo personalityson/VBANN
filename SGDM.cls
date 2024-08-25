@@ -64,13 +64,13 @@ Public Sub Init(Optional ByVal dblLearningRate As Double = 0.001, _
     m_oStates.RemoveAll
 End Sub
 
-Public Sub Update(ByVal w As Parameter)
+Public Sub Update(ByVal W As Parameter)
     Const PROCEDURE_NAME As String = "SGDM.Update"
     
-    If w Is Nothing Then
+    If W Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
     End If
-    ApplyUpdates w
+    ApplyUpdates W
 End Sub
 
 Public Sub Save(ByVal oWorksheet As Serializer)
@@ -99,46 +99,46 @@ Public Sub Load(ByVal oWorksheet As Serializer)
     End With
 End Sub
 
-Private Sub GetStates(ByVal w As Parameter, _
+Private Sub GetStates(ByVal W As Parameter, _
                       ByRef v As Tensor)
     With m_oStates
-        If Not .Exists(w) Then
-            PutStates w, Zeros(w.Learnable.Shape)
+        If Not .Exists(W) Then
+            PutStates W, Zeros(W.Learnable.Shape)
         End If
-        With .Item(w)
+        With .Item(W)
             Set v = .Item("Velocity")
         End With
     End With
 End Sub
 
-Private Sub PutStates(ByVal w As Parameter, _
+Private Sub PutStates(ByVal W As Parameter, _
                       ByVal v As Tensor)
     With m_oStates
-        If Not .Exists(w) Then
-            Set .Item(w) = CreateObject("Scripting.Dictionary")
+        If Not .Exists(W) Then
+            Set .Item(W) = CreateObject("Scripting.Dictionary")
         End If
-        With .Item(w)
+        With .Item(W)
             Set .Item("Velocity") = v
         End With
     End With
 End Sub
 
-Private Sub ApplyUpdates(ByVal w As Parameter)
+Private Sub ApplyUpdates(ByVal W As Parameter)
     Dim dblLearningRate As Double
     Dim dblWeightDecay As Double
     Dim v As Tensor
     
-    If w.NumUpdates < 1 Then
+    If W.NumUpdates < 1 Then
         Exit Sub
     End If
-    GetStates w, v
-    dblLearningRate = w.LearningRateFactor * m_dblLearningRate
-    dblWeightDecay = w.WeightDecayFactor * m_dblWeightDecay
+    GetStates W, v
+    dblLearningRate = W.LearningRateFactor * m_dblLearningRate
+    dblWeightDecay = W.WeightDecayFactor * m_dblWeightDecay
     'Update in-place
-    VecLinComb_I m_dblMomentum, v, (1 - m_dblMomentum) / w.NumUpdates, w.Gradient
-    VecLinComb_I 1 - dblLearningRate * dblWeightDecay, w.Learnable, -dblLearningRate, v
+    VecLinComb_I m_dblMomentum, v, (1 - m_dblMomentum) / W.NumUpdates, W.Gradient
+    VecLinComb_I 1 - dblLearningRate * dblWeightDecay, W.Learnable, -dblLearningRate, v
     'PutStates W, v
-    w.ResetGradient
+    W.ResetGradient
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
@@ -150,8 +150,8 @@ End Sub
         LearningRate = dblLearningRate
     End Property
     
-    Private Sub IOptimizer_Update(ByVal w As Object)
-        Update w
+    Private Sub IOptimizer_Update(ByVal W As Object)
+        Update W
     End Sub
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Object)
@@ -170,8 +170,8 @@ End Sub
         LearningRate = dblLearningRate
     End Property
     
-    Private Sub IOptimizer_Update(ByVal w As Parameter)
-        Update w
+    Private Sub IOptimizer_Update(ByVal W As Parameter)
+        Update W
     End Sub
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)
