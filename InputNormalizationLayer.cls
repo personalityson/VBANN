@@ -132,22 +132,22 @@ End Sub
 
 Private Function CalculateOutput(ByVal X As Tensor) As Tensor
     Dim lBatchSize As Long
-    Dim mX As Tensor
-    Dim vX As Tensor
+    Dim m As Tensor
+    Dim v As Tensor
     
     lBatchSize = X.Size(X.NumDimensions)
-    Set mX = m_m.Tile(2, lBatchSize)
-    Set vX = m_v.Tile(2, lBatchSize)
-    Set CalculateOutput = VecDivSqrtAddC(VecSub(X, mX), vX, m_dblEpsilon)
+    Set m = m_m.Tile(2, lBatchSize)
+    Set v = m_v.Tile(2, lBatchSize)
+    Set CalculateOutput = VecDivSqrtAddC(VecSub(X, m), v, m_dblEpsilon)
 End Function
 
 Private Function CalculateInputError(ByVal dLdY As Tensor) As Tensor
     Dim lBatchSize As Long
-    Dim vX As Tensor
+    Dim v As Tensor
     
     lBatchSize = dLdY.Size(dLdY.NumDimensions)
-    Set vX = m_v.Tile(2, lBatchSize)
-    Set CalculateInputError = VecDivSqrtAddC(dLdY, vX, m_dblEpsilon)
+    Set v = m_v.Tile(2, lBatchSize)
+    Set CalculateInputError = VecDivSqrtAddC(dLdY, v, m_dblEpsilon)
 End Function
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
