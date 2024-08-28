@@ -34,13 +34,9 @@ Public Sub Init(ByVal oTrainingSet As DataLoader, _
     If oTrainingSet.NumBatches < 1 Then
         Err.Raise 5, PROCEDURE_NAME, "Number of batches in the training set must be greater than 0."
     End If
-    With oTrainingSet
-        With .GetBatch(1)
-            Set X = .GetTensor(1)
-            m_alInputShape = X.Shape
-            m_alInputShape(X.NumDimensions) = -1
-        End With
-    End With
+    Set X = oTrainingSet.GetBatch(1).GetTensor(1)
+    m_alInputShape = X.Shape
+    m_alInputShape(X.NumDimensions) = -1
     m_dblEpsilon = dblEpsilon
     Adapt oTrainingSet
 End Sub
