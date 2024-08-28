@@ -126,6 +126,36 @@ Public Function Flatten() As Tensor
     Set Flatten = s_oFlatView
 End Function
 
+'Public Function Squeeze(ByVal vDimension As Variant) As Tensor
+'    Const PROCEDURE_NAME As String = "Tensor.Squeeze"
+'    Dim lDimension As Long
+'
+'    If IsEmpty(vDimension) Then
+'        Set Squeeze = SqueezeAllDimensions()
+'    Else
+'        If IsNumeric(vDimension) Then
+'            lDimension = CLng(vDimension)
+'        End If
+'        If lDimension < 1 Or lDimension > m_lNumDimensions Then
+'            Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
+'        End If
+'        Set Squeeze = SqueezeOneDimension(lDimension)
+'    End If
+'End Function
+'
+'Public Function Squeeze(ByVal lDimension As Long) As Tensor
+'    Const PROCEDURE_NAME As String = "Tensor.Squeeze"
+'
+'    If lDimension < 1 Then
+'        Set Squeeze = SqueezeAllDimensions()
+'    Else
+'        If lDimension > m_lNumDimensions Then
+'            Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
+'        End If
+'        Set Squeeze = SqueezeOneDimension(lDimension)
+'    End If
+'End Function
+
 Public Function Slice(ByVal lDimension As Long, _
                       ByVal lStart As Long, _
                       ByVal lEnd As Long) As Tensor
@@ -160,6 +190,19 @@ Public Function Gather(ByVal lDimension As Long, _
         End If
     Next i
     Set Gather = GatherInternal(lDimension, lNumIndices, alIndices)
+End Function
+
+Public Function Tile(ByVal lDimension As Long, _
+                     ByVal lNumRepeats As Long) As Tensor
+    Const PROCEDURE_NAME As String = "Tensor.Tile"
+    
+    If lDimension < 1 Or lDimension > m_lNumDimensions Then
+        Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
+    End If
+    If lNumRepeats < 0 Then
+        Err.Raise 9, PROCEDURE_NAME, "Number of repeats must be greater than or equal to 0."
+    End If
+    Set Tile = TileInternal(lDimension, lNumRepeats)
 End Function
 
 Public Function ReduceSum(ByVal lDimension As Long) As Tensor
@@ -279,19 +322,10 @@ Public Function ToArray() As Double()
 End Function
 
 Public Sub FillConstant(ByVal dblValue As Double)
-    Dim i As Long
-    Dim lLength As Long
-    
     If m_lNumElements < 1 Then
         Exit Sub
     End If
-    CopyMemory ByVal m_oData.Address, dblValue, m_oData.ElementSize
-    i = 1
-    Do While i < m_lNumElements
-        lLength = MinLng2(i, m_lNumElements - i)
-        CopyMemory ByVal m_oData.Address + i * m_oData.ElementSize, ByVal m_oData.Address, lLength * m_oData.ElementSize
-        i = i + lLength
-    Loop
+    TileMemory m_oData.Address, m_oData.NumElements * m_oData.ElementSize, VarPtr(dblValue), SIZEOF_DOUBLE
 End Sub
 
 Public Sub FillUniform(Optional ByVal dblLow As Double = 0, _
@@ -367,7 +401,7 @@ Public Sub Load(ByVal oWorksheet As Serializer)
     Const PROCEDURE_NAME As String = "Tensor.Load"
     Dim alShape() As Long
     Dim oData As Storage
-
+    
     If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
@@ -446,6 +480,8 @@ Private Sub AllocateData()
     If m_lNumDimensions > 0 Then
         lNumRows = m_alInnerStride(m_lNumDimensions)
         lNumCols = m_alShape(m_lNumDimensions)
+'        lNumRows = m_alShape(1)
+'        lNumCols = m_alOuterStride(1)
         m_oData.Resize lNumRows, lNumCols
     End If
 End Sub
@@ -496,7 +532,7 @@ Private Function SliceInternal(ByVal lDimension As Long, _
     Dim lOldSize As Long
     Dim lNewSize As Long
     Dim alNewShape() As Long
-    Dim lInnerStride As Long
+    Dim lInnerStrideBytes As Long
     Dim lOuterStride As Long
     Dim i As Long
     Dim oResult As Tensor
@@ -507,12 +543,12 @@ Private Function SliceInternal(ByVal lDimension As Long, _
     alNewShape(lDimension) = lNewSize
     Set oResult = New Tensor
     oResult.Resize alNewShape
-    lInnerStride = m_alInnerStride(lDimension)
+    lInnerStrideBytes = m_alInnerStride(lDimension) * m_oData.ElementSize
     lOuterStride = m_alOuterStride(lDimension)
     For i = 1 To lOuterStride
-        CopyMemory ByVal oResult.Address + ((i - 1) * lNewSize + (1 - 1)) * lInnerStride * m_oData.ElementSize, _
-                   ByVal m_oData.Address + ((i - 1) * lOldSize + (lStart - 1)) * lInnerStride * m_oData.ElementSize, _
-                   lNewSize * lInnerStride * m_oData.ElementSize
+        CopyMemory ByVal oResult.Address + ((i - 1) * lNewSize + (1 - 1)) * lInnerStrideBytes, _
+                   ByVal m_oData.Address + ((i - 1) * lOldSize + (lStart - 1)) * lInnerStrideBytes, _
+                   lNewSize * lInnerStrideBytes
     Next i
     Set SliceInternal = oResult
 End Function
@@ -523,7 +559,7 @@ Public Function GatherInternal(ByVal lDimension As Long, _
     Dim lOldSize As Long
     Dim lNewSize As Long
     Dim alNewShape() As Long
-    Dim lInnerStride As Long
+    Dim lInnerStrideBytes As Long
     Dim lOuterStride As Long
     Dim i As Long
     Dim j As Long
@@ -536,17 +572,44 @@ Public Function GatherInternal(ByVal lDimension As Long, _
     alNewShape(lDimension) = lNewSize
     Set oResult = New Tensor
     oResult.Resize alNewShape
-    lInnerStride = m_alInnerStride(lDimension)
+    lInnerStrideBytes = m_alInnerStride(lDimension) * m_oData.ElementSize
     lOuterStride = m_alOuterStride(lDimension)
     For i = 1 To lOuterStride
         For j = 1 To lNewSize
             lIndex = alIndices(j)
-            CopyMemory ByVal oResult.Address + ((i - 1) * lNewSize + (j - 1)) * lInnerStride * m_oData.ElementSize, _
-                       ByVal m_oData.Address + ((i - 1) * lOldSize + (lIndex - 1)) * lInnerStride * m_oData.ElementSize, _
-                       lInnerStride * m_oData.ElementSize
+            CopyMemory ByVal oResult.Address + ((i - 1) * lNewSize + (j - 1)) * lInnerStrideBytes, _
+                       ByVal m_oData.Address + ((i - 1) * lOldSize + (lIndex - 1)) * lInnerStrideBytes, _
+                       lInnerStrideBytes
         Next j
     Next i
     Set GatherInternal = oResult
+End Function
+
+Private Function TileInternal(ByVal lDimension As Long, _
+                              ByVal lNumRepeats As Long) As Tensor
+    Dim lOldSize As Long
+    Dim lNewSize As Long
+    Dim alNewShape() As Long
+    Dim lInnerStrideBytes As Long
+    Dim lOuterStride As Long
+    Dim i As Long
+    Dim oResult As Tensor
+    
+    lOldSize = m_alShape(lDimension)
+    lNewSize = lNumRepeats * lOldSize
+    alNewShape = m_alShape
+    alNewShape(lDimension) = lNewSize
+    Set oResult = New Tensor
+    oResult.Resize alNewShape
+    lInnerStrideBytes = m_alInnerStride(lDimension) * m_oData.ElementSize
+    lOuterStride = m_alOuterStride(lDimension)
+    For i = 1 To lOuterStride
+        TileMemory oResult.Address + ((i - 1) * lNewSize) * lInnerStrideBytes, _
+                   lNewSize * lInnerStrideBytes, _
+                   m_oData.Address + ((i - 1) * lOldSize) * lInnerStrideBytes, _
+                   lOldSize * lInnerStrideBytes
+    Next i
+    Set TileInternal = oResult
 End Function
 
 Private Function ReduceInternal(ByVal lDimension As Long, _
@@ -580,15 +643,15 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
         For k = 1 To lOuterStride
             Select Case eReduction
                 Case rdcSum
-                    R_(i, 1, k) = SumInStride(A_, i, lOldSize, k)
+                    R_(i, 1, k) = SumInSlice(A_, i, lOldSize, k)
                 Case rdcMean
-                    R_(i, 1, k) = MeanInStride(A_, i, lOldSize, k)
+                    R_(i, 1, k) = MeanInSlice(A_, i, lOldSize, k)
                 Case rdcMin
-                    R_(i, 1, k) = MinInStride(A_, i, lOldSize, k)
+                    R_(i, 1, k) = MinInSlice(A_, i, lOldSize, k)
                 Case rdcMax
-                    R_(i, 1, k) = MaxInStride(A_, i, lOldSize, k)
+                    R_(i, 1, k) = MaxInSlice(A_, i, lOldSize, k)
                 Case rdcProduct
-                    R_(i, 1, k) = ProductInStride(A_, i, lOldSize, k)
+                    R_(i, 1, k) = ProductInSlice(A_, i, lOldSize, k)
             End Select
         Next k
     Next i
@@ -601,44 +664,44 @@ Private Function AggregateInternal(ByVal eReduction As ReductionType) As Double
     Dim A_() As Double
     Dim dblResult As Double
     
-    With GetContiguousView
+    With GetFullSlice
         .CreateAlias A_
         Select Case eReduction
             Case rdcSum
-                dblResult = SumInStride(A_, 1, m_lNumElements, 1)
+                dblResult = SumInSlice(A_, 1, m_lNumElements, 1)
             Case rdcMean
-                dblResult = MeanInStride(A_, 1, m_lNumElements, 1)
+                dblResult = MeanInSlice(A_, 1, m_lNumElements, 1)
             Case rdcMin
-                dblResult = MinInStride(A_, 1, m_lNumElements, 1)
+                dblResult = MinInSlice(A_, 1, m_lNumElements, 1)
             Case rdcMax
-                dblResult = MaxInStride(A_, 1, m_lNumElements, 1)
+                dblResult = MaxInSlice(A_, 1, m_lNumElements, 1)
             Case rdcProduct
-                dblResult = ProductInStride(A_, 1, m_lNumElements, 1)
+                dblResult = ProductInSlice(A_, 1, m_lNumElements, 1)
         End Select
         .RemoveAlias A_
     End With
     AggregateInternal = dblResult
 End Function
 
-Private Function GetContiguousView() As Tensor
-    Static s_oContiguousView As Tensor
+Private Function GetFullSlice() As Tensor
+    Static s_oFullSlice As Tensor
     Dim bIsDirty As Boolean
     
-    If s_oContiguousView Is Nothing Then
+    If s_oFullSlice Is Nothing Then
         bIsDirty = True
-    ElseIf s_oContiguousView.Address <> m_oData.Address Then
+    ElseIf s_oFullSlice.Address <> m_oData.Address Then
         bIsDirty = True
     End If
     If bIsDirty Then
-        Set s_oContiguousView = Me.View(Array(1, m_lNumElements, 1))
+        Set s_oFullSlice = Me.View(Array(1, m_lNumElements, 1))
     End If
-    Set GetContiguousView = s_oContiguousView
+    Set GetFullSlice = s_oFullSlice
 End Function
 
-Private Function SumInStride(ByRef A_() As Double, _
-                             ByVal i As Long, _
-                             ByVal lNumElements As Long, _
-                             ByVal k As Long) As Double
+Private Function SumInSlice(ByRef A_() As Double, _
+                            ByVal i As Long, _
+                            ByVal lNumElements As Long, _
+                            ByVal k As Long) As Double
     Dim j As Long
     Dim dblResult As Double
     
@@ -649,24 +712,24 @@ Private Function SumInStride(ByRef A_() As Double, _
     For j = 1 To lNumElements
          dblResult = dblResult + A_(i, j, k)
     Next j
-    SumInStride = dblResult
+    SumInSlice = dblResult
 End Function
 
-Private Function MeanInStride(ByRef A_() As Double, _
-                              ByVal i As Long, _
-                              ByVal lNumElements As Long, _
-                              ByVal k As Long) As Double
-    If lNumElements < 1 Then
-        Exit Function
-    End If
-    MeanInStride = SumInStride(A_, i, lNumElements, k) / lNumElements
-End Function
-
-Private Function MinInStride(ByRef A_() As Double, _
+Private Function MeanInSlice(ByRef A_() As Double, _
                              ByVal i As Long, _
                              ByVal lNumElements As Long, _
                              ByVal k As Long) As Double
-    Const PROCEDURE_NAME As String = "Tensor.MinInStride"
+    If lNumElements < 1 Then
+        Exit Function
+    End If
+    MeanInSlice = SumInSlice(A_, i, lNumElements, k) / lNumElements
+End Function
+
+Private Function MinInSlice(ByRef A_() As Double, _
+                            ByVal i As Long, _
+                            ByVal lNumElements As Long, _
+                            ByVal k As Long) As Double
+    Const PROCEDURE_NAME As String = "Tensor.MinInSlice"
     Dim j As Long
     Dim dblResult As Double
     
@@ -677,14 +740,14 @@ Private Function MinInStride(ByRef A_() As Double, _
     For j = 2 To lNumElements
          dblResult = MinLng2(dblResult, A_(i, j, k))
     Next j
-    MinInStride = dblResult
+    MinInSlice = dblResult
 End Function
 
-Private Function MaxInStride(ByRef A_() As Double, _
-                             ByVal i As Long, _
-                             ByVal lNumElements As Long, _
-                             ByVal k As Long) As Double
-    Const PROCEDURE_NAME As String = "Tensor.MaxInStride"
+Private Function MaxInSlice(ByRef A_() As Double, _
+                            ByVal i As Long, _
+                            ByVal lNumElements As Long, _
+                            ByVal k As Long) As Double
+    Const PROCEDURE_NAME As String = "Tensor.MaxInSlice"
     Dim j As Long
     Dim dblResult As Double
     
@@ -695,13 +758,13 @@ Private Function MaxInStride(ByRef A_() As Double, _
     For j = 2 To lNumElements
          dblResult = MaxLng2(dblResult, A_(i, j, k))
     Next j
-    MaxInStride = dblResult
+    MaxInSlice = dblResult
 End Function
 
-Private Function ProductInStride(ByRef A_() As Double, _
-                                 ByVal i As Long, _
-                                 ByVal lNumElements As Long, _
-                                 ByVal k As Long) As Double
+Private Function ProductInSlice(ByRef A_() As Double, _
+                                ByVal i As Long, _
+                                ByVal lNumElements As Long, _
+                                ByVal k As Long) As Double
     Dim j As Long
     Dim dblResult As Double
     
@@ -712,8 +775,38 @@ Private Function ProductInStride(ByRef A_() As Double, _
     For j = 1 To lNumElements
         dblResult = dblResult * A_(i, j, k)
     Next j
-    ProductInStride = dblResult
+    ProductInSlice = dblResult
 End Function
+
+Private Sub TileMemory(ByVal pTarget As LongPtr, _
+                       ByVal pTargetLength As LongPtr, _
+                       ByVal pSource As LongPtr, _
+                       ByVal pSourceLength As LongPtr)
+    Const PROCEDURE_NAME As String = "Tensor.TileMemory"
+    Dim i As LongPtr
+    Dim pLength As LongPtr
+    
+    If pTargetLength < 1 Then
+        Exit Sub
+    End If
+    If pTarget = NULL_PTR Then
+        Err.Raise 5, PROCEDURE_NAME, "Target memory address cannot be NULL."
+    End If
+    If pSourceLength < 1 Then
+        Err.Raise 5, PROCEDURE_NAME, "Source memory length must be greater than 0."
+    End If
+    If pSource = NULL_PTR Then
+        Err.Raise 5, PROCEDURE_NAME, "Source memory address cannot be NULL."
+    End If
+    pLength = MinPtr2(pTargetLength, pSourceLength)
+    CopyMemory ByVal pTarget, ByVal pSource, pLength
+    i = pLength
+    Do While i < pTargetLength
+        pLength = MinPtr2(i, pTargetLength - i)
+        CopyMemory ByVal pTarget + i, ByVal pTarget, pLength
+        i = i + pLength
+    Loop
+End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
     Private Sub ISerializable_Save(ByVal oWorksheet As Object)

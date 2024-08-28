@@ -31,11 +31,6 @@ Public Property Get Optimizer() As IOptimizer
     Set Optimizer = m_oOptimizer
 End Property
 
-Private Sub Class_Initialize()
-    Set m_oCriterion = New ICriterion
-    Set m_oOptimizer = New IOptimizer
-End Sub
-
 Public Function Init(ByVal oCriterion As ICriterion, _
                      ByVal oOptimizer As IOptimizer)
     Const PROCEDURE_NAME As String = "Sequential.Init"
@@ -118,7 +113,7 @@ Public Sub Fit(ByVal oTrainingSet As DataLoader, _
     Const PROCEDURE_NAME As String = "Sequential.Fit"
     Dim lEpoch As Long
     Dim dblLoss As Double
-    
+
     If oTrainingSet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid DataLoader object is required."
     End If

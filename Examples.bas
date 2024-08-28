@@ -10,16 +10,15 @@ Public Sub SetupAndTrain()
     Dim lNumEpochs As Long
     Dim oTrainingSet As DataLoader
     Dim oTestSet As DataLoader
-    Dim lStart As Long
-    Dim lEnd As Long
     
     lBatchSize = 10
-    lNumEpochs = 5
+    lNumEpochs = 50
     
     Set oTrainingSet = DataLoader(ImportDatasetFromWorksheet("ConcreteTrain", 8, 1, True), lBatchSize)
     Set oTestSet = DataLoader(ImportDatasetFromWorksheet("ConcreteTest", 8, 1, True), lBatchSize)
     
     Set m_oModel = Sequential(L2Loss(), SGDM())
+    m_oModel.Add InputNormalizationLayer(oTrainingSet)
     m_oModel.Add FullyConnectedLayer(8, 200)
     m_oModel.Add LeakyReLULayer()
     m_oModel.Add FullyConnectedLayer(200, 100)

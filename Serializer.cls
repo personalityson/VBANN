@@ -16,6 +16,7 @@ Private Const SERIALIZABLE_TYPE_L1_LOSS As String = "L1Loss"
 Private Const SERIALIZABLE_TYPE_L2_LOSS As String = "L2Loss"
 Private Const SERIALIZABLE_TYPE_LEAKY_RELU_LAYER As String = "LeakyReLULayer"
 Private Const SERIALIZABLE_TYPE_MEMO As String = "Memo"
+Private Const SERIALIZABLE_TYPE_INPUT_NORMALIZATION_LAYER As String = "InputNormalizationLayer"
 Private Const SERIALIZABLE_TYPE_NOTHING As String = "Nothing"
 Private Const SERIALIZABLE_TYPE_PARAMETER As String = "Parameter"
 Private Const SERIALIZABLE_TYPE_SEQUENTIAL As String = "Sequential"
@@ -32,11 +33,11 @@ Public Property Get Worksheet() As Worksheet
     Set Worksheet = m_wksWorksheet
 End Property
 
-Public Property Get row() As Long
-    row = m_lRow
+Public Property Get Row() As Long
+    Row = m_lRow
 End Property
 
-Public Property Let row(ByVal lRow As Long)
+Public Property Let Row(ByVal lRow As Long)
     Const PROCEDURE_NAME As String = "Serializer.Row"
     
     If lRow < 1 Then
@@ -45,15 +46,11 @@ Public Property Let row(ByVal lRow As Long)
     m_lRow = lRow
 End Property
 
-Private Sub Class_Initialize()
-    Set m_oMemo = CreateObject("System.Collections.ArrayList")
-End Sub
-
 Public Sub Init(ByVal sName As String, _
                 ByVal bOverwrite As Boolean)
     Set m_wksWorksheet = CreateWorksheet(ThisWorkbook, sName, bOverwrite)
     MoveFirst
-    m_oMemo.Clear
+    Set m_oMemo = CreateObject("System.Collections.ArrayList")
 End Sub
 
 Public Sub MoveFirst()
@@ -206,7 +203,7 @@ Private Sub WriteArray(ByVal vArray As Variant)
             Exit Sub
         Case 1
             lNumRows = 1
-            lNumCols = UBound(vArray) - LBound(vArray) + 1
+            lNumCols = UBound(vArray, 1) - LBound(vArray, 1) + 1
             WriteLong 1
             WriteLong lNumCols
         Case 2
@@ -259,6 +256,8 @@ Private Function CreateInstance(ByVal sTypeName As String) As ISerializable
             Set CreateInstance = New L2Loss
         Case SERIALIZABLE_TYPE_LEAKY_RELU_LAYER
             Set CreateInstance = New LeakyReLULayer
+        Case SERIALIZABLE_TYPE_INPUT_NORMALIZATION_LAYER
+            Set CreateInstance = New InputNormalizationLayer
         Case SERIALIZABLE_TYPE_PARAMETER
             Set CreateInstance = New Parameter
         Case SERIALIZABLE_TYPE_SEQUENTIAL
@@ -293,7 +292,7 @@ Private Sub ReadArray(ByRef vArray As Variant)
             lNumCols = ReadLong()
             ReDim vArray(1 To lNumCols)
             With GetRange(lNumRows, lNumCols)
-                For i = 1 To lNumCols
+                For i = 1 To lNumRows
                     vArray(i) = .Cells(1, i)
                 Next i
             End With

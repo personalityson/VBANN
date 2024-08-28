@@ -94,7 +94,7 @@ Public Function BCELoss() As BCELoss
     Set BCELoss = New BCELoss
 End Function
 
-Public Function DataLoader(ByVal oDataset As Dataset, _
+Public Function DataLoader(ByVal oDataset As IDataset, _
                            ByVal lBatchSize As Long) As DataLoader
     Set DataLoader = New DataLoader
     DataLoader.Init oDataset, lBatchSize
@@ -117,6 +117,12 @@ End Function
 Public Function LeakyReLULayer(Optional ByVal dblNegativeSlope As Double = 0.01) As LeakyReLULayer
     Set LeakyReLULayer = New LeakyReLULayer
     LeakyReLULayer.Init dblNegativeSlope
+End Function
+
+Public Function InputNormalizationLayer(ByVal oTrainingSet As DataLoader, _
+                                        Optional ByVal dblEpsilon As Double = 0.00001) As InputNormalizationLayer
+    Set InputNormalizationLayer = New InputNormalizationLayer
+    InputNormalizationLayer.Init oTrainingSet, dblEpsilon
 End Function
 
 Public Function Parameter(ByVal oLearnable As Tensor, _
@@ -172,7 +178,7 @@ End Function
 Public Function ImportDatasetFromWorksheet(ByVal sName As String, _
                                            ByVal lInputSize As Long, _
                                            ByVal lLabelSize As Long, _
-                                           Optional ByVal bHasHeaders As Boolean) As Dataset
+                                           Optional ByVal bHasHeaders As Boolean) As SimpleDataset
     Const PROCEDURE_NAME As String = "FactoryFunctions.ImportDatasetFromWorksheet"
     Dim lFirstRow As Long
     Dim lFirstCol As Long
@@ -180,7 +186,7 @@ Public Function ImportDatasetFromWorksheet(ByVal sName As String, _
     Dim rngInputs As Range
     Dim rngLabels As Range
     Dim wksSource As Worksheet
-    Dim oResult As Dataset
+    Dim oResult As SimpleDataset
     
     If Not WorksheetExists(ThisWorkbook, sName) Then
         Err.Raise 9, PROCEDURE_NAME, "Specified worksheet does not exist."
@@ -195,7 +201,7 @@ Public Function ImportDatasetFromWorksheet(ByVal sName As String, _
     lFirstRow = GetFirstRow(wksSource) + IIf(bHasHeaders, 1, 0)
     lFirstCol = GetFirstColumn(wksSource)
     lNumSamples = GetLastRow(wksSource) - lFirstRow + 1
-    Set oResult = New Dataset
+    Set oResult = New SimpleDataset
     If lNumSamples > 0 Then
         Set rngInputs = wksSource.Cells(lFirstRow, lFirstCol).Resize(lNumSamples, lInputSize)
         Set rngLabels = wksSource.Cells(lFirstRow, lFirstCol + lInputSize).Resize(lNumSamples, lLabelSize)
@@ -215,7 +221,7 @@ End Function
 Public Function ImportDatasetFromCsv(ByVal strPath As String, _
                                      ByVal lInputSize As Long, _
                                      ByVal lLabelSize As Long, _
-                                     Optional ByVal bHasHeaders As Boolean) As Dataset
+                                     Optional ByVal bHasHeaders As Boolean) As SimpleDataset
     Const PROCEDURE_NAME As String = "FactoryFunctions.ImportDatasetFromCsv"
     Const CHUNK_SIZE As Long = 10000
     Const ForReading As Long = 1
@@ -227,7 +233,7 @@ Public Function ImportDatasetFromCsv(ByVal strPath As String, _
     Dim dblValue As Double
     Dim adblInputs() As Double
     Dim adblLabels() As Double
-    Dim oResult As Dataset
+    Dim oResult As SimpleDataset
     
     If Not Fso.FileExists(strPath) Then
         Err.Raise 9, PROCEDURE_NAME, "Specified file does not exist."
@@ -267,7 +273,7 @@ Public Function ImportDatasetFromCsv(ByVal strPath As String, _
         Loop
         .Close
     End With
-    Set oResult = New Dataset
+    Set oResult = New SimpleDataset
     If lNumRows > 0 Then
         ReDim Preserve adblInputs(1 To lInputSize, 1 To lNumRows)
         ReDim Preserve adblLabels(1 To lLabelSize, 1 To lNumRows)

@@ -59,7 +59,7 @@ Public Declare PtrSafe Sub CopyMemory Lib "kernel32.dll" Alias "RtlMoveMemory" (
 Public Declare PtrSafe Sub ZeroMemory Lib "kernel32.dll" Alias "RtlZeroMemory" (ByRef Destination As Any, _
                                                                                 ByVal Length As LongPtr)
 
-Public Declare PtrSafe Function VarPtrArray Lib "VBE7.dll" Alias "VarPtr" (ByRef var() As Any) As LongPtr
+Public Declare PtrSafe Function VarPtrArray Lib "VBE7.dll" Alias "VarPtr" (ByRef Var() As Any) As LongPtr
 
 Public Declare PtrSafe Function FormatMessage Lib "kernel32.dll" Alias "FormatMessageA" (ByVal dwFlags As Long, _
                                                                                          ByRef lpSource As Any, _
@@ -88,6 +88,24 @@ Public Function MaxLng2(ByVal A As Long, _
         MaxLng2 = A
     Else
         MaxLng2 = B
+    End If
+End Function
+
+Public Function MinPtr2(ByVal A As LongPtr, _
+                        ByVal B As LongPtr) As LongPtr
+    If A < B Then
+        MinPtr2 = A
+    Else
+        MinPtr2 = B
+    End If
+End Function
+
+Public Function MaxPtr2(ByVal A As LongPtr, _
+                        ByVal B As LongPtr) As LongPtr
+    If A > B Then
+        MaxPtr2 = A
+    Else
+        MaxPtr2 = B
     End If
 End Function
 
@@ -130,6 +148,30 @@ Public Function MaxLng3(ByVal A As Long, _
     End If
     If MaxLng3 < C Then
         MaxLng3 = C
+    End If
+End Function
+
+Public Function MinPtr3(ByVal A As LongPtr, _
+                        ByVal B As LongPtr, _
+                        ByVal C As LongPtr) As LongPtr
+    MinPtr3 = A
+    If MinPtr3 > B Then
+        MinPtr3 = B
+    End If
+    If MinPtr3 > C Then
+        MinPtr3 = C
+    End If
+End Function
+
+Public Function MaxPtr3(ByVal A As LongPtr, _
+                        ByVal B As LongPtr, _
+                        ByVal C As LongPtr) As LongPtr
+    MaxPtr3 = A
+    If MaxPtr3 < B Then
+        MaxPtr3 = B
+    End If
+    If MaxPtr3 < C Then
+        MaxPtr3 = C
     End If
 End Function
 
@@ -328,14 +370,14 @@ Public Function Complement(ByRef rngRangeA As Range, _
             If rngResult Is Nothing Then
                 Exit For
             End If
-            lStartRowB = rngAreaB.row
+            lStartRowB = rngAreaB.Row
             lStartColB = rngAreaB.Column
             lEndRowB = lStartRowB + rngAreaB.Rows.Count - 1
             lEndColB = lStartColB + rngAreaB.Columns.Count - 1
             Set rngResultCopy = rngResult
             Set rngResult = Nothing
             For Each rngAreaA In rngResultCopy.Areas
-                lStartRowA = rngAreaA.row
+                lStartRowA = rngAreaA.Row
                 lStartColA = rngAreaA.Column
                 lEndRowA = lStartRowA + rngAreaA.Rows.Count - 1
                 lEndColA = lStartColA + rngAreaA.Columns.Count - 1
@@ -379,7 +421,7 @@ Public Function GetFirstRow(ByVal wksWorksheet As Worksheet, _
         Set rngNonEmptyCell = wksWorksheet.Cells.Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
     End If
     If Not rngNonEmptyCell Is Nothing Then
-        GetFirstRow = rngNonEmptyCell.row
+        GetFirstRow = rngNonEmptyCell.Row
     End If
 End Function
 
@@ -397,7 +439,7 @@ Public Function GetLastRow(ByVal wksWorksheet As Worksheet, _
         Set rngNonEmptyCell = wksWorksheet.Cells.Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
     End If
     If Not rngNonEmptyCell Is Nothing Then
-        GetLastRow = rngNonEmptyCell.row
+        GetLastRow = rngNonEmptyCell.Row
     End If
 End Function
 

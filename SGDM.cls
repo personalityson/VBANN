@@ -32,18 +32,6 @@ Public Property Let LearningRate(ByVal dblLearningRate As Double)
     m_dblLearningRate = dblLearningRate
 End Property
 
-Public Property Get momentum() As Double
-    momentum = m_dblMomentum
-End Property
-
-Public Property Get WeightDecay() As Double
-    WeightDecay = m_dblWeightDecay
-End Property
-
-Private Sub Class_Initialize()
-    Set m_oStates = CreateObject("Scripting.Dictionary")
-End Sub
-
 Public Sub Init(Optional ByVal dblLearningRate As Double = 0.001, _
                 Optional ByVal dblMomentum As Double = 0.9, _
                 Optional ByVal dblWeightDecay As Double = 0.01)
@@ -61,7 +49,7 @@ Public Sub Init(Optional ByVal dblLearningRate As Double = 0.001, _
     m_dblLearningRate = dblLearningRate
     m_dblMomentum = dblMomentum
     m_dblWeightDecay = dblWeightDecay
-    m_oStates.RemoveAll
+    Set m_oStates = CreateObject("Scripting.Dictionary")
 End Sub
 
 Public Sub Update(ByVal W As Parameter)

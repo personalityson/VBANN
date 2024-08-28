@@ -9,24 +9,20 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
 
-Private m_oDataset As Dataset
+Private m_oDataset As IDataset
 Private m_lBatchSize As Long
 Private m_lNumBatches As Long
 Private m_alItinerary() As Long
 
-Public Property Get batchSize() As Long
-    batchSize = m_lBatchSize
+Public Property Get BatchSize() As Long
+    BatchSize = m_lBatchSize
 End Property
 
 Public Property Get NumBatches() As Long
     NumBatches = m_lNumBatches
 End Property
 
-Private Sub Class_Initialize()
-    Set m_oDataset = New Dataset
-End Sub
-
-Public Sub Init(ByVal oDataset As Dataset, _
+Public Sub Init(ByVal oDataset As IDataset, _
                 ByVal lBatchSize As Long)
     Const PROCEDURE_NAME As String = "DataLoader.Init"
     
@@ -56,7 +52,7 @@ Public Sub Shuffle()
     Next i
 End Sub
 
-Public Function GetBatch(ByVal lIndex As Long) As Dataset
+Public Function GetBatch(ByVal lIndex As Long) As SimpleDataset
     Const PROCEDURE_NAME As String = "DataLoader.GetBatch"
     Dim lStart As Long
     Dim lLength As Long

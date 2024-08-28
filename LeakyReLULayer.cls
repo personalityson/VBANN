@@ -16,10 +16,6 @@ Implements ISerializable
 
 Private m_dblNegativeSlope As Double
 
-Public Property Get NegativeSlope() As Double
-    NegativeSlope = m_dblNegativeSlope
-End Property
-
 Public Property Get Parameters() As Variant
     Parameters = Array()
 End Property

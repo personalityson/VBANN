@@ -2,7 +2,7 @@ VERSION 1.0 CLASS
 BEGIN
   MultiUse = -1  'True
 END
-Attribute VB_Name = "FullyConnectedLayer"
+Attribute VB_Name = "InputNormalizationLayer"
 Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = False
@@ -14,47 +14,45 @@ Option Explicit
 Implements ILayer
 Implements ISerializable
 
-Private m_lInputSize As Long
-Private m_lOutputSize As Long
-Private m_W As Parameter
-Private m_b As Parameter
-
-Public Property Get Weights() As Parameter
-    Set Weights = m_W
-End Property
-
-Public Property Get Bias() As Parameter
-    Set Bias = m_b
-End Property
+Private m_alInputShape() As Long
+Private m_dblEpsilon As Double
+Private m_m As Tensor
+Private m_v As Tensor
 
 Public Property Get Parameters() As Variant
-    Parameters = Array(m_W, m_b)
+    Parameters = Array()
 End Property
 
-Public Sub Init(ByVal lInputSize As Long, _
-                ByVal lOutputSize As Long)
-    Const PROCEDURE_NAME As String = "FullyConnectedLayer.Init"
+Public Sub Init(ByVal oTrainingSet As DataLoader, _
+                Optional ByVal dblEpsilon As Double = 0.00001)
+    Const PROCEDURE_NAME As String = "InputNormalizationLayer.Init"
+    Dim X As Tensor
     
-    If lInputSize < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Input size must be greater than 0."
+    If oTrainingSet Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid DataLoader object is required."
     End If
-    If lOutputSize < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Output size must be greater than 0."
+    If oTrainingSet.NumBatches < 1 Then
+        Err.Raise 5, PROCEDURE_NAME, "Number of batches in the training set must be greater than 0."
     End If
-    m_lInputSize = lInputSize
-    m_lOutputSize = lOutputSize
-    Set m_W = Parameter(GlorotUniform(Array(m_lOutputSize, m_lInputSize), m_lInputSize, m_lOutputSize, 1), 1, 1)
-    Set m_b = Parameter(Zeros(Array(m_lOutputSize)), 1, 0)
+    With oTrainingSet
+        With .GetBatch(1)
+            Set X = .GetTensor(1)
+            m_alInputShape = X.Shape
+            m_alInputShape(X.NumDimensions) = -1
+        End With
+    End With
+    m_dblEpsilon = dblEpsilon
+    Adapt oTrainingSet
 End Sub
 
 Public Function Forward(ByVal X As Tensor, _
                         Optional ByVal bIsTraining As Boolean) As Tensor
-    Const PROCEDURE_NAME As String = "FullyConnectedLayer.Forward"
+    Const PROCEDURE_NAME As String = "InputNormalizationLayer.Forward"
     
     If X Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If Not X.ShapeEquals(Array(m_lInputSize, -1)) Then
+    If Not X.ShapeEquals(m_alInputShape) Then
         Err.Raise 5, PROCEDURE_NAME, "Input tensor shape does not match the expected shape for forward pass."
     End If
     Set Forward = CalculateOutput(X)
@@ -63,85 +61,98 @@ End Function
 Public Function Backward(ByVal X As Tensor, _
                          ByVal Y As Tensor, _
                          ByVal dLdY As Tensor) As Tensor
-    Const PROCEDURE_NAME As String = "FullyConnectedLayer.Backward"
+    Const PROCEDURE_NAME As String = "InputNormalizationLayer.Backward"
     
-    If X Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
-    End If
-    If Y Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
-    End If
     If dLdY Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If Not X.ShapeEquals(Array(m_lInputSize, -1)) Then
-        Err.Raise 5, PROCEDURE_NAME, "Input tensor shape does not match the expected shape for backward pass."
-    End If
-    If Not Y.ShapeEquals(Array(m_lOutputSize, X.Size(2))) Then
-        Err.Raise 5, PROCEDURE_NAME, "Output tensor shape does not match the expected shape for backward pass."
-    End If
-    If Not dLdY.ShapeEquals(Array(m_lOutputSize, X.Size(2))) Then
+    If Not dLdY.ShapeEquals(m_alInputShape) Then
         Err.Raise 5, PROCEDURE_NAME, "Gradient tensor shape does not match the expected shape for backward pass."
     End If
-    UpdateGradients X, dLdY
     Set Backward = CalculateInputError(dLdY)
 End Function
 
 Public Sub Save(ByVal oWorksheet As Serializer)
-    Const PROCEDURE_NAME As String = "FullyConnectedLayer.Save"
+    Const PROCEDURE_NAME As String = "InputNormalizationLayer.Save"
     
     If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
     With oWorksheet
-        .WriteLong m_lInputSize
-        .WriteLong m_lOutputSize
-        .WriteObject m_W
-        .WriteObject m_b
+        .WriteLongArray m_alInputShape
+        .WriteDouble m_dblEpsilon
+        .WriteObject m_m
+        .WriteObject m_v
     End With
 End Sub
 
 Public Sub Load(ByVal oWorksheet As Serializer)
-    Const PROCEDURE_NAME As String = "FullyConnectedLayer.Load"
+    Const PROCEDURE_NAME As String = "InputNormalizationLayer.Load"
     
     If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
     With oWorksheet
-        m_lInputSize = .ReadLong()
-        m_lOutputSize = .ReadLong()
-        Set m_W = .ReadObject()
-        Set m_b = .ReadObject()
+        m_alInputShape = .ReadLongArray()
+        m_dblEpsilon = .ReadDouble()
+        Set m_m = .ReadObject()
+        Set m_v = .ReadObject()
     End With
+End Sub
+
+Private Sub Adapt(ByVal oTrainingSet As DataLoader)
+    Dim lBatch As Long
+    Dim lBatchSize As Long
+    Dim X As Tensor
+    Dim oBatchSum As Tensor
+    Dim oBatchSquaredSum As Tensor
+    Dim oTotalSum As Tensor
+    Dim oTotalSquaredSum As Tensor
+    Dim lNumSamples As Long
+    
+    With oTrainingSet
+        For lBatch = 1 To .NumBatches
+            With .GetBatch(lBatch)
+                Set X = .GetTensor(1)
+                lBatchSize = X.Size(X.NumDimensions)
+                Set oBatchSum = X.ReduceSum(X.NumDimensions)
+                Set oBatchSquaredSum = VecPow2(X).ReduceSum(X.NumDimensions)
+                If lBatch = 1 Then
+                    Set oTotalSum = oBatchSum
+                    Set oTotalSquaredSum = oBatchSquaredSum
+                Else
+                    Set oTotalSum = VecAdd(oTotalSum, oBatchSum)
+                    Set oTotalSquaredSum = VecAdd(oTotalSquaredSum, oBatchSquaredSum)
+                End If
+                lNumSamples = lNumSamples + lBatchSize
+            End With
+        Next lBatch
+    End With
+    If lNumSamples > 0 Then
+        Set m_m = VecDivC(oTotalSum, lNumSamples)
+        Set m_v = VecSub(VecDivC(oTotalSquaredSum, lNumSamples), VecPow2(m_m))
+    End If
 End Sub
 
 Private Function CalculateOutput(ByVal X As Tensor) As Tensor
     Dim lBatchSize As Long
-    Dim Y As Tensor
-
-    lBatchSize = X.Size(2)
-    Set Y = Zeros(Array(m_lOutputSize, lBatchSize))
-    'Update in-place
-    MatMul_I Y, m_W.Learnable, X
-    MatMul_I Y, m_b.Learnable, Ones(lBatchSize), True, True
-    Set CalculateOutput = Y
+    Dim mX As Tensor
+    Dim vX As Tensor
+    
+    lBatchSize = X.Size(X.NumDimensions)
+    Set mX = m_m.Tile(2, lBatchSize)
+    Set vX = m_v.Tile(2, lBatchSize)
+    Set CalculateOutput = VecDivSqrtAddC(VecSub(X, mX), vX, m_dblEpsilon)
 End Function
 
 Private Function CalculateInputError(ByVal dLdY As Tensor) As Tensor
-    Set CalculateInputError = MatMul(m_W.Learnable, dLdY, True)
-End Function
-
-Private Sub UpdateGradients(ByVal X As Tensor, _
-                            ByVal dLdY As Tensor)
     Dim lBatchSize As Long
+    Dim vX As Tensor
     
-    lBatchSize = X.Size(2)
-    'Update in-place
-    MatMul_I m_W.Gradient, dLdY, X, , True
-    MatMul_I m_b.Gradient, dLdY, Ones(lBatchSize)
-    m_W.NumUpdates = m_W.NumUpdates + lBatchSize
-    m_b.NumUpdates = m_b.NumUpdates + lBatchSize
-End Sub
+    lBatchSize = dLdY.Size(dLdY.NumDimensions)
+    Set vX = m_v.Tile(2, lBatchSize)
+    Set CalculateInputError = VecDivSqrtAddC(dLdY, vX, m_dblEpsilon)
+End Function
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
     Private Property Get ILayer_Parameters() As Variant

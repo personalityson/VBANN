@@ -367,7 +367,7 @@ Public Sub MatMul_I(ByVal C As Tensor, _
         End Select
     End If
     If Not C.ShapeEquals(Array(lNumRowsA, lNumColsB)) Then
-        Err.Raise 5, PROCEDURE_NAME, "Tensor C shape does not match the expected shape."
+        Err.Raise 5, PROCEDURE_NAME, "Output tensor shape does not match the expected shape for matrix multiplication."
     End If
     If IsBlasAvailable() Then
         MatMulBlas_I C, A, B, bTransA, bTransB
@@ -415,7 +415,7 @@ Public Function MatMul(ByVal A As Tensor, _
 End Function
 
 Private Sub VecAddNaive_I(ByVal A As Tensor, _
-                                ByVal B As Tensor)
+                          ByVal B As Tensor)
     Dim i As Long
     Dim A_() As Double
     Dim B_() As Double
@@ -762,9 +762,9 @@ Private Function VecLinCombNaive(ByVal dblAlpha As Double, _
 End Function
 
 Private Sub VecLinCombBlas_I(ByVal dblAlpha As Double, _
-                                     ByVal A As Tensor, _
-                                     ByVal dblBeta As Double, _
-                                     ByVal B As Tensor)
+                             ByVal A As Tensor, _
+                             ByVal dblBeta As Double, _
+                             ByVal B As Tensor)
     daxpby A.NumElements, dblBeta, B.Address, 1&, dblAlpha, A.Address, 1&
 End Sub
 
