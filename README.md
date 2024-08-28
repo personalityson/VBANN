@@ -15,17 +15,17 @@ Public Sub SetupAndTrain()
     Set oTestSet = DataLoader(ImportDatasetFromWorksheet("Test", 8, 1, True), lBatchSize)
     
     Set m_oModel = Sequential(L2Loss(), SGDM())
-    m_oModel.Add InputNormalizationLayer(oTrainingSet)
-    m_oModel.Add FullyConnectedLayer(8, 200)
-    m_oModel.Add LeakyReLULayer()
-    m_oModel.Add FullyConnectedLayer(200, 100)
-    m_oModel.Add LeakyReLULayer()
-    m_oModel.Add FullyConnectedLayer(100, 50)
-    m_oModel.Add LeakyReLULayer()
-    m_oModel.Add FullyConnectedLayer(50, 1)
-    m_oModel.Fit oTrainingSet, oTestSet, lNumEpochs
+    oModel.Add InputNormalizationLayer(oTrainingSet)
+    oModel.Add FullyConnectedLayer(8, 200)
+    oModel.Add LeakyReLULayer()
+    oModel.Add FullyConnectedLayer(200, 100)
+    oModel.Add LeakyReLULayer()
+    oModel.Add FullyConnectedLayer(100, 50)
+    oModel.Add LeakyReLULayer()
+    oModel.Add FullyConnectedLayer(50, 1)
+    oModel.Fit oTrainingSet, oTestSet, lNumEpochs
     
-    Serialize MODEL_NAME, m_oModel
+    Serialize MODEL_NAME, oModel
     
     Beep
 End Sub
