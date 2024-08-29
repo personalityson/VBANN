@@ -34,6 +34,10 @@ Public Property Let LearningRate(ByVal dblLearningRate As Double)
     m_dblLearningRate = dblLearningRate
 End Property
 
+Private Sub Class_Initialize()
+    Set m_oStates = CreateObject("Scripting.Dictionary")
+End Sub
+
 Public Sub Init(Optional ByVal dblLearningRate As Double = 0.001, _
                 Optional ByVal dblBeta1 As Double = 0.9, _
                 Optional ByVal dblBeta2 As Double = 0.999, _
@@ -61,7 +65,7 @@ Public Sub Init(Optional ByVal dblLearningRate As Double = 0.001, _
     m_dblBeta2 = dblBeta2
     m_dblEpsilon = dblEpsilon
     m_dblWeightDecay = dblWeightDecay
-    Set m_oStates = CreateObject("Scripting.Dictionary")
+    m_oStates.RemoveAll
 End Sub
 
 Public Sub Update(ByVal W As Parameter)

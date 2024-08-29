@@ -46,11 +46,15 @@ Public Property Let Row(ByVal lRow As Long)
     m_lRow = lRow
 End Property
 
+Private Sub Class_Initialize()
+    Set m_oMemo = CreateObject("System.Collections.ArrayList")
+End Sub
+
 Public Sub Init(ByVal sName As String, _
                 ByVal bOverwrite As Boolean)
     Set m_wksWorksheet = CreateWorksheet(ThisWorkbook, sName, bOverwrite)
     MoveFirst
-    Set m_oMemo = CreateObject("System.Collections.ArrayList")
+    m_oMemo.Clear
 End Sub
 
 Public Sub MoveFirst()
@@ -199,17 +203,17 @@ Private Sub WriteArray(ByVal vArray As Variant)
     lNumDimensions = GetRank(vArray)
     Select Case lNumDimensions
         Case 0
-            WriteLong 0
+            WriteLong 0 'Number of dimensions
             Exit Sub
         Case 1
             lNumRows = 1
             lNumCols = UBound(vArray, 1) - LBound(vArray, 1) + 1
-            WriteLong 1
+            WriteLong 1 'Number of dimensions
             WriteLong lNumCols
         Case 2
             lNumRows = UBound(vArray, 1) - LBound(vArray, 1) + 1
             lNumCols = UBound(vArray, 2) - LBound(vArray, 2) + 1
-            WriteLong 2
+            WriteLong 2 'Number of dimensions
             WriteLong lNumRows
             WriteLong lNumCols
         Case Else
@@ -292,7 +296,7 @@ Private Sub ReadArray(ByRef vArray As Variant)
             lNumCols = ReadLong()
             ReDim vArray(1 To lNumCols)
             With GetRange(lNumRows, lNumCols)
-                For i = 1 To lNumRows
+                For i = 1 To lNumCols
                     vArray(i) = .Cells(1, i)
                 Next i
             End With
