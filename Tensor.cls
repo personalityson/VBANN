@@ -31,7 +31,7 @@ Private Declare PtrSafe Function SafeArrayAllocDescriptorEx Lib "oleaut32.dll" (
 
 Private Declare PtrSafe Function SafeArrayDestroyDescriptor Lib "oleaut32.dll" (ByVal psa As LongPtr) As Long
 
-Private Enum ReductionType
+Public Enum ReductionType
     rdcSum
     rdcMean
     rdcMin
@@ -126,36 +126,6 @@ Public Function Flatten() As Tensor
     Set Flatten = s_oFlatView
 End Function
 
-'Public Function Squeeze(ByVal vDimension As Variant) As Tensor
-'    Const PROCEDURE_NAME As String = "Tensor.Squeeze"
-'    Dim lDimension As Long
-'
-'    If IsEmpty(vDimension) Then
-'        Set Squeeze = SqueezeAllDimensions()
-'    Else
-'        If IsNumeric(vDimension) Then
-'            lDimension = CLng(vDimension)
-'        End If
-'        If lDimension < 1 Or lDimension > m_lNumDimensions Then
-'            Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
-'        End If
-'        Set Squeeze = SqueezeOneDimension(lDimension)
-'    End If
-'End Function
-'
-'Public Function Squeeze(ByVal lDimension As Long) As Tensor
-'    Const PROCEDURE_NAME As String = "Tensor.Squeeze"
-'
-'    If lDimension < 1 Then
-'        Set Squeeze = SqueezeAllDimensions()
-'    Else
-'        If lDimension > m_lNumDimensions Then
-'            Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
-'        End If
-'        Set Squeeze = SqueezeOneDimension(lDimension)
-'    End If
-'End Function
-
 Public Function Slice(ByVal lDimension As Long, _
                       ByVal lStart As Long, _
                       ByVal lEnd As Long) As Tensor
@@ -205,49 +175,14 @@ Public Function Tile(ByVal lDimension As Long, _
     Set Tile = TileInternal(lDimension, lNumRepeats)
 End Function
 
-Public Function ReduceSum(ByVal lDimension As Long) As Tensor
-    Const PROCEDURE_NAME As String = "Tensor.ReduceSum"
+Public Function Reduce(ByVal lDimension As Long, _
+                       ByVal eReduction As ReductionType) As Tensor
+    Const PROCEDURE_NAME As String = "Tensor.Reduce"
     
     If lDimension < 1 Or lDimension > m_lNumDimensions Then
         Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
     End If
-    Set ReduceSum = ReduceInternal(lDimension, rdcSum)
-End Function
-
-Public Function ReduceMean(ByVal lDimension As Long) As Tensor
-    Const PROCEDURE_NAME As String = "Tensor.ReduceMean"
-    
-    If lDimension < 1 Or lDimension > m_lNumDimensions Then
-        Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
-    End If
-    Set ReduceMean = ReduceInternal(lDimension, rdcMean)
-End Function
-
-Public Function ReduceMin(ByVal lDimension As Long) As Tensor
-    Const PROCEDURE_NAME As String = "Tensor.ReduceMin"
-    
-    If lDimension < 1 Or lDimension > m_lNumDimensions Then
-        Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
-    End If
-    Set ReduceMin = ReduceInternal(lDimension, rdcMin)
-End Function
-
-Public Function ReduceMax(ByVal lDimension As Long) As Tensor
-    Const PROCEDURE_NAME As String = "Tensor.ReduceMax"
-    
-    If lDimension < 1 Or lDimension > m_lNumDimensions Then
-        Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
-    End If
-    Set ReduceMax = ReduceInternal(lDimension, rdcMax)
-End Function
-
-Public Function ReduceProduct(ByVal lDimension As Long) As Tensor
-    Const PROCEDURE_NAME As String = "Tensor.ReduceProduct"
-    
-    If lDimension < 1 Or lDimension > m_lNumDimensions Then
-        Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
-    End If
-    Set ReduceProduct = ReduceInternal(lDimension, rdcProduct)
+    Set Reduce = ReduceInternal(lDimension, eReduction)
 End Function
 
 Public Function Sum() As Double

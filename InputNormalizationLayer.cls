@@ -98,7 +98,6 @@ End Sub
 
 Private Sub Adapt(ByVal oTrainingSet As DataLoader)
     Dim lBatch As Long
-    Dim lBatchSize As Long
     Dim X As Tensor
     Dim oBatchSum As Tensor
     Dim oBatchSquaredSum As Tensor
@@ -110,9 +109,8 @@ Private Sub Adapt(ByVal oTrainingSet As DataLoader)
         For lBatch = 1 To .NumBatches
             With .GetBatch(lBatch)
                 Set X = .GetTensor(1)
-                lBatchSize = X.Size(X.NumDimensions)
-                Set oBatchSum = X.ReduceSum(X.NumDimensions)
-                Set oBatchSquaredSum = VecPow2(X).ReduceSum(X.NumDimensions)
+                Set oBatchSum = X.Reduce(X.NumDimensions, rdcSum)
+                Set oBatchSquaredSum = VecPow2(X).Reduce(X.NumDimensions, rdcSum)
                 If lBatch = 1 Then
                     Set oTotalSum = oBatchSum
                     Set oTotalSquaredSum = oBatchSquaredSum
@@ -120,7 +118,7 @@ Private Sub Adapt(ByVal oTrainingSet As DataLoader)
                     Set oTotalSum = VecAdd(oTotalSum, oBatchSum)
                     Set oTotalSquaredSum = VecAdd(oTotalSquaredSum, oBatchSquaredSum)
                 End If
-                lNumSamples = lNumSamples + lBatchSize
+                lNumSamples = lNumSamples + .NumSamples
             End With
         Next lBatch
     End With
