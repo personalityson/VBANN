@@ -68,17 +68,11 @@ Public Function Backward(ByVal X As Tensor, _
     If X Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If Y Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
-    End If
     If dLdY Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
     If Not X.ShapeEquals(Array(m_lInputSize, -1)) Then
         Err.Raise 5, PROCEDURE_NAME, "Input tensor shape does not match the expected shape for backward pass."
-    End If
-    If Not Y.ShapeEquals(Array(m_lOutputSize, X.Size(2))) Then
-        Err.Raise 5, PROCEDURE_NAME, "Output tensor shape does not match the expected shape for backward pass."
     End If
     If Not dLdY.ShapeEquals(Array(m_lOutputSize, X.Size(2))) Then
         Err.Raise 5, PROCEDURE_NAME, "Gradient tensor shape does not match the expected shape for backward pass."

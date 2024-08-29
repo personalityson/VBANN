@@ -180,8 +180,8 @@ Private Sub FitOneEpoch(ByVal oTrainingSet As DataLoader)
         .Shuffle
         For lBatch = 1 To .NumBatches
             With .GetBatch(lBatch)
-                Set X = .GetTensor(1)
-                Set T = .GetTensor(2)
+                Set X = .Item("Input")
+                Set T = .Item("Label")
                 Backpropagate X, T
             End With
             Application.StatusBar = "FitOneEpoch progress: " & Round(100 * (lBatch / .NumBatches), 1) & "%"
@@ -201,8 +201,8 @@ Private Function Loss(ByVal oTestSet As DataLoader) As Double
     With oTestSet
         For lBatch = 1 To .NumBatches
             With .GetBatch(lBatch)
-                Set X = .GetTensor(1)
-                Set T = .GetTensor(2)
+                Set X = .Item("Input")
+                Set T = .Item("Label")
                 Set Y = Predict(X)
                 dblSum = dblSum + m_oCriterion.Forward(Y, T).Sum
                 lNumSamples = lNumSamples + .NumSamples

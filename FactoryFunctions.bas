@@ -206,13 +206,13 @@ Public Function ImportDatasetFromWorksheet(ByVal sName As String, _
         Set rngInputs = wksSource.Cells(lFirstRow, lFirstCol).Resize(lNumSamples, lInputSize)
         Set rngLabels = wksSource.Cells(lFirstRow, lFirstCol + lInputSize).Resize(lNumSamples, lLabelSize)
         With oResult
-            .Add TensorFromRange(rngInputs, True)
-            .Add TensorFromRange(rngLabels, True)
+            .Add "Input", TensorFromRange(rngInputs, True)
+            .Add "Label", TensorFromRange(rngLabels, True)
         End With
     Else
         With oResult
-            .Add Zeros(Array(lInputSize, 0))
-            .Add Zeros(Array(lLabelSize, 0))
+            .Add "Input", Zeros(Array(lInputSize, 0))
+            .Add "Label", Zeros(Array(lLabelSize, 0))
         End With
     End If
     Set ImportDatasetFromWorksheet = oResult
@@ -278,13 +278,13 @@ Public Function ImportDatasetFromCsv(ByVal strPath As String, _
         ReDim Preserve adblInputs(1 To lInputSize, 1 To lNumRows)
         ReDim Preserve adblLabels(1 To lLabelSize, 1 To lNumRows)
         With oResult
-            .Add TensorFromArray(adblInputs)
-            .Add TensorFromArray(adblLabels)
+            .Add "Input", TensorFromArray(adblInputs)
+            .Add "Label", TensorFromArray(adblLabels)
         End With
     Else
         With oResult
-            .Add Zeros(Array(lInputSize, 0))
-            .Add Zeros(Array(lLabelSize, 0))
+            .Add "Input", Zeros(Array(lInputSize, 0))
+            .Add "Label", Zeros(Array(lLabelSize, 0))
         End With
     End If
     Set ImportDatasetFromCsv = oResult

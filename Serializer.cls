@@ -12,11 +12,11 @@ Option Explicit
 Private Const SERIALIZABLE_TYPE_ADAM As String = "Adam"
 Private Const SERIALIZABLE_TYPE_BCE_LOSS As String = "BCELoss"
 Private Const SERIALIZABLE_TYPE_FULLY_CONNECTED_LAYER As String = "FullyConnectedLayer"
+Private Const SERIALIZABLE_TYPE_INPUT_NORMALIZATION_LAYER As String = "InputNormalizationLayer"
 Private Const SERIALIZABLE_TYPE_L1_LOSS As String = "L1Loss"
 Private Const SERIALIZABLE_TYPE_L2_LOSS As String = "L2Loss"
 Private Const SERIALIZABLE_TYPE_LEAKY_RELU_LAYER As String = "LeakyReLULayer"
 Private Const SERIALIZABLE_TYPE_MEMO As String = "Memo"
-Private Const SERIALIZABLE_TYPE_INPUT_NORMALIZATION_LAYER As String = "InputNormalizationLayer"
 Private Const SERIALIZABLE_TYPE_NOTHING As String = "Nothing"
 Private Const SERIALIZABLE_TYPE_PARAMETER As String = "Parameter"
 Private Const SERIALIZABLE_TYPE_SEQUENTIAL As String = "Sequential"
@@ -254,14 +254,14 @@ Private Function CreateInstance(ByVal sTypeName As String) As ISerializable
             Set CreateInstance = New BCELoss
         Case SERIALIZABLE_TYPE_FULLY_CONNECTED_LAYER
             Set CreateInstance = New FullyConnectedLayer
+        Case SERIALIZABLE_TYPE_INPUT_NORMALIZATION_LAYER
+            Set CreateInstance = New InputNormalizationLayer
         Case SERIALIZABLE_TYPE_L1_LOSS
             Set CreateInstance = New L1Loss
         Case SERIALIZABLE_TYPE_L2_LOSS
             Set CreateInstance = New L2Loss
         Case SERIALIZABLE_TYPE_LEAKY_RELU_LAYER
             Set CreateInstance = New LeakyReLULayer
-        Case SERIALIZABLE_TYPE_INPUT_NORMALIZATION_LAYER
-            Set CreateInstance = New InputNormalizationLayer
         Case SERIALIZABLE_TYPE_PARAMETER
             Set CreateInstance = New Parameter
         Case SERIALIZABLE_TYPE_SEQUENTIAL

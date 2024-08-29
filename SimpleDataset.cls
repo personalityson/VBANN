@@ -14,33 +14,32 @@ Option Explicit
 Implements IDataset
 
 Private m_lNumSamples As Long
-Private m_lNumTensors As Long
-Private m_aoTensors() As Tensor
+Private m_oTensors As Object
 
 Public Property Get NumSamples() As Long
     NumSamples = m_lNumSamples
 End Property
 
-Public Property Get NumTensors() As Long
-    NumTensors = m_lNumTensors
+Public Property Get Item(ByVal vKey As Variant) As Tensor
+    Const PROCEDURE_NAME As String = "Dataset.GetItem"
+    
+    If Not m_oTensors.Exists(vKey) Then
+        Err.Raise 9, PROCEDURE_NAME, "."
+    End If
+    Set Item = m_oTensors.Item(vKey)
 End Property
+
+Private Sub Class_Initialize()
+    Set m_oTensors = CreateObject("Scripting.Dictionary")
+End Sub
 
 Public Sub Init()
     m_lNumSamples = 0
-    m_lNumTensors = 0
-    Erase m_aoTensors
+    m_oTensors.RemoveAll
 End Sub
 
-Public Function GetTensor(ByVal lIndex As Long) As Tensor
-    Const PROCEDURE_NAME As String = "Dataset.GetTensor"
-    
-    If lIndex < 1 Or lIndex > m_lNumTensors Then
-        Err.Raise 9, PROCEDURE_NAME, "Tensor index must be between 1 and the number of tensors."
-    End If
-    Set GetTensor = m_aoTensors(lIndex)
-End Function
-
-Public Sub Add(ByVal oTensor As Tensor)
+Public Sub Add(ByVal vKey As Variant, _
+               ByVal oTensor As Tensor)
     Const PROCEDURE_NAME As String = "Dataset.Add"
     Dim lNumSamples As Long
     
@@ -51,26 +50,28 @@ Public Sub Add(ByVal oTensor As Tensor)
         Err.Raise 5, PROCEDURE_NAME, "Number of dimensions must be greater than or equal to 2."
     End If
     lNumSamples = oTensor.Size(oTensor.NumDimensions)
-    If m_lNumTensors = 0 Then
+    If m_oTensors.Count = 0 Then
         m_lNumSamples = lNumSamples
     ElseIf lNumSamples <> m_lNumSamples Then
         Err.Raise 5, PROCEDURE_NAME, "Number of samples in the Tensor must match the existing number of samples."
     End If
-    m_lNumTensors = m_lNumTensors + 1
-    ReDim Preserve m_aoTensors(1 To m_lNumTensors)
-    Set m_aoTensors(m_lNumTensors) = oTensor
+    Set m_oTensors.Item(vKey) = oTensor
 End Sub
 
+Public Function Exists(ByVal vKey As Variant) As Boolean
+    Exists = m_oTensors.Exists(vKey)
+End Function
+
 Public Function Gather(ByVal vIndices As Variant) As SimpleDataset
-    Dim i As Long
+    Dim vKey As Variant
     Dim oResult As SimpleDataset
     
     Set oResult = New SimpleDataset
-    For i = 1 To m_lNumTensors
-        With m_aoTensors(i)
-            oResult.Add .Gather(.NumDimensions, vIndices)
+    For Each vKey In m_oTensors.Keys
+        With m_oTensors.Item(vKey)
+            oResult.Add vKey, .Gather(.NumDimensions, vIndices)
         End With
-    Next i
+    Next vKey
     Set Gather = oResult
 End Function
 
@@ -91,5 +92,3 @@ End Function
         Set IDataset_Gather = Gather(vIndices)
     End Function
 #End If
-
-

@@ -34,7 +34,7 @@ Public Sub Init(ByVal oTrainingSet As DataLoader, _
     If oTrainingSet.NumBatches < 1 Then
         Err.Raise 5, PROCEDURE_NAME, "Number of batches in the training set must be greater than 0."
     End If
-    Set X = oTrainingSet.GetBatch(1).GetTensor(1)
+    Set X = oTrainingSet.GetBatch(1).Item("Input")
     m_alInputShape = X.Shape
     m_alInputShape(X.NumDimensions) = -1
     m_dblEpsilon = dblEpsilon
@@ -108,7 +108,7 @@ Private Sub Adapt(ByVal oTrainingSet As DataLoader)
     With oTrainingSet
         For lBatch = 1 To .NumBatches
             With .GetBatch(lBatch)
-                Set X = .GetTensor(1)
+                Set X = .Item("Input")
                 Set oBatchSum = X.Reduce(X.NumDimensions, rdcSum)
                 Set oBatchSquaredSum = VecPow2(X).Reduce(X.NumDimensions, rdcSum)
                 If lBatch = 1 Then

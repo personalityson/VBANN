@@ -97,8 +97,6 @@ Public Sub Save(ByVal oWorksheet As Serializer)
     End If
     With oWorksheet
         .WriteObject m_oLearnable
-        .WriteObject m_oGradient
-        .WriteLong m_lNumUpdates
         .WriteDouble m_dblLearningRateFactor
         .WriteDouble m_dblWeightDecayFactor
     End With
@@ -112,8 +110,12 @@ Public Sub Load(ByVal oWorksheet As Serializer)
     End If
     With oWorksheet
         Set m_oLearnable = .ReadObject()
-        Set m_oGradient = .ReadObject()
-        m_lNumUpdates = .ReadLong()
+        If m_oLearnable Is Nothing Then
+            Set m_oGradient = Nothing
+        Else
+            Set m_oGradient = Zeros(m_oLearnable.Shape)
+        End If
+        m_lNumUpdates = 0
         m_dblLearningRateFactor = .ReadDouble()
         m_dblWeightDecayFactor = .ReadDouble()
     End With
