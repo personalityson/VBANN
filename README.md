@@ -14,7 +14,7 @@ Public Sub SetupAndTrain()
     Set oTrainingSet = DataLoader(ImportDatasetFromWorksheet("Train", 8, 1, True), lBatchSize)
     Set oTestSet = DataLoader(ImportDatasetFromWorksheet("Test", 8, 1, True), lBatchSize)
     
-    Set m_oModel = Sequential(L2Loss(), SGDM())
+    Set oModel = Sequential(L2Loss(), SGDM())
     oModel.Add InputNormalizationLayer(oTrainingSet)
     oModel.Add FullyConnectedLayer(8, 200)
     oModel.Add LeakyReLULayer()
