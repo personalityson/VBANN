@@ -72,6 +72,11 @@ End Property
 Public Sub Init(ByVal oLearnable As Tensor, _
                 Optional ByVal dblLearningRateFactor As Double = 1, _
                 Optional ByVal dblWeightDecayFactor As Double = 1)
+    Const PROCEDURE_NAME As String = "Parameter.Init"
+    
+    If oLearnable Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
     Set m_oLearnable = oLearnable
     Set m_oGradient = Zeros(m_oLearnable.Shape)
     m_lNumUpdates = 0
@@ -92,6 +97,8 @@ Public Sub Save(ByVal oWorksheet As Serializer)
     End If
     With oWorksheet
         .WriteObject m_oLearnable
+        .WriteObject m_oGradient
+        .WriteLong m_lNumUpdates
         .WriteDouble m_dblLearningRateFactor
         .WriteDouble m_dblWeightDecayFactor
     End With
@@ -105,8 +112,8 @@ Public Sub Load(ByVal oWorksheet As Serializer)
     End If
     With oWorksheet
         Set m_oLearnable = .ReadObject()
-        Set m_oGradient = Zeros(m_oLearnable.Shape)
-        m_lNumUpdates = 0
+        Set m_oGradient = .ReadObject()
+        m_lNumUpdates = .ReadLong()
         m_dblLearningRateFactor = .ReadDouble()
         m_dblWeightDecayFactor = .ReadDouble()
     End With
