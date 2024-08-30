@@ -47,14 +47,14 @@ Public Property Let Row(ByVal lRow As Long)
 End Property
 
 Private Sub Class_Initialize()
-    Set m_oMemo = CreateObject("System.Collections.ArrayList")
+    Set m_oMemo = CreateObject("Scripting.Dictionary")
 End Sub
 
 Public Sub Init(ByVal sName As String, _
                 ByVal bOverwrite As Boolean)
     Set m_wksWorksheet = CreateWorksheet(ThisWorkbook, sName, bOverwrite)
     MoveFirst
-    m_oMemo.Clear
+    m_oMemo.RemoveAll
 End Sub
 
 Public Sub MoveFirst()
@@ -69,7 +69,7 @@ Public Sub WriteObject(ByVal oObject As ISerializable)
     Select Case True
         Case oObject Is Nothing
             WriteNothing
-        Case m_oMemo.Contains(oObject)
+        Case m_oMemo.Exists(oObject)
             WriteMemo oObject
         Case Else
             WriteSerializable oObject
@@ -183,14 +183,14 @@ End Sub
 Private Sub WriteMemo(ByVal oObject As ISerializable)
     Dim lIndex As Long
     
-    lIndex = m_oMemo.IndexOf(oObject, 0)
+    lIndex = m_oMemo.Item(oObject)
     WriteString SERIALIZABLE_TYPE_MEMO
     WriteLong lIndex
 End Sub
 
 Private Sub WriteSerializable(ByVal oObject As ISerializable)
     WriteString TypeName(oObject)
-    m_oMemo.Add oObject
+    Memoize oObject
     oObject.Save Me
 End Sub
 
@@ -227,6 +227,13 @@ Private Sub WriteArray(ByVal vArray As Variant)
     End With
 End Sub
 
+Private Sub Memoize(ByVal oObject As ISerializable)
+    Dim lIndex As Long
+    
+    lIndex = m_oMemo.Count + 1
+    m_oMemo.Add oObject, lIndex
+End Sub
+
 Private Function ReadNothing() As ISerializable
     'Do nothing
 End Function
@@ -235,12 +242,12 @@ Private Function ReadMemo() As ISerializable
     Dim lIndex As Long
     
     lIndex = ReadLong()
-    Set ReadMemo = m_oMemo(lIndex)
+    Set ReadMemo = m_oMemo.Keys()(lIndex - 1)
 End Function
 
 Private Function ReadSerializable(ByVal sTypeName As String) As ISerializable
     Set ReadSerializable = CreateInstance(sTypeName)
-    m_oMemo.Add ReadSerializable
+    Memoize ReadSerializable
     ReadSerializable.Load Me
 End Function
 
