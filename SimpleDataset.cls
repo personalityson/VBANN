@@ -21,10 +21,10 @@ Public Property Get NumSamples() As Long
 End Property
 
 Public Property Get Item(ByVal vKey As Variant) As Tensor
-    Const PROCEDURE_NAME As String = "Dataset.GetItem"
+    Const PROCEDURE_NAME As String = "Dataset.Item"
     
     If Not m_oTensors.Exists(vKey) Then
-        Err.Raise 9, PROCEDURE_NAME, "."
+        Err.Raise 9, PROCEDURE_NAME, "Specified key does not exist in the dataset."
     End If
     Set Item = m_oTensors.Item(vKey)
 End Property

@@ -67,6 +67,8 @@ End Sub
 
 Public Sub Save(ByVal oWorksheet As Serializer)
     Const PROCEDURE_NAME As String = "SGDM.Save"
+    Dim W As Variant
+    Dim v As Tensor
     
     If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
@@ -75,11 +77,21 @@ Public Sub Save(ByVal oWorksheet As Serializer)
         .WriteDouble m_dblLearningRate
         .WriteDouble m_dblMomentum
         .WriteDouble m_dblWeightDecay
+        .WriteLong m_oStates.Count
+        For Each W In m_oStates.Keys
+            GetStates W, v
+            .WriteObject W
+            .WriteObject v
+        Next W
     End With
 End Sub
 
 Public Sub Load(ByVal oWorksheet As Serializer)
     Const PROCEDURE_NAME As String = "SGDM.Load"
+    Dim lNumStates As Long
+    Dim i As Long
+    Dim W As Variant
+    Dim v As Tensor
     
     If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
@@ -88,6 +100,12 @@ Public Sub Load(ByVal oWorksheet As Serializer)
         m_dblLearningRate = .ReadDouble()
         m_dblMomentum = .ReadDouble()
         m_dblWeightDecay = .ReadDouble()
+        lNumStates = .ReadLong()
+        For i = 1 To lNumStates
+            Set W = .ReadObject()
+            Set v = .ReadObject()
+            PutStates W, v
+        Next i
     End With
 End Sub
 

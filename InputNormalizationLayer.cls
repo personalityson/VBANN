@@ -14,6 +14,7 @@ Option Explicit
 Implements ILayer
 Implements ISerializable
 
+Private m_lBatchDimension As Long
 Private m_alInputShape() As Long
 Private m_dblEpsilon As Double
 Private m_m As Tensor
@@ -35,8 +36,9 @@ Public Sub Init(ByVal oTrainingSet As DataLoader, _
         Err.Raise 5, PROCEDURE_NAME, "Number of batches in the training set must be greater than 0."
     End If
     Set X = oTrainingSet.GetBatch(1).Item("Input")
+    m_lBatchDimension = X.NumDimensions
     m_alInputShape = X.Shape
-    m_alInputShape(X.NumDimensions) = -1
+    m_alInputShape(m_lBatchDimension) = -1 'Wildcard
     m_dblEpsilon = dblEpsilon
     Adapt oTrainingSet
 End Sub
@@ -75,6 +77,7 @@ Public Sub Save(ByVal oWorksheet As Serializer)
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
     With oWorksheet
+        .WriteLong m_lBatchDimension
         .WriteLongArray m_alInputShape
         .WriteDouble m_dblEpsilon
         .WriteObject m_m
@@ -89,6 +92,7 @@ Public Sub Load(ByVal oWorksheet As Serializer)
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
     With oWorksheet
+        m_lBatchDimension = .ReadLong()
         m_alInputShape = .ReadLongArray()
         m_dblEpsilon = .ReadDouble()
         Set m_m = .ReadObject()
@@ -109,8 +113,8 @@ Private Sub Adapt(ByVal oTrainingSet As DataLoader)
         For lBatch = 1 To .NumBatches
             With .GetBatch(lBatch)
                 Set X = .Item("Input")
-                Set oBatchSum = X.Reduce(X.NumDimensions, rdcSum)
-                Set oBatchSquaredSum = VecPow2(X).Reduce(X.NumDimensions, rdcSum)
+                Set oBatchSum = X.Reduce(m_lBatchDimension, rdcSum)
+                Set oBatchSquaredSum = VecPow2(X).Reduce(m_lBatchDimension, rdcSum)
                 If lBatch = 1 Then
                     Set oTotalSum = oBatchSum
                     Set oTotalSquaredSum = oBatchSquaredSum
@@ -133,9 +137,9 @@ Private Function CalculateOutput(ByVal X As Tensor) As Tensor
     Dim m As Tensor
     Dim v As Tensor
     
-    lBatchSize = X.Size(X.NumDimensions)
-    Set m = m_m.Tile(2, lBatchSize)
-    Set v = m_v.Tile(2, lBatchSize)
+    lBatchSize = X.Size(m_lBatchDimension)
+    Set m = m_m.Tile(m_lBatchDimension, lBatchSize)
+    Set v = m_v.Tile(m_lBatchDimension, lBatchSize)
     Set CalculateOutput = VecDivSqrtAddC(VecSub(X, m), v, m_dblEpsilon)
 End Function
 
@@ -143,8 +147,8 @@ Private Function CalculateInputError(ByVal dLdY As Tensor) As Tensor
     Dim lBatchSize As Long
     Dim v As Tensor
     
-    lBatchSize = dLdY.Size(dLdY.NumDimensions)
-    Set v = m_v.Tile(2, lBatchSize)
+    lBatchSize = dLdY.Size(m_lBatchDimension)
+    Set v = m_v.Tile(m_lBatchDimension, lBatchSize)
     Set CalculateInputError = VecDivSqrtAddC(dLdY, v, m_dblEpsilon)
 End Function
 

@@ -79,6 +79,10 @@ End Sub
 
 Public Sub Save(ByVal oWorksheet As Serializer)
     Const PROCEDURE_NAME As String = "Adam.Save"
+    Dim W As Variant
+    Dim lStep As Long
+    Dim m As Tensor
+    Dim v As Tensor
     
     If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
@@ -89,11 +93,25 @@ Public Sub Save(ByVal oWorksheet As Serializer)
         .WriteDouble m_dblBeta2
         .WriteDouble m_dblEpsilon
         .WriteDouble m_dblWeightDecay
+        .WriteLong m_oStates.Count
+        For Each W In m_oStates.Keys
+            GetStates W, lStep, m, v
+            .WriteObject W
+            .WriteLong lStep
+            .WriteObject m
+            .WriteObject v
+        Next W
     End With
 End Sub
 
 Public Sub Load(ByVal oWorksheet As Serializer)
     Const PROCEDURE_NAME As String = "Adam.Load"
+    Dim lNumStates As Long
+    Dim i As Long
+    Dim W As Variant
+    Dim lStep As Long
+    Dim m As Tensor
+    Dim v As Tensor
     
     If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
@@ -104,7 +122,37 @@ Public Sub Load(ByVal oWorksheet As Serializer)
         m_dblBeta2 = .ReadDouble()
         m_dblEpsilon = .ReadDouble()
         m_dblWeightDecay = .ReadDouble()
+        lNumStates = .ReadLong()
+        For i = 1 To lNumStates
+            Set W = .ReadObject()
+            lStep = .ReadLong()
+            Set m = .ReadObject()
+            Set v = .ReadObject()
+            PutStates W, lStep, m, v
+        Next i
     End With
+End Sub
+
+Private Sub ApplyUpdates(ByVal W As Parameter)
+    Dim lStep As Long
+    Dim dblAlpha As Double
+    Dim dblWeightDecay As Double
+    Dim m As Tensor
+    Dim v As Tensor
+
+    If W.NumUpdates < 1 Then
+        Exit Sub
+    End If
+    GetStates W, lStep, m, v
+    lStep = lStep + 1
+    dblAlpha = W.LearningRateFactor * m_dblLearningRate * Sqr(1 - m_dblBeta2 ^ lStep) / (1 - m_dblBeta1 ^ lStep)
+    dblWeightDecay = W.WeightDecayFactor * m_dblWeightDecay
+    'Update in-place
+    VecLinComb_I m_dblBeta1, m, (1 - m_dblBeta1) / (W.NumUpdates), W.Gradient
+    VecLinComb_I m_dblBeta2, v, (1 - m_dblBeta2) / (W.NumUpdates * W.NumUpdates), VecPow2(W.Gradient)
+    VecLinComb_I 1 - dblAlpha * dblWeightDecay, W.Learnable, -dblAlpha, VecDivSqrtAddC(m, v, m_dblEpsilon)
+    PutStates W, lStep, m, v
+    W.ResetGradient
 End Sub
 
 Private Sub GetStates(ByVal W As Parameter, _
@@ -137,28 +185,6 @@ Private Sub PutStates(ByVal W As Parameter, _
             Set .Item("Variance") = v
         End With
     End With
-End Sub
-
-Private Sub ApplyUpdates(ByVal W As Parameter)
-    Dim lStep As Long
-    Dim dblAlpha As Double
-    Dim dblWeightDecay As Double
-    Dim m As Tensor
-    Dim v As Tensor
-
-    If W.NumUpdates < 1 Then
-        Exit Sub
-    End If
-    GetStates W, lStep, m, v
-    lStep = lStep + 1
-    dblAlpha = W.LearningRateFactor * m_dblLearningRate * Sqr(1 - m_dblBeta2 ^ lStep) / (1 - m_dblBeta1 ^ lStep)
-    dblWeightDecay = W.WeightDecayFactor * m_dblWeightDecay
-    'Update in-place
-    VecLinComb_I m_dblBeta1, m, (1 - m_dblBeta1) / (W.NumUpdates), W.Gradient
-    VecLinComb_I m_dblBeta2, v, (1 - m_dblBeta2) / (W.NumUpdates * W.NumUpdates), VecPow2(W.Gradient)
-    VecLinComb_I 1 - dblAlpha * dblWeightDecay, W.Learnable, -dblAlpha, VecDivSqrtAddC(m, v, m_dblEpsilon)
-    PutStates W, lStep, m, v
-    W.ResetGradient
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
