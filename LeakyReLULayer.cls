@@ -39,16 +39,16 @@ Public Function Backward(ByVal X As Tensor, _
                          ByVal dLdY As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "LeakyReLULayer.Backward"
     
-    If Y Is Nothing Then
+    If X Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
     If dLdY Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If Not Y.ShapeEquals(dLdY.Shape) Then
-        Err.Raise 5, PROCEDURE_NAME, "Shapes of Y and dLdY do not match."
+    If Not X.ShapeEquals(dLdY.Shape) Then
+        Err.Raise 5, PROCEDURE_NAME, "Shapes of X and dLdY do not match."
     End If
-    Set Backward = CalculateInputError(Y, dLdY)
+    Set Backward = CalculateInputError(X, dLdY)
 End Function
 
 Public Sub Save(ByVal oWorksheet As Serializer)
@@ -75,47 +75,37 @@ End Sub
 
 Private Function CalculateOutput(ByVal X As Tensor) As Tensor
     Dim i As Long
-    Dim X_() As Double
     Dim Y_() As Double
     Dim Y As Tensor
     
-    Set Y = Zeros(X.Shape)
-    X.Flatten.CreateAlias X_
+    Set Y = X.Clone
     Y.Flatten.CreateAlias Y_
     For i = 1 To X.NumElements
-        If X_(i) < 0 Then
-            Y_(i) = X_(i) * m_dblNegativeSlope
-        Else
-            Y_(i) = X_(i)
+        If Y_(i) < 0 Then
+            Y_(i) = Y_(i) * m_dblNegativeSlope
         End If
     Next i
-    X.Flatten.RemoveAlias X_
     Y.Flatten.RemoveAlias Y_
     Set CalculateOutput = Y
 End Function
 
-Private Function CalculateInputError(ByVal Y As Tensor, _
+Private Function CalculateInputError(ByVal X As Tensor, _
                                      ByVal dLdY As Tensor) As Tensor
     Dim i As Long
-    Dim Y_() As Double
+    Dim X_() As Double
     Dim dLdX_() As Double
-    Dim dLdY_() As Double
     Dim dLdX As Tensor
     
-    Set dLdX = Zeros(Y.Shape)
-    Y.Flatten.CreateAlias Y_
+    Set dLdX = dLdY.Clone
+    X.Flatten.CreateAlias X_
     dLdX.Flatten.CreateAlias dLdX_
-    dLdY.Flatten.CreateAlias dLdY_
-    For i = 1 To Y.NumElements
-        If Y_(i) < 0 Then
-            dLdX_(i) = dLdY_(i) * m_dblNegativeSlope
-        Else
-            dLdX_(i) = dLdY_(i)
+    For i = 1 To X.NumElements
+        If X_(i) < 0 Then
+            dLdX_(i) = dLdX_(i) * m_dblNegativeSlope
         End If
     Next i
-    Y.Flatten.RemoveAlias Y_
+    X.Flatten.RemoveAlias X_
     dLdX.Flatten.RemoveAlias dLdX_
-    dLdY.Flatten.RemoveAlias dLdY_
     Set CalculateInputError = dLdX
 End Function
 
