@@ -10,7 +10,7 @@ Public Function Ones(ByVal vShape As Variant) As Tensor
     Set Ones = New Tensor
     With Ones
         .Resize vShape
-        .FillConstant 1
+        .Fill 1
     End With
 End Function
 
@@ -19,27 +19,7 @@ Public Function Full(ByVal vShape As Variant, _
     Set Full = New Tensor
     With Full
         .Resize vShape
-        .FillConstant dblValue
-    End With
-End Function
-
-Public Function Uniform(ByVal vShape As Variant, _
-                        Optional ByVal dblLow As Double = 0, _
-                        Optional ByVal dblHigh As Double = 1) As Tensor
-    Set Uniform = New Tensor
-    With Uniform
-        .Resize vShape
-        .FillUniform dblLow, dblHigh
-    End With
-End Function
-
-Public Function Normal(ByVal vShape As Variant, _
-                       Optional ByVal dblMu As Double = 0, _
-                       Optional ByVal dblSigma As Double = 1) As Tensor
-    Set Normal = New Tensor
-    With Normal
-        .Resize vShape
-        .FillNormal dblMu, dblSigma
+        .Fill dblValue
     End With
 End Function
 
@@ -94,10 +74,19 @@ Public Function BCELoss() As BCELoss
     Set BCELoss = New BCELoss
 End Function
 
+Public Function CCELoss() As CCELoss
+    Set CCELoss = New CCELoss
+End Function
+
 Public Function DataLoader(ByVal oDataset As IDataset, _
                            ByVal lBatchSize As Long) As DataLoader
     Set DataLoader = New DataLoader
     DataLoader.Init oDataset, lBatchSize
+End Function
+
+Public Function DropoutLayer(Optional ByVal dblDropoutRate As Double = 0.5) As DropoutLayer
+    Set DropoutLayer = New DropoutLayer
+    DropoutLayer.Init dblDropoutRate
 End Function
 
 Public Function FullyConnectedLayer(ByVal lInputSize As Long, _
@@ -125,11 +114,11 @@ Public Function InputNormalizationLayer(ByVal oTrainingSet As DataLoader, _
     InputNormalizationLayer.Init oTrainingSet, dblEpsilon
 End Function
 
-Public Function Parameter(ByVal oLearnable As Tensor, _
+Public Function Parameter(ByVal oVariable As Tensor, _
                           Optional ByVal dblLearningRateFactor As Double = 1, _
                           Optional ByVal dblWeightDecayFactor As Double = 1) As Parameter
     Set Parameter = New Parameter
-    Parameter.Init oLearnable, dblLearningRateFactor, dblWeightDecayFactor
+    Parameter.Init oVariable, dblLearningRateFactor, dblWeightDecayFactor
 End Function
 
 Public Function Sequential(ByVal oCriterion As ICriterion, _
@@ -149,15 +138,24 @@ Public Function SigmoidLayer() As SigmoidLayer
     Set SigmoidLayer = New SigmoidLayer
 End Function
 
-Public Function TensorFromRange(ByVal rngRange As Range, _
+Public Function SoftmaxLayer() As SoftmaxLayer
+    Set SoftmaxLayer = New SoftmaxLayer
+End Function
+
+Public Function TensorFromRange(ByVal oRange As Range, _
                                 ByVal bTrans As Boolean) As Tensor
     Set TensorFromRange = New Tensor
-    TensorFromRange.FromRange rngRange, bTrans
+    TensorFromRange.FromRange oRange, bTrans
 End Function
 
 Public Function TensorFromArray(ByRef adblArray() As Double) As Tensor
     Set TensorFromArray = New Tensor
     TensorFromArray.FromArray adblArray
+End Function
+
+Public Function SimpleDataset() As SimpleDataset
+    Set SimpleDataset = New SimpleDataset
+    SimpleDataset.Init
 End Function
 
 Public Sub Serialize(ByVal sName As String, _
@@ -183,9 +181,9 @@ Public Function ImportDatasetFromWorksheet(ByVal sName As String, _
     Dim lFirstRow As Long
     Dim lFirstCol As Long
     Dim lNumSamples As Long
-    Dim rngInputs As Range
-    Dim rngLabels As Range
-    Dim wksSource As Worksheet
+    Dim oInputs As Range
+    Dim oLabels As Range
+    Dim oSource As Worksheet
     Dim oResult As SimpleDataset
     
     If Not WorksheetExists(ThisWorkbook, sName) Then
@@ -197,17 +195,18 @@ Public Function ImportDatasetFromWorksheet(ByVal sName As String, _
     If lLabelSize < 1 Then
         Err.Raise 5, PROCEDURE_NAME, "Label size must be greater than 0."
     End If
-    Set wksSource = ThisWorkbook.Sheets(sName)
-    lFirstRow = GetFirstRow(wksSource) + IIf(bHasHeaders, 1, 0)
-    lFirstCol = GetFirstColumn(wksSource)
-    lNumSamples = GetLastRow(wksSource) - lFirstRow + 1
+    Set oSource = ThisWorkbook.Sheets(sName)
+    lFirstRow = GetFirstRow(oSource) + IIf(bHasHeaders, 1, 0)
+    lFirstCol = GetFirstColumn(oSource)
+    lNumSamples = GetLastRow(oSource) - lFirstRow + 1
     Set oResult = New SimpleDataset
+    oResult.Init
     If lNumSamples > 0 Then
-        Set rngInputs = wksSource.Cells(lFirstRow, lFirstCol).Resize(lNumSamples, lInputSize)
-        Set rngLabels = wksSource.Cells(lFirstRow, lFirstCol + lInputSize).Resize(lNumSamples, lLabelSize)
+        Set oInputs = oSource.Cells(lFirstRow, lFirstCol).Resize(lNumSamples, lInputSize)
+        Set oLabels = oSource.Cells(lFirstRow, lFirstCol + lInputSize).Resize(lNumSamples, lLabelSize)
         With oResult
-            .Add "Input", TensorFromRange(rngInputs, True)
-            .Add "Label", TensorFromRange(rngLabels, True)
+            .Add "Input", TensorFromRange(oInputs, True)
+            .Add "Label", TensorFromRange(oLabels, True)
         End With
     Else
         With oResult
@@ -270,10 +269,12 @@ Public Function ImportDatasetFromCsv(ByVal strPath As String, _
                     adblLabels(i - lInputSize, lNumRows) = dblValue
                 End If
             Next i
+            Application.StatusBar = "ImportDatasetFromCsv progress: " & lNumRows
         Loop
         .Close
     End With
     Set oResult = New SimpleDataset
+    oResult.Init
     If lNumRows > 0 Then
         ReDim Preserve adblInputs(1 To lInputSize, 1 To lNumRows)
         ReDim Preserve adblLabels(1 To lLabelSize, 1 To lNumRows)
@@ -292,7 +293,7 @@ End Function
 
 Public Sub LogToWorksheet(ByVal sName As String, _
                           ParamArray avArgs() As Variant)
-    Dim wksLog As Worksheet
+    Dim oLog As Worksheet
     Dim bIsWorksheetNew As Boolean
     Dim lLastRow As Long
     Dim i As Long
@@ -300,13 +301,13 @@ Public Sub LogToWorksheet(ByVal sName As String, _
     Dim vValue As Variant
     Dim lHeaderCol As Long
     
-    Set wksLog = CreateWorksheet(ThisWorkbook, sName, False, bIsWorksheetNew)
+    Set oLog = CreateWorksheet(ThisWorkbook, sName, False, bIsWorksheetNew)
     If bIsWorksheetNew Then
         lLastRow = 1
     Else
-        lLastRow = GetLastRow(wksLog)
+        lLastRow = GetLastRow(oLog)
     End If
-    With wksLog
+    With oLog
         On Error Resume Next
         For i = 0 To UBound(avArgs) - 1 Step 2
             vHeader = avArgs(i)
@@ -314,7 +315,7 @@ Public Sub LogToWorksheet(ByVal sName As String, _
             lHeaderCol = 0
             lHeaderCol = WorksheetFunction.Match(vHeader, .Rows(1), 0)
             If lHeaderCol = 0 Then
-                lHeaderCol = GetLastColumn(wksLog) + 1
+                lHeaderCol = GetLastColumn(oLog) + 1
                 .Cells(1, lHeaderCol) = vHeader
             End If
             .Cells(lLastRow + 1, lHeaderCol) = vValue

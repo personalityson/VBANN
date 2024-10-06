@@ -11,6 +11,8 @@ Option Explicit
 
 Private Const SERIALIZABLE_TYPE_ADAM As String = "Adam"
 Private Const SERIALIZABLE_TYPE_BCE_LOSS As String = "BCELoss"
+Private Const SERIALIZABLE_TYPE_CCE_LOSS As String = "CCELoss"
+Private Const SERIALIZABLE_TYPE_DROPOUT_LAYER As String = "DropoutLayer"
 Private Const SERIALIZABLE_TYPE_FULLY_CONNECTED_LAYER As String = "FullyConnectedLayer"
 Private Const SERIALIZABLE_TYPE_INPUT_NORMALIZATION_LAYER As String = "InputNormalizationLayer"
 Private Const SERIALIZABLE_TYPE_L1_LOSS As String = "L1Loss"
@@ -22,39 +24,25 @@ Private Const SERIALIZABLE_TYPE_PARAMETER As String = "Parameter"
 Private Const SERIALIZABLE_TYPE_SEQUENTIAL As String = "Sequential"
 Private Const SERIALIZABLE_TYPE_SGDM As String = "SGDM"
 Private Const SERIALIZABLE_TYPE_SIGMOID_LAYER As String = "SigmoidLayer"
+Private Const SERIALIZABLE_TYPE_SOFTMAX_LAYER As String = "SoftmaxLayer"
 Private Const SERIALIZABLE_TYPE_STORAGE As String = "Storage"
 Private Const SERIALIZABLE_TYPE_TENSOR As String = "Tensor"
 
-Private m_wksWorksheet As Worksheet
+Private m_oWorksheet As Worksheet
 Private m_lRow As Long
-Private m_oMemo As Object
+Private m_lNumSerializedObjects As Long
+Private m_aoMemo() As ISerializable
 
 Public Property Get Worksheet() As Worksheet
-    Set Worksheet = m_wksWorksheet
+    Set Worksheet = m_oWorksheet
 End Property
-
-Public Property Get Row() As Long
-    Row = m_lRow
-End Property
-
-Public Property Let Row(ByVal lRow As Long)
-    Const PROCEDURE_NAME As String = "Serializer.Row"
-    
-    If lRow < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Row number must be greater than 0."
-    End If
-    m_lRow = lRow
-End Property
-
-Private Sub Class_Initialize()
-    Set m_oMemo = CreateObject("Scripting.Dictionary")
-End Sub
 
 Public Sub Init(ByVal sName As String, _
                 ByVal bOverwrite As Boolean)
-    Set m_wksWorksheet = CreateWorksheet(ThisWorkbook, sName, bOverwrite)
+    Set m_oWorksheet = CreateWorksheet(ThisWorkbook, sName, bOverwrite)
     MoveFirst
-    m_oMemo.RemoveAll
+    m_lNumSerializedObjects = 0
+    Erase m_aoMemo
 End Sub
 
 Public Sub MoveFirst()
@@ -62,18 +50,22 @@ Public Sub MoveFirst()
 End Sub
 
 Public Sub MoveLast()
-    m_lRow = GetLastRow(m_wksWorksheet) + 1
+    m_lRow = GetLastRow(m_oWorksheet) + 1
 End Sub
 
 Public Sub WriteObject(ByVal oObject As ISerializable)
-    Select Case True
-        Case oObject Is Nothing
-            WriteNothing
-        Case m_oMemo.Exists(oObject)
-            WriteMemo oObject
-        Case Else
+    Dim lIndex As Long
+
+    If oObject Is Nothing Then
+        WriteNothing
+    Else
+        lIndex = IndexOf(oObject)
+        If lIndex > 0 Then
+            WriteMemo lIndex
+        Else
             WriteSerializable oObject
-    End Select
+        End If
+    End If
 End Sub
 
 Public Sub WriteLong(ByVal lValue As Long)
@@ -157,8 +149,25 @@ Public Function ReadBooleanArray() As Boolean()
     ReadArray ReadBooleanArray
 End Function
 
+Private Sub Memoize(ByVal oObject As ISerializable)
+    m_lNumSerializedObjects = m_lNumSerializedObjects + 1
+    ReDim Preserve m_aoMemo(1 To m_lNumSerializedObjects)
+    Set m_aoMemo(m_lNumSerializedObjects) = oObject
+End Sub
+
+Private Function IndexOf(ByVal oObject As ISerializable) As Long
+    Dim i As Long
+    
+    For i = 1 To m_lNumSerializedObjects
+        If m_aoMemo(i) Is oObject Then
+            IndexOf = i
+            Exit Function
+        End If
+    Next i
+End Function
+
 Private Function GetCell() As Range
-    Set GetCell = m_wksWorksheet.Cells(m_lRow, 1)
+    Set GetCell = m_oWorksheet.Cells(m_lRow, 1)
     m_lRow = m_lRow + 1
 End Function
 
@@ -172,7 +181,7 @@ Private Function GetRange(ByVal lNumRows As Long, _
     If lNumCols < 1 Then
         Err.Raise 5, PROCEDURE_NAME, "Number of columns must be greater than 0."
     End If
-    Set GetRange = m_wksWorksheet.Cells(m_lRow, 1).Resize(lNumRows, lNumCols)
+    Set GetRange = m_oWorksheet.Cells(m_lRow, 1).Resize(lNumRows, lNumCols)
     m_lRow = m_lRow + lNumRows
 End Function
 
@@ -180,10 +189,7 @@ Private Sub WriteNothing()
     WriteString SERIALIZABLE_TYPE_NOTHING
 End Sub
 
-Private Sub WriteMemo(ByVal oObject As ISerializable)
-    Dim lIndex As Long
-    
-    lIndex = m_oMemo.Item(oObject)
+Private Sub WriteMemo(ByVal lIndex As Long)
     WriteString SERIALIZABLE_TYPE_MEMO
     WriteLong lIndex
 End Sub
@@ -227,13 +233,6 @@ Private Sub WriteArray(ByVal vArray As Variant)
     End With
 End Sub
 
-Private Sub Memoize(ByVal oObject As ISerializable)
-    Dim lIndex As Long
-    
-    lIndex = m_oMemo.Count + 1
-    m_oMemo.Add oObject, lIndex
-End Sub
-
 Private Function ReadNothing() As ISerializable
     'Do nothing
 End Function
@@ -242,7 +241,7 @@ Private Function ReadMemo() As ISerializable
     Dim lIndex As Long
     
     lIndex = ReadLong()
-    Set ReadMemo = m_oMemo.Keys()(lIndex - 1)
+    Set ReadMemo = m_aoMemo(lIndex)
 End Function
 
 Private Function ReadSerializable(ByVal sTypeName As String) As ISerializable
@@ -253,12 +252,16 @@ End Function
 
 Private Function CreateInstance(ByVal sTypeName As String) As ISerializable
     Const PROCEDURE_NAME As String = "Serializer.CreateInstance"
-
+    
     Select Case sTypeName
         Case SERIALIZABLE_TYPE_ADAM
             Set CreateInstance = New Adam
         Case SERIALIZABLE_TYPE_BCE_LOSS
             Set CreateInstance = New BCELoss
+        Case SERIALIZABLE_TYPE_CCE_LOSS
+            Set CreateInstance = New CCELoss
+        Case SERIALIZABLE_TYPE_DROPOUT_LAYER
+            Set CreateInstance = New DropoutLayer
         Case SERIALIZABLE_TYPE_FULLY_CONNECTED_LAYER
             Set CreateInstance = New FullyConnectedLayer
         Case SERIALIZABLE_TYPE_INPUT_NORMALIZATION_LAYER
@@ -277,6 +280,8 @@ Private Function CreateInstance(ByVal sTypeName As String) As ISerializable
             Set CreateInstance = New SGDM
         Case SERIALIZABLE_TYPE_SIGMOID_LAYER
             Set CreateInstance = New SigmoidLayer
+        Case SERIALIZABLE_TYPE_SOFTMAX_LAYER
+            Set CreateInstance = New SoftmaxLayer
         Case SERIALIZABLE_TYPE_STORAGE
             Set CreateInstance = New Storage
         Case SERIALIZABLE_TYPE_TENSOR

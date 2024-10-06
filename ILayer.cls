@@ -12,7 +12,7 @@ Option Explicit
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
-    Public Property Get Parameters() As Variant
+    Public Property Get LearnableParameters() As Variant
         '
     End Property
     
@@ -21,13 +21,11 @@ Option Explicit
         '
     End Function
     
-    Public Function Backward(ByVal X As Object, _
-                             ByVal Y As Object, _
-                             ByVal dLdY As Object) As Object
+    Public Function Backward(ByVal dLdY As Object) As Object
         '
     End Function
 #Else
-    Public Property Get Parameters() As Variant
+    Public Property Get LearnableParameters() As Variant
         '
     End Property
     
@@ -36,9 +34,7 @@ Option Explicit
         '
     End Function
     
-    Public Function Backward(ByVal X As Tensor, _
-                             ByVal Y As Tensor, _
-                             ByVal dLdY As Tensor) As Tensor
+    Public Function Backward(ByVal dLdY As Tensor) As Tensor
         '
     End Function
 #End If

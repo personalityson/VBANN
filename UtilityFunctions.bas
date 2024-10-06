@@ -1,8 +1,8 @@
 Attribute VB_Name = "UtilityFunctions"
 '---------------------------------------------------------------------------------------
 ' Module    : UtilityFunctions
-' Author    :
-' Date      : 07.07.2024
+' Author    : personalityson
+' Date      : 01.09.2024
 ' Purpose   :
 '---------------------------------------------------------------------------------------
 
@@ -302,42 +302,42 @@ Public Sub ParseVariantToLongArray(ByVal vValueOrArray As Variant, _
     End Select
 End Sub
 
-Public Function Union(ByRef rngRangeA As Range, _
-                      ByRef rngRangeB As Range) As Range
+Public Function Union(ByVal oRangeA As Range, _
+                      ByVal oRangeB As Range) As Range
     Const PROCEDURE_NAME As String = "UtilityFunctions.Union"
     
-    If rngRangeA Is Nothing Then
-        Set Union = rngRangeB
+    If oRangeA Is Nothing Then
+        Set Union = oRangeB
         Exit Function
     End If
-    If rngRangeB Is Nothing Then
-        Set Union = rngRangeA
+    If oRangeB Is Nothing Then
+        Set Union = oRangeA
         Exit Function
     End If
-    If Not rngRangeA.Worksheet Is rngRangeB.Worksheet Then
+    If Not oRangeA.Worksheet Is oRangeB.Worksheet Then
         Err.Raise 5, PROCEDURE_NAME, "Specified ranges are not on the same worksheet."
     End If
-    Set Union = Application.Union(rngRangeA, rngRangeB)
+    Set Union = Application.Union(oRangeA, oRangeB)
 End Function
 
-Public Function Intersect(ByRef rngRangeA As Range, _
-                          ByRef rngRangeB As Range) As Range
-    If rngRangeA Is Nothing Then
+Public Function Intersect(ByVal oRangeA As Range, _
+                          ByVal oRangeB As Range) As Range
+    If oRangeA Is Nothing Then
         Exit Function
     End If
-    If rngRangeB Is Nothing Then
+    If oRangeB Is Nothing Then
         Exit Function
     End If
-    If Not rngRangeA.Worksheet Is rngRangeB.Worksheet Then
+    If Not oRangeA.Worksheet Is oRangeB.Worksheet Then
         Exit Function
     End If
-    Set Intersect = Application.Intersect(rngRangeA, rngRangeB)
+    Set Intersect = Application.Intersect(oRangeA, oRangeB)
 End Function
 
-Public Function Complement(ByRef rngRangeA As Range, _
-                           ByRef rngRangeB As Range) As Range
-    Dim rngAreaA As Range
-    Dim rngAreaB As Range
+Public Function Complement(ByVal oRangeA As Range, _
+                           ByVal oRangeB As Range) As Range
+    Dim oAreaA As Range
+    Dim oAreaB As Range
     Dim lStartRowA As Long
     Dim lStartColA As Long
     Dim lEndRowA As Long
@@ -350,132 +350,132 @@ Public Function Complement(ByRef rngRangeA As Range, _
     Dim lIntersectStartCol As Long
     Dim lIntersectEndRow As Long
     Dim lIntersectEndCol As Long
-    Dim rngResult As Range
-    Dim rngResultCopy As Range
+    Dim oResult As Range
+    Dim oResultCopy As Range
 
-    If rngRangeA Is Nothing Then
+    If oRangeA Is Nothing Then
         Exit Function
     End If
-    If rngRangeB Is Nothing Then
-        Set Complement = rngRangeA
+    If oRangeB Is Nothing Then
+        Set Complement = oRangeA
         Exit Function
     End If
-    If Not rngRangeA.Worksheet Is rngRangeB.Worksheet Then
-        Set Complement = rngRangeA
+    If Not oRangeA.Worksheet Is oRangeB.Worksheet Then
+        Set Complement = oRangeA
         Exit Function
     End If
-    Set rngResult = rngRangeA
-    With rngRangeA.Worksheet
-        For Each rngAreaB In rngRangeB.Areas
-            If rngResult Is Nothing Then
+    Set oResult = oRangeA
+    With oRangeA.Worksheet
+        For Each oAreaB In oRangeB.Areas
+            If oResult Is Nothing Then
                 Exit For
             End If
-            lStartRowB = rngAreaB.Row
-            lStartColB = rngAreaB.Column
-            lEndRowB = lStartRowB + rngAreaB.Rows.Count - 1
-            lEndColB = lStartColB + rngAreaB.Columns.Count - 1
-            Set rngResultCopy = rngResult
-            Set rngResult = Nothing
-            For Each rngAreaA In rngResultCopy.Areas
-                lStartRowA = rngAreaA.Row
-                lStartColA = rngAreaA.Column
-                lEndRowA = lStartRowA + rngAreaA.Rows.Count - 1
-                lEndColA = lStartColA + rngAreaA.Columns.Count - 1
+            lStartRowB = oAreaB.Row
+            lStartColB = oAreaB.Column
+            lEndRowB = lStartRowB + oAreaB.Rows.Count - 1
+            lEndColB = lStartColB + oAreaB.Columns.Count - 1
+            Set oResultCopy = oResult
+            Set oResult = Nothing
+            For Each oAreaA In oResultCopy.Areas
+                lStartRowA = oAreaA.Row
+                lStartColA = oAreaA.Column
+                lEndRowA = lStartRowA + oAreaA.Rows.Count - 1
+                lEndColA = lStartColA + oAreaA.Columns.Count - 1
                 lIntersectStartRow = MaxLng2(lStartRowA, lStartRowB)
                 lIntersectStartCol = MaxLng2(lStartColA, lStartColB)
                 lIntersectEndRow = MinLng2(lEndRowA, lEndRowB)
                 lIntersectEndCol = MinLng2(lEndColA, lEndColB)
                 If lIntersectStartRow <= lIntersectEndRow And lIntersectStartCol <= lIntersectEndCol Then
                     If lIntersectStartRow > lStartRowA Then
-                        Set rngResult = Union(rngResult, .Range(.Cells(lStartRowA, lStartColA), .Cells(lIntersectStartRow - 1, lEndColA)))
+                        Set oResult = Union(oResult, .Range(.Cells(lStartRowA, lStartColA), .Cells(lIntersectStartRow - 1, lEndColA)))
                     End If
                     If lIntersectStartCol > lStartColA Then
-                        Set rngResult = Union(rngResult, .Range(.Cells(lIntersectStartRow, lStartColA), .Cells(lIntersectEndRow, lIntersectStartCol - 1)))
+                        Set oResult = Union(oResult, .Range(.Cells(lIntersectStartRow, lStartColA), .Cells(lIntersectEndRow, lIntersectStartCol - 1)))
                     End If
                     If lEndColA > lIntersectEndCol Then
-                        Set rngResult = Union(rngResult, .Range(.Cells(lIntersectStartRow, lIntersectEndCol + 1), .Cells(lIntersectEndRow, lEndColA)))
+                        Set oResult = Union(oResult, .Range(.Cells(lIntersectStartRow, lIntersectEndCol + 1), .Cells(lIntersectEndRow, lEndColA)))
                     End If
                     If lEndRowA > lIntersectEndRow Then
-                        Set rngResult = Union(rngResult, .Range(.Cells(lIntersectEndRow + 1, lStartColA), .Cells(lEndRowA, lEndColA)))
+                        Set oResult = Union(oResult, .Range(.Cells(lIntersectEndRow + 1, lStartColA), .Cells(lEndRowA, lEndColA)))
                     End If
                 Else
-                    Set rngResult = Union(rngResult, rngAreaA)
+                    Set oResult = Union(oResult, oAreaA)
                 End If
-            Next rngAreaA
-        Next rngAreaB
+            Next oAreaA
+        Next oAreaB
     End With
-    Set Complement = rngResult
+    Set Complement = oResult
 End Function
 
-Public Function GetFirstRow(ByVal wksWorksheet As Worksheet, _
+Public Function GetFirstRow(ByVal oWorksheet As Worksheet, _
                             Optional ByVal lColumn As Long) As Long
     Const PROCEDURE_NAME As String = "UtilityFunctions.GetFirstRow"
-    Dim rngNonEmptyCell As Range
+    Dim oNonEmptyCell As Range
     
-    If wksWorksheet Is Nothing Then
+    If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Worksheet object is required."
     End If
     If lColumn > 0 Then
-        Set rngNonEmptyCell = wksWorksheet.Columns(lColumn).Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
+        Set oNonEmptyCell = oWorksheet.Columns(lColumn).Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
     Else
-        Set rngNonEmptyCell = wksWorksheet.Cells.Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
+        Set oNonEmptyCell = oWorksheet.Cells.Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
     End If
-    If Not rngNonEmptyCell Is Nothing Then
-        GetFirstRow = rngNonEmptyCell.Row
+    If Not oNonEmptyCell Is Nothing Then
+        GetFirstRow = oNonEmptyCell.Row
     End If
 End Function
 
-Public Function GetLastRow(ByVal wksWorksheet As Worksheet, _
+Public Function GetLastRow(ByVal oWorksheet As Worksheet, _
                            Optional ByVal lColumn As Long) As Long
     Const PROCEDURE_NAME As String = "UtilityFunctions.GetLastRow"
-    Dim rngNonEmptyCell As Range
+    Dim oNonEmptyCell As Range
     
-    If wksWorksheet Is Nothing Then
+    If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Worksheet object is required."
     End If
     If lColumn > 0 Then
-        Set rngNonEmptyCell = wksWorksheet.Columns(lColumn).Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
+        Set oNonEmptyCell = oWorksheet.Columns(lColumn).Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
     Else
-        Set rngNonEmptyCell = wksWorksheet.Cells.Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
+        Set oNonEmptyCell = oWorksheet.Cells.Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
     End If
-    If Not rngNonEmptyCell Is Nothing Then
-        GetLastRow = rngNonEmptyCell.Row
+    If Not oNonEmptyCell Is Nothing Then
+        GetLastRow = oNonEmptyCell.Row
     End If
 End Function
 
-Public Function GetFirstColumn(ByVal wksWorksheet As Worksheet, _
+Public Function GetFirstColumn(ByVal oWorksheet As Worksheet, _
                                Optional ByVal lRow As Long) As Long
     Const PROCEDURE_NAME As String = "UtilityFunctions.GetFirstColumn"
-    Dim rngNonEmptyCell As Range
+    Dim oNonEmptyCell As Range
     
-    If wksWorksheet Is Nothing Then
+    If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Worksheet object is required."
     End If
     If lRow > 0 Then
-        Set rngNonEmptyCell = wksWorksheet.Rows(lRow).Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
+        Set oNonEmptyCell = oWorksheet.Rows(lRow).Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
     Else
-        Set rngNonEmptyCell = wksWorksheet.Cells.Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
+        Set oNonEmptyCell = oWorksheet.Cells.Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
     End If
-    If Not rngNonEmptyCell Is Nothing Then
-        GetFirstColumn = rngNonEmptyCell.Column
+    If Not oNonEmptyCell Is Nothing Then
+        GetFirstColumn = oNonEmptyCell.Column
     End If
 End Function
 
-Public Function GetLastColumn(ByVal wksWorksheet As Worksheet, _
+Public Function GetLastColumn(ByVal oWorksheet As Worksheet, _
                               Optional ByVal lRow As Long) As Long
     Const PROCEDURE_NAME As String = "UtilityFunctions.GetLastColumn"
-    Dim rngNonEmptyCell As Range
+    Dim oNonEmptyCell As Range
     
-    If wksWorksheet Is Nothing Then
+    If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Worksheet object is required."
     End If
     If lRow > 0 Then
-        Set rngNonEmptyCell = wksWorksheet.Rows(lRow).Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
+        Set oNonEmptyCell = oWorksheet.Rows(lRow).Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
     Else
-        Set rngNonEmptyCell = wksWorksheet.Cells.Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
+        Set oNonEmptyCell = oWorksheet.Cells.Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
     End If
-    If Not rngNonEmptyCell Is Nothing Then
-        GetLastColumn = rngNonEmptyCell.Column
+    If Not oNonEmptyCell Is Nothing Then
+        GetLastColumn = oNonEmptyCell.Column
     End If
 End Function
 
@@ -589,7 +589,7 @@ Public Function CreateWorkbook(ByVal sDirectory As String, _
     Dim sExtension As String
     Dim sFileName As String
     Dim sPath As String
-    Dim wbkResult As Workbook
+    Dim oResult As Workbook
     
     sExtension = FileFormatToExtension(lFileFormat)
     sFileName = SanitizeFileName(sName & IIf(sExtension = "", "", "." & sExtension))
@@ -603,11 +603,11 @@ Public Function CreateWorkbook(ByVal sDirectory As String, _
             Exit Function
         End If
     End If
-    Set wbkResult = Workbooks.Add
-    wbkResult.Title = sName
-    wbkResult.SaveAs FileName:=sPath, FileFormat:=lFileFormat, Local:=True
+    Set oResult = Workbooks.Add
+    oResult.Title = sName
+    oResult.SaveAs FileName:=sPath, FileFormat:=lFileFormat, Local:=True
     bIsWorkbookNew = True
-    Set CreateWorkbook = wbkResult
+    Set CreateWorkbook = oResult
 End Function
 
 Public Function SanitizeWorksheetName(ByVal sName As String) As String
@@ -627,63 +627,63 @@ Public Function SanitizeWorksheetName(ByVal sName As String) As String
     SanitizeWorksheetName = Left$(sName, MAX_LENGTH)
 End Function
 
-Public Function WorksheetExists(ByVal wbkParent As Workbook, _
+Public Function WorksheetExists(ByVal oParent As Workbook, _
                                 ByVal sName As String) As Boolean
     On Error Resume Next
-    WorksheetExists = Not wbkParent.Worksheets(sName) Is Nothing
+    WorksheetExists = Not oParent.Worksheets(sName) Is Nothing
 End Function
 
-Public Function CreateWorksheet(ByVal wbkParent As Workbook, _
+Public Function CreateWorksheet(ByVal oParent As Workbook, _
                                 ByVal sName As String, _
                                 Optional ByVal bOverwrite As Boolean, _
                                 Optional ByRef bIsWorksheetNew As Boolean) As Worksheet
     Dim bDisplayAlertsSave As Boolean
-    Dim wksResult As Worksheet
+    Dim oResult As Worksheet
     
     bDisplayAlertsSave = Application.DisplayAlerts
     sName = SanitizeWorksheetName(sName)
-    If WorksheetExists(wbkParent, sName) Then
+    If WorksheetExists(oParent, sName) Then
         If bOverwrite Then
-            Set wksResult = wbkParent.Worksheets.Add(after:=Parent.Worksheets(sName))
+            Set oResult = oParent.Worksheets.Add(after:=Parent.Worksheets(sName))
             Application.DisplayAlerts = False
-            wbkParent.Worksheets(sName).Delete
+            oParent.Worksheets(sName).Delete
             Application.DisplayAlerts = bDisplayAlertsSave
         Else
             bIsWorksheetNew = False
-            Set CreateWorksheet = wbkParent.Worksheets(sName)
+            Set CreateWorksheet = oParent.Worksheets(sName)
             Exit Function
         End If
     Else
-        Set wksResult = wbkParent.Worksheets.Add(after:=wbkParent.Worksheets(wbkParent.Worksheets.Count))
+        Set oResult = oParent.Worksheets.Add(after:=oParent.Worksheets(oParent.Worksheets.Count))
     End If
-    wksResult.Name = sName
-    wksResult.Activate
+    oResult.Name = sName
+    oResult.Activate
     ActiveWindow.Zoom = 80
     bIsWorksheetNew = True
-    Set CreateWorksheet = wksResult
+    Set CreateWorksheet = oResult
 End Function
 
-Public Function DumpWorksheet(ByVal wksWorksheet As Worksheet, _
+Public Function DumpWorksheet(ByVal oWorksheet As Worksheet, _
                               ByVal sDirectory As String, _
                               ByVal sName As String, _
                               Optional ByVal lFileFormat As XlFileFormat = xlWorkbookDefault, _
                               Optional ByVal bOverwrite As Boolean) As Workbook
     Dim bDisplayAlertsSave As Boolean
     Dim i As Long
-    Dim wbkResult As Workbook
+    Dim oResult As Workbook
     
-    Set wbkResult = CreateWorkbook(sDirectory, sName, lFileFormat, bOverwrite)
-    wksWorksheet.Copy Before:=wbkResult.Sheets(1)
+    Set oResult = CreateWorkbook(sDirectory, sName, lFileFormat, bOverwrite)
+    oWorksheet.Copy Before:=oResult.Sheets(1)
     bDisplayAlertsSave = Application.DisplayAlerts
     Application.DisplayAlerts = False
-    For i = wbkResult.Worksheets.Count To 2 Step -1
-        wbkResult.Worksheets(i).Delete
+    For i = oResult.Worksheets.Count To 2 Step -1
+        oResult.Worksheets(i).Delete
     Next i
     Application.DisplayAlerts = bDisplayAlertsSave
-    wbkResult.Sheets(1).Name = wksWorksheet.Name
-    wbkResult.Save
-    'wbkResult.Close SaveChanges:=True
-    Set DumpWorksheet = wbkResult
+    oResult.Sheets(1).Name = oWorksheet.Name
+    oResult.Save
+    'oResult.Close SaveChanges:=True
+    Set DumpWorksheet = oResult
 End Function
 
 Public Function GetUtcTime() As Date
@@ -731,12 +731,12 @@ End Function
 Public Sub LogError(ByVal sSource As String, _
                     ByVal lErrorNumber As Long, _
                     ByVal sErrorDescription As String)
-    Dim wksErrors As Worksheet
+    Dim oErrors As Worksheet
     Dim bIsWorksheetNew As Boolean
     Dim lLastRow As Long
     
-    Set wksErrors = CreateWorksheet(ThisWorkbook, "Errors", False, bIsWorksheetNew)
-    With wksErrors
+    Set oErrors = CreateWorksheet(ThisWorkbook, "Errors", False, bIsWorksheetNew)
+    With oErrors
         If bIsWorksheetNew Then
             .Cells(1, 1) = "Time"
             .Cells(1, 2) = "Source"
@@ -744,7 +744,7 @@ Public Sub LogError(ByVal sSource As String, _
             .Cells(1, 4) = "Error Description"
             lLastRow = 1
         Else
-            lLastRow = GetLastRow(wksErrors)
+            lLastRow = GetLastRow(oErrors)
         End If
         .Cells(lLastRow + 1, 1) = GetUtcTime()
         .Cells(lLastRow + 1, 2) = sSource

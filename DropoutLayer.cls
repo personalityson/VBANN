@@ -9,3 +9,136 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
 
+#Const USE_LATE_BINDING_IN_INTERFACES = True
+
+Implements ILayer
+Implements ISerializable
+
+Private m_dblDropoutRate As Double
+
+'Cache
+Private m_oMask As Tensor
+Private m_X As Tensor
+Private m_Y As Tensor
+
+Public Property Get LearnableParameters() As Variant
+    LearnableParameters = Array()
+End Property
+
+Public Sub Init(Optional ByVal dblDropoutRate As Double = 0.5)
+    Const PROCEDURE_NAME As String = "DropoutLayer.Init"
+    
+    If dblDropoutRate < 0 Or dblDropoutRate >= 1 Then
+        Err.Raise 5, PROCEDURE_NAME, "Dropout rate must be greater than or equal to 0 and less than 1."
+    End If
+    m_dblDropoutRate = dblDropoutRate
+End Sub
+
+Public Function Forward(ByVal X As Tensor, _
+                        Optional ByVal bIsTraining As Boolean = True) As Tensor
+    Const PROCEDURE_NAME As String = "DropoutLayer.Forward"
+    
+    If X Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    Set m_X = X
+    If bIsTraining Then
+        Set m_oMask = Bernoulli(X.Shape, 1 - m_dblDropoutRate)
+        Set m_Y = ApplyDropoutMask(X, m_oMask)
+    Else
+        Set m_Y = X
+    End If
+    Set Forward = m_Y
+End Function
+
+Public Function Backward(ByVal dLdY As Tensor) As Tensor
+    Const PROCEDURE_NAME As String = "DropoutLayer.Backward"
+    
+    If m_oMask Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Forward pass must be executed before the backward pass."
+    End If
+    If dLdY Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If Not dLdY.ShapeEquals(m_oMask.Shape) Then
+        Err.Raise 5, PROCEDURE_NAME, "Gradient tensor shape does not match the expected shape for backward pass."
+    End If
+    Set Backward = ApplyDropoutMask(dLdY, m_oMask)
+End Function
+
+Private Function ApplyDropoutMask(ByVal X As Tensor, _
+                                  ByVal oMask As Tensor) As Tensor
+    Set ApplyDropoutMask = VecMulC(VecMul(X, oMask), 1 / (1 - m_dblDropoutRate))
+End Function
+
+Private Sub Save(ByVal oWorksheet As Serializer)
+    Const PROCEDURE_NAME As String = "DropoutLayer.Save"
+    
+    If oWorksheet Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
+    End If
+    With oWorksheet
+        .WriteDouble m_dblDropoutRate
+        .WriteObject m_oMask
+        .WriteObject m_X
+        .WriteObject m_Y
+    End With
+End Sub
+
+Private Sub Load(ByVal oWorksheet As Serializer)
+    Const PROCEDURE_NAME As String = "DropoutLayer.Load"
+    
+    If oWorksheet Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
+    End If
+    With oWorksheet
+        m_dblDropoutRate = .ReadDouble()
+        Set m_oMask = .ReadObject()
+        Set m_X = .ReadObject()
+        Set m_Y = .ReadObject()
+    End With
+End Sub
+
+#If USE_LATE_BINDING_IN_INTERFACES Then
+    Private Property Get ILayer_LearnableParameters() As Variant
+        ILayer_LearnableParameters = LearnableParameters
+    End Property
+    
+    Private Function ILayer_Forward(ByVal X As Object, _
+                                    Optional ByVal bIsTraining As Boolean) As Object
+        Set ILayer_Forward = Forward(X, bIsTraining)
+    End Function
+    
+    Private Function ILayer_Backward(ByVal dLdY As Object) As Object
+        Set ILayer_Backward = Backward(dLdY)
+    End Function
+    
+    Private Sub ISerializable_Save(ByVal oWorksheet As Object)
+        Save oWorksheet
+    End Sub
+    
+    Private Sub ISerializable_Load(ByVal oWorksheet As Object)
+        Load oWorksheet
+    End Sub
+#Else
+    Private Property Get ILayer_LearnableParameters() As Variant
+        ILayer_LearnableParameters = LearnableParameters
+    End Property
+    
+    Private Function ILayer_Forward(ByVal X As Tensor, _
+                                    Optional ByVal bIsTraining As Boolean) As Tensor
+        Set ILayer_Forward = Forward(X, bIsTraining)
+    End Function
+    
+    Private Function ILayer_Backward(ByVal dLdY As Tensor) As Tensor
+        Set ILayer_Backward = Backward(dLdY)
+    End Function
+    
+    Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)
+        Save oWorksheet
+    End Sub
+    
+    Private Sub ISerializable_Load(ByVal oWorksheet As Serializer)
+        Load oWorksheet
+    End Sub
+#End If

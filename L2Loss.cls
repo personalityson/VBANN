@@ -50,14 +50,6 @@ Public Function Backward(ByVal Y As Tensor, _
     Set Backward = CalculateOutputError(Y, T)
 End Function
 
-Public Sub Save(ByVal oWorksheet As Serializer)
-    'Do nothing
-End Sub
-
-Public Sub Load(ByVal oWorksheet As Serializer)
-    'Do nothing
-End Sub
-
 Private Function CalculateLoss(ByVal Y As Tensor, _
                                ByVal T As Tensor) As Tensor
     Set CalculateLoss = VecMulC(VecPow2(VecSub(Y, T)), 0.5)
@@ -67,6 +59,14 @@ Private Function CalculateOutputError(ByVal Y As Tensor, _
                                       ByVal T As Tensor) As Tensor
     Set CalculateOutputError = VecSub(Y, T)
 End Function
+
+Private Sub Save(ByVal oWorksheet As Serializer)
+    'Do nothing
+End Sub
+
+Private Sub Load(ByVal oWorksheet As Serializer)
+    'Do nothing
+End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
     Private Function ICriterion_Forward(ByVal Y As Object, _

@@ -34,10 +34,6 @@ Public Property Let LearningRate(ByVal dblLearningRate As Double)
     m_dblLearningRate = dblLearningRate
 End Property
 
-Private Sub Class_Initialize()
-    Set m_oStates = CreateObject("Scripting.Dictionary")
-End Sub
-
 Public Sub Init(Optional ByVal dblLearningRate As Double = 0.001, _
                 Optional ByVal dblBeta1 As Double = 0.9, _
                 Optional ByVal dblBeta2 As Double = 0.999, _
@@ -65,7 +61,7 @@ Public Sub Init(Optional ByVal dblLearningRate As Double = 0.001, _
     m_dblBeta2 = dblBeta2
     m_dblEpsilon = dblEpsilon
     m_dblWeightDecay = dblWeightDecay
-    m_oStates.RemoveAll
+    Set m_oStates = CreateObject("Scripting.Dictionary")
 End Sub
 
 Public Sub Update(ByVal W As Parameter)
@@ -77,7 +73,63 @@ Public Sub Update(ByVal W As Parameter)
     ApplyUpdates W
 End Sub
 
-Public Sub Save(ByVal oWorksheet As Serializer)
+Private Sub ApplyUpdates(ByVal W As Parameter)
+    Dim lStep As Long
+    Dim dblAlpha As Double
+    Dim dblWeightDecay As Double
+    Dim m As Tensor
+    Dim v As Tensor
+    
+    If W.NumUpdates < 1 Then
+        Exit Sub
+    End If
+    GetStates W, lStep, m, v
+    lStep = lStep + 1
+    dblAlpha = W.LearningRateFactor * m_dblLearningRate * Sqr(1 - m_dblBeta2 ^ lStep) / (1 - m_dblBeta1 ^ lStep)
+    dblWeightDecay = W.WeightDecayFactor * m_dblWeightDecay
+    'Update in-place, m = beta1 * m + (1 - beta1) * (dW / NumUpdates)
+    VecLinComb_I m_dblBeta1, m, (1 - m_dblBeta1) / (W.NumUpdates), W.Gradient
+    'Update in-place, v = beta2 * v + (1 - beta2) * (dW / NumUpdates)^2
+    VecLinComb_I m_dblBeta2, v, (1 - m_dblBeta2) / (W.NumUpdates * W.NumUpdates), VecPow2(W.Gradient)
+    'Update in-place, W = W - alpha * (m / (Sqr(v) + epsilon) + wd * W)
+    VecLinComb_I 1 - dblAlpha * dblWeightDecay, W.Variable, -dblAlpha, VecDivSqrtAddC(m, v, m_dblEpsilon)
+    W.ResetGradient
+    PutStates W, lStep, m, v
+End Sub
+
+Private Sub GetStates(ByVal W As Parameter, _
+                      ByRef lStep As Long, _
+                      ByRef m As Tensor, _
+                      ByRef v As Tensor)
+    With m_oStates
+        If Not .Exists(W) Then
+            PutStates W, 0&, Zeros(W.Variable.Shape), Zeros(W.Variable.Shape)
+        End If
+        With .Item(W)
+            lStep = .Item("Step")
+            Set m = .Item("Mean")
+            Set v = .Item("Variance")
+        End With
+    End With
+End Sub
+
+Private Sub PutStates(ByVal W As Parameter, _
+                      ByVal lStep As Long, _
+                      ByVal m As Tensor, _
+                      ByVal v As Tensor)
+    With m_oStates
+        If Not .Exists(W) Then
+            Set .Item(W) = CreateObject("Scripting.Dictionary")
+        End If
+        With .Item(W)
+            .Item("Step") = lStep
+            Set .Item("Mean") = m
+            Set .Item("Variance") = v
+        End With
+    End With
+End Sub
+
+Private Sub Save(ByVal oWorksheet As Serializer)
     Const PROCEDURE_NAME As String = "Adam.Save"
     Dim W As Variant
     Dim lStep As Long
@@ -104,11 +156,11 @@ Public Sub Save(ByVal oWorksheet As Serializer)
     End With
 End Sub
 
-Public Sub Load(ByVal oWorksheet As Serializer)
+Private Sub Load(ByVal oWorksheet As Serializer)
     Const PROCEDURE_NAME As String = "Adam.Load"
     Dim lNumStates As Long
     Dim i As Long
-    Dim W As Variant
+    Dim W As Parameter
     Dim lStep As Long
     Dim m As Tensor
     Dim v As Tensor
@@ -116,6 +168,7 @@ Public Sub Load(ByVal oWorksheet As Serializer)
     If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
+    Set m_oStates = CreateObject("Scripting.Dictionary")
     With oWorksheet
         m_dblLearningRate = .ReadDouble()
         m_dblBeta1 = .ReadDouble()
@@ -130,60 +183,6 @@ Public Sub Load(ByVal oWorksheet As Serializer)
             Set v = .ReadObject()
             PutStates W, lStep, m, v
         Next i
-    End With
-End Sub
-
-Private Sub ApplyUpdates(ByVal W As Parameter)
-    Dim lStep As Long
-    Dim dblAlpha As Double
-    Dim dblWeightDecay As Double
-    Dim m As Tensor
-    Dim v As Tensor
-
-    If W.NumUpdates < 1 Then
-        Exit Sub
-    End If
-    GetStates W, lStep, m, v
-    lStep = lStep + 1
-    dblAlpha = W.LearningRateFactor * m_dblLearningRate * Sqr(1 - m_dblBeta2 ^ lStep) / (1 - m_dblBeta1 ^ lStep)
-    dblWeightDecay = W.WeightDecayFactor * m_dblWeightDecay
-    'Update in-place
-    VecLinComb_I m_dblBeta1, m, (1 - m_dblBeta1) / (W.NumUpdates), W.Gradient
-    VecLinComb_I m_dblBeta2, v, (1 - m_dblBeta2) / (W.NumUpdates * W.NumUpdates), VecPow2(W.Gradient)
-    VecLinComb_I 1 - dblAlpha * dblWeightDecay, W.Learnable, -dblAlpha, VecDivSqrtAddC(m, v, m_dblEpsilon)
-    PutStates W, lStep, m, v
-    W.ResetGradient
-End Sub
-
-Private Sub GetStates(ByVal W As Parameter, _
-                      ByRef lStep As Long, _
-                      ByRef m As Tensor, _
-                      ByRef v As Tensor)
-    With m_oStates
-        If Not .Exists(W) Then
-            PutStates W, 0&, Zeros(W.Learnable.Shape), Zeros(W.Learnable.Shape)
-        End If
-        With .Item(W)
-            lStep = .Item("Step")
-            Set m = .Item("Mean")
-            Set v = .Item("Variance")
-        End With
-    End With
-End Sub
-
-Private Sub PutStates(ByVal W As Parameter, _
-                      ByVal lStep As Long, _
-                      ByVal m As Tensor, _
-                      ByVal v As Tensor)
-    With m_oStates
-        If Not .Exists(W) Then
-            Set .Item(W) = CreateObject("Scripting.Dictionary")
-        End If
-        With .Item(W)
-            .Item("Step") = lStep
-            Set .Item("Mean") = m
-            Set .Item("Variance") = v
-        End With
     End With
 End Sub
 

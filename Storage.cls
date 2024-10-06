@@ -111,18 +111,18 @@ Public Function ToArray() As Double()
     ToArray = m_adblBuffer
 End Function
 
-Public Sub FromRange(ByVal rngRange As Range, _
+Public Sub FromRange(ByVal oRange As Range, _
                      Optional bTrans As Boolean)
     Dim lNumRows As Long
     Dim lNumCols As Long
     Dim i As Long
     Dim j As Long
     
-    If rngRange Is Nothing Then
+    If oRange Is Nothing Then
         Reset
         Exit Sub
     End If
-    With rngRange.Areas(1)
+    With oRange.Areas(1)
         lNumRows = .Rows.Count
         lNumCols = .Columns.Count
         If bTrans Then
@@ -143,7 +143,19 @@ Public Sub FromRange(ByVal rngRange As Range, _
     End With
 End Sub
 
-Public Sub Save(ByVal oWorksheet As Serializer)
+Private Sub Class_Terminate()
+    Reset
+End Sub
+
+Private Sub Reset()
+    m_lNumRows = 0
+    m_lNumCols = 0
+    m_lNumElements = 0
+    Erase m_adblBuffer
+    m_pAddress = NULL_PTR
+End Sub
+
+Private Sub Save(ByVal oWorksheet As Serializer)
     Const PROCEDURE_NAME As String = "Storage.Save"
     
     If oWorksheet Is Nothing Then
@@ -154,7 +166,7 @@ Public Sub Save(ByVal oWorksheet As Serializer)
     End With
 End Sub
 
-Public Sub Load(ByVal oWorksheet As Serializer)
+Private Sub Load(ByVal oWorksheet As Serializer)
     Const PROCEDURE_NAME As String = "Storage.Load"
     
     If oWorksheet Is Nothing Then
@@ -163,14 +175,6 @@ Public Sub Load(ByVal oWorksheet As Serializer)
     With oWorksheet
         FromArray .ReadDoubleArray()
     End With
-End Sub
-
-Private Sub Reset()
-    m_lNumRows = 0
-    m_lNumCols = 0
-    m_lNumElements = 0
-    Erase m_adblBuffer
-    m_pAddress = NULL_PTR
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then

@@ -13,23 +13,27 @@ Option Explicit
 
 Implements ISerializable
 
-Private m_oLearnable As Tensor
+Private m_oVariable As Tensor
 Private m_oGradient As Tensor
 Private m_lNumUpdates As Long
 Private m_dblLearningRateFactor As Double
 Private m_dblWeightDecayFactor As Double
+Private m_bIsInitialized As Boolean
 
-Public Property Get Learnable() As Tensor
-    Set Learnable = m_oLearnable
+Public Property Get Variable() As Tensor
+    Set Variable = m_oVariable
 End Property
 
-Public Property Set Learnable(ByVal oLearnable As Tensor)
-    Const PROCEDURE_NAME As String = "Parameter.Learnable"
-    
-    If Not oLearnable.ShapeEquals(m_oLearnable.Shape) Then
+Public Property Set Variable(ByVal oVariable As Tensor)
+    Const PROCEDURE_NAME As String = "Parameter.Variable"
+
+    If oVariable Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If Not oVariable.ShapeEquals(m_oVariable.Shape) Then
         Err.Raise 5, PROCEDURE_NAME, "Shape of the provided learnable does not match the current learnable's shape."
     End If
-    Set m_oLearnable = oLearnable
+    Set m_oVariable = oVariable
 End Property
 
 Public Property Get Gradient() As Tensor
@@ -39,6 +43,9 @@ End Property
 Public Property Set Gradient(ByVal oGradient As Tensor)
     Const PROCEDURE_NAME As String = "Parameter.Gradient"
     
+    If oGradient Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
     If Not oGradient.ShapeEquals(m_oGradient.Shape) Then
         Err.Raise 5, PROCEDURE_NAME, "Shape of the provided gradient does not match the current gradient's shape."
     End If
@@ -69,34 +76,38 @@ Public Property Let WeightDecayFactor(ByVal dblWeightDecayFactor As Double)
     m_dblWeightDecayFactor = dblWeightDecayFactor
 End Property
 
-Public Sub Init(ByVal oLearnable As Tensor, _
+Public Sub Init(ByVal oVariable As Tensor, _
                 Optional ByVal dblLearningRateFactor As Double = 1, _
                 Optional ByVal dblWeightDecayFactor As Double = 1)
     Const PROCEDURE_NAME As String = "Parameter.Init"
     
-    If oLearnable Is Nothing Then
+    If m_bIsInitialized Then
+        Err.Raise 5, PROCEDURE_NAME, "Object has already been initialized and cannot be modified."
+    End If
+    If oVariable Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    Set m_oLearnable = oLearnable
-    Set m_oGradient = Zeros(m_oLearnable.Shape)
+    Set m_oVariable = oVariable
+    Set m_oGradient = Zeros(m_oVariable.Shape)
     m_lNumUpdates = 0
     m_dblLearningRateFactor = dblLearningRateFactor
     m_dblWeightDecayFactor = dblWeightDecayFactor
+    m_bIsInitialized = True
 End Sub
 
 Public Sub ResetGradient()
-    m_oGradient.FillConstant 0
+    m_oGradient.Fill 0
     m_lNumUpdates = 0
 End Sub
 
-Public Sub Save(ByVal oWorksheet As Serializer)
+Private Sub Save(ByVal oWorksheet As Serializer)
     Const PROCEDURE_NAME As String = "Parameter.Save"
     
     If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
     With oWorksheet
-        .WriteObject m_oLearnable
+        .WriteObject m_oVariable
         .WriteObject m_oGradient
         .WriteLong m_lNumUpdates
         .WriteDouble m_dblLearningRateFactor
@@ -104,14 +115,14 @@ Public Sub Save(ByVal oWorksheet As Serializer)
     End With
 End Sub
 
-Public Sub Load(ByVal oWorksheet As Serializer)
+Private Sub Load(ByVal oWorksheet As Serializer)
     Const PROCEDURE_NAME As String = "Parameter.Load"
     
     If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
     With oWorksheet
-        Set m_oLearnable = .ReadObject()
+        Set m_oVariable = .ReadObject()
         Set m_oGradient = .ReadObject()
         m_lNumUpdates = .ReadLong()
         m_dblLearningRateFactor = .ReadDouble()

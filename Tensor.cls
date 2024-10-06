@@ -60,7 +60,7 @@ Public Property Get Size(ByVal lDimension As Long) As Long
     Const PROCEDURE_NAME As String = "Tensor.Size"
 
     If lDimension < 1 Or lDimension > m_lNumDimensions Then
-        Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
+        Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
     End If
     Size = m_alShape(lDimension)
 End Property
@@ -72,14 +72,6 @@ End Property
 Public Property Get Address() As LongPtr
     Address = m_oData.Address
 End Property
-
-Private Sub Class_Initialize()
-    Set m_oData = New Storage
-End Sub
-
-Private Sub Class_Terminate()
-    Reset
-End Sub
 
 Public Sub Resize(ByVal vShape As Variant, _
                   Optional ByVal oData As Storage)
@@ -100,11 +92,6 @@ End Sub
 Public Function View(ByVal vShape As Variant) As Tensor
     Set View = New Tensor
     View.Resize vShape, m_oData
-End Function
-
-Public Function Clone() As Tensor
-    Set Clone = New Tensor
-    Clone.Resize m_alShape, m_oData.Clone
 End Function
 
 Public Function Flatten() As Tensor
@@ -132,13 +119,13 @@ Public Function Slice(ByVal lDimension As Long, _
     Const PROCEDURE_NAME As String = "Tensor.Slice"
 
     If lDimension < 1 Or lDimension > m_lNumDimensions Then
-        Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
+        Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
     End If
     If lStart < 1 Or lStart > m_alShape(lDimension) Then
-        Err.Raise 9, PROCEDURE_NAME, "Start index must be between 1 and the size of the dimension."
+        Err.Raise 9, PROCEDURE_NAME, "Start index is out of range."
     End If
     If lEnd < 1 Or lEnd > m_alShape(lDimension) Then
-        Err.Raise 9, PROCEDURE_NAME, "End index must be between 1 and the size of the dimension."
+        Err.Raise 9, PROCEDURE_NAME, "End index is out of range."
     End If
     Set Slice = SliceInternal(lDimension, lStart, lEnd)
 End Function
@@ -151,12 +138,12 @@ Public Function Gather(ByVal lDimension As Long, _
     Dim i As Long
     
     If lDimension < 1 Or lDimension > m_lNumDimensions Then
-        Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
+        Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
     End If
     ParseVariantToLongArray vIndices, lNumIndices, alIndices
     For i = 1 To lNumIndices
         If alIndices(i) < 1 Or alIndices(i) > m_alShape(lDimension) Then
-            Err.Raise 9, PROCEDURE_NAME, "Index must be between 1 and the size of the dimension."
+            Err.Raise 9, PROCEDURE_NAME, "Index is out of range."
         End If
     Next i
     Set Gather = GatherInternal(lDimension, lNumIndices, alIndices)
@@ -167,10 +154,7 @@ Public Function Tile(ByVal lDimension As Long, _
     Const PROCEDURE_NAME As String = "Tensor.Tile"
     
     If lDimension < 1 Or lDimension > m_lNumDimensions Then
-        Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
-    End If
-    If lNumRepeats < 0 Then
-        Err.Raise 9, PROCEDURE_NAME, "Number of repeats must be greater than or equal to 0."
+        Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
     End If
     Set Tile = TileInternal(lDimension, lNumRepeats)
 End Function
@@ -180,7 +164,7 @@ Public Function Reduce(ByVal lDimension As Long, _
     Const PROCEDURE_NAME As String = "Tensor.Reduce"
     
     If lDimension < 1 Or lDimension > m_lNumDimensions Then
-        Err.Raise 9, PROCEDURE_NAME, "Dimension must be between 1 and the number of dimensions."
+        Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
     End If
     Set Reduce = ReduceInternal(lDimension, eReduction)
 End Function
@@ -205,17 +189,17 @@ Public Function Product() As Double
     Product = AggregateInternal(rdcProduct)
 End Function
 
-Public Sub FromRange(ByVal rngRange As Range, _
+Public Sub FromRange(ByVal oRange As Range, _
                      Optional ByVal bTrans As Boolean)
     Dim lNumRows As Long
     Dim lNumCols As Long
     Dim oData As Storage
     
-    If rngRange Is Nothing Then
+    If oRange Is Nothing Then
         Resize Array()
         Exit Sub
     End If
-    With rngRange.Areas(1)
+    With oRange.Areas(1)
         lNumRows = .Rows.Count
         lNumCols = .Columns.Count
         Set oData = New Storage
@@ -256,44 +240,33 @@ Public Function ToArray() As Double()
     Me.RemoveAlias A_
 End Function
 
-Public Sub FillConstant(ByVal dblValue As Double)
+Public Sub Fill(ByVal dblValue As Double)
     If m_lNumElements < 1 Then
         Exit Sub
     End If
     TileMemory m_oData.Address, m_oData.NumElements * m_oData.ElementSize, VarPtr(dblValue), SIZEOF_DOUBLE
 End Sub
 
-Public Sub FillUniform(Optional ByVal dblLow As Double = 0, _
-                       Optional ByVal dblHigh As Double = 1)
-    Dim i As Long
-    Dim A_() As Double
+Public Sub Copy(ByVal oSource As Tensor)
+    Const PROCEDURE_NAME As String = "Tensor.Copy"
     
+    If oSource Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If Not oSource.ShapeEquals(m_alShape) Then
+        Err.Raise 5, PROCEDURE_NAME, "Source tensor shape does not match the target tensor shape."
+    End If
     If m_lNumElements < 1 Then
         Exit Sub
     End If
-    Me.Flatten.CreateAlias A_
-    For i = 1 To m_lNumElements
-        A_(i) = dblLow + (dblHigh - dblLow) * Rnd()
-    Next i
-    Me.Flatten.RemoveAlias A_
+    CopyMemory m_oData.Address, oSource.Address, m_lNumElements * m_oData.ElementSize
 End Sub
 
-Public Sub FillNormal(Optional ByVal dblMu As Double = 0, _
-                      Optional ByVal dblSigma As Double = 1)
-    Dim i As Long
-    Dim A_() As Double
-    
-    If m_lNumElements < 1 Then
-        Exit Sub
-    End If
-    Me.Flatten.CreateAlias A_
-    For i = 1 To m_lNumElements
-        A_(i) = dblMu + dblSigma * NormRand()
-    Next i
-    Me.Flatten.RemoveAlias A_
-End Sub
+Public Function Clone() As Tensor
+    Set Clone = New Tensor
+    Clone.Resize m_alShape, m_oData.Clone
+End Function
 
-'-1 = wildcard
 Public Function ShapeEquals(ByVal vShape As Variant) As Boolean
     Dim lOtherNumDimensions As Long
     Dim alOtherShape() As Long
@@ -304,7 +277,8 @@ Public Function ShapeEquals(ByVal vShape As Variant) As Boolean
         Exit Function
     End If
     For i = 1 To lOtherNumDimensions
-        If alOtherShape(i) <> -1 And alOtherShape(i) <> m_alShape(i) Then
+        '-1 is used as wildcard
+        If alOtherShape(i) >= 0 And alOtherShape(i) <> m_alShape(i) Then
             Exit Function
         End If
     Next i
@@ -320,31 +294,8 @@ Public Sub RemoveAlias(ByRef adblAlias() As Double)
     ZeroMemory ByVal VarPtrArray(adblAlias), SIZEOF_LONGPTR
 End Sub
 
-Public Sub Save(ByVal oWorksheet As Serializer)
-    Const PROCEDURE_NAME As String = "Tensor.Save"
-    
-    If oWorksheet Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
-    End If
-    With oWorksheet
-        .WriteLongArray m_alShape
-        .WriteObject m_oData
-    End With
-End Sub
-
-Public Sub Load(ByVal oWorksheet As Serializer)
-    Const PROCEDURE_NAME As String = "Tensor.Load"
-    Dim alShape() As Long
-    Dim oData As Storage
-    
-    If oWorksheet Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
-    End If
-    With oWorksheet
-        alShape = .ReadLongArray()
-        Set oData = .ReadObject()
-    End With
-    Resize alShape, oData
+Private Sub Class_Terminate()
+    Reset
 End Sub
 
 Private Sub Reset()
@@ -354,7 +305,7 @@ Private Sub Reset()
     Erase m_alInnerStride
     Erase m_alOuterStride
     m_lNumElements = 0
-    Set m_oData = New Storage
+    Set m_oData = Nothing
     m_pDescriptor = NULL_PTR
     m_bIsDescriptorAllocated = False
 End Sub
@@ -415,8 +366,6 @@ Private Sub AllocateData()
     If m_lNumDimensions > 0 Then
         lNumRows = m_alInnerStride(m_lNumDimensions)
         lNumCols = m_alShape(m_lNumDimensions)
-'        lNumRows = m_alShape(1)
-'        lNumCols = m_alOuterStride(1)
         m_oData.Resize lNumRows, lNumCols
     End If
 End Sub
@@ -531,7 +480,7 @@ Private Function TileInternal(ByVal lDimension As Long, _
     Dim oResult As Tensor
     
     lOldSize = m_alShape(lDimension)
-    lNewSize = lNumRepeats * lOldSize
+    lNewSize = MaxLng2(0, lNumRepeats * lOldSize)
     alNewShape = m_alShape
     alNewShape(lDimension) = lNewSize
     Set oResult = New Tensor
@@ -559,7 +508,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
     Dim A_() As Double
     Dim R_() As Double
     Dim A As Tensor
-    Dim R As Tensor
+    Dim r As Tensor
     Dim oResult As Tensor
     
     lOldSize = m_alShape(lDimension)
@@ -571,9 +520,9 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
     lInnerStride = m_alInnerStride(lDimension)
     lOuterStride = m_alOuterStride(lDimension)
     Set A = Me.View(Array(lInnerStride, lOldSize, lOuterStride))
-    Set R = oResult.View(Array(lInnerStride, lNewSize, lOuterStride))
+    Set r = oResult.View(Array(lInnerStride, lNewSize, lOuterStride))
     A.CreateAlias A_
-    R.CreateAlias R_
+    r.CreateAlias R_
     For i = 1 To lInnerStride
         For k = 1 To lOuterStride
             Select Case eReduction
@@ -591,7 +540,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
         Next k
     Next i
     A.RemoveAlias A_
-    R.RemoveAlias R_
+    r.RemoveAlias R_
     Set ReduceInternal = oResult
 End Function
 
@@ -741,6 +690,33 @@ Private Sub TileMemory(ByVal pTarget As LongPtr, _
         CopyMemory ByVal pTarget + i, ByVal pTarget, pLength
         i = i + pLength
     Loop
+End Sub
+
+Private Sub Save(ByVal oWorksheet As Serializer)
+    Const PROCEDURE_NAME As String = "Tensor.Save"
+    
+    If oWorksheet Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
+    End If
+    With oWorksheet
+        .WriteLongArray m_alShape
+        .WriteObject m_oData
+    End With
+End Sub
+
+Private Sub Load(ByVal oWorksheet As Serializer)
+    Const PROCEDURE_NAME As String = "Tensor.Load"
+    Dim alShape() As Long
+    Dim oData As Storage
+    
+    If oWorksheet Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
+    End If
+    With oWorksheet
+        alShape = .ReadLongArray()
+        Set oData = .ReadObject()
+    End With
+    Me.Resize alShape, oData
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then

@@ -42,16 +42,13 @@ Public Function IsBlasAvailable() As Boolean
     IsBlasAvailable = m_vIsBlasAvailable
 End Function
 
-Public Function NormRand() As Double
-    NormRand = Sqr(-2 * Log(Rnd() + DOUBLE_MIN_ABS)) * Cos(MATH_2PI * Rnd())
-End Function
-
 Public Function Sigmoid(ByVal dblValue As Double) As Double
     If dblValue >= -DOUBLE_MAX_LOG Then
         Sigmoid = 1 / (1 + Exp(-dblValue))
     End If
 End Function
 
+'Y = A + B
 Public Function VecAdd(ByVal A As Tensor, _
                        ByVal B As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecAdd"
@@ -72,6 +69,7 @@ Public Function VecAdd(ByVal A As Tensor, _
     End If
 End Function
 
+'Y = A + Scalar
 Public Function VecAddC(ByVal A As Tensor, _
                         ByVal dblScalar As Double) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecAddC"
@@ -86,6 +84,7 @@ Public Function VecAddC(ByVal A As Tensor, _
     End If
 End Function
 
+'Y = A - B
 Public Function VecSub(ByVal A As Tensor, _
                        ByVal B As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecSub"
@@ -106,6 +105,7 @@ Public Function VecSub(ByVal A As Tensor, _
     End If
 End Function
 
+'Y = A - Scalar
 Public Function VecSubC(ByVal A As Tensor, _
                         ByVal dblScalar As Double) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecSubC"
@@ -120,6 +120,7 @@ Public Function VecSubC(ByVal A As Tensor, _
     End If
 End Function
 
+'Y = Scalar - A
 Public Function VecSubCRev(ByVal A As Tensor, _
                            ByVal dblScalar As Double) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecSubCRev"
@@ -134,6 +135,7 @@ Public Function VecSubCRev(ByVal A As Tensor, _
     End If
 End Function
 
+'Y = A .* B
 Public Function VecMul(ByVal A As Tensor, _
                        ByVal B As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecMul"
@@ -150,6 +152,7 @@ Public Function VecMul(ByVal A As Tensor, _
     Set VecMul = VecMulNaive(A, B)
 End Function
 
+'Y = A .* Scalar
 Public Function VecMulC(ByVal A As Tensor, _
                         ByVal dblScalar As Double) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecMulC"
@@ -164,6 +167,7 @@ Public Function VecMulC(ByVal A As Tensor, _
     End If
 End Function
 
+'Y = A ./ B
 Public Function VecDiv(ByVal A As Tensor, _
                        ByVal B As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecDiv"
@@ -180,11 +184,13 @@ Public Function VecDiv(ByVal A As Tensor, _
     Set VecDiv = VecDivNaive(A, B)
 End Function
 
+'Y = A ./ Scalar
 Public Function VecDivC(ByVal A As Tensor, _
                         ByVal dblScalar As Double) As Tensor
     Set VecDivC = VecMulC(A, 1 / dblScalar)
 End Function
 
+'Y = Scalar ./ A
 Public Function VecDivCRev(ByVal A As Tensor, _
                            ByVal dblScalar As Double) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecDivCRev"
@@ -195,6 +201,7 @@ Public Function VecDivCRev(ByVal A As Tensor, _
     Set VecDivCRev = VecDivCRevNaive(A, dblScalar)
 End Function
 
+'Y = A ./ (Sqrt(B) + Scalar)
 Public Function VecDivSqrtAddC(ByVal A As Tensor, _
                                ByVal B As Tensor, _
                                ByVal dblScalar As Double) As Tensor
@@ -212,6 +219,7 @@ Public Function VecDivSqrtAddC(ByVal A As Tensor, _
     Set VecDivSqrtAddC = VecDivSqrtAddCNaive(A, B, dblScalar)
 End Function
 
+'Y = Abs(A)
 Public Function VecAbs(ByVal A As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecAbs"
     
@@ -221,6 +229,7 @@ Public Function VecAbs(ByVal A As Tensor) As Tensor
     Set VecAbs = VecAbsNaive(A)
 End Function
 
+'Y = Sign(A)
 Public Function VecSign(ByVal A As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecSign"
     
@@ -230,10 +239,12 @@ Public Function VecSign(ByVal A As Tensor) As Tensor
     Set VecSign = VecSignNaive(A)
 End Function
 
+'Y = A .^ 2
 Public Function VecPow2(ByVal A As Tensor) As Tensor
     Set VecPow2 = VecMul(A, A)
 End Function
 
+'Y = Sqrt(A)
 Public Function VecSqrt(ByVal A As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecSqrt"
     
@@ -243,6 +254,7 @@ Public Function VecSqrt(ByVal A As Tensor) As Tensor
     Set VecSqrt = VecSqrtNaive(A)
 End Function
 
+'Y = Exp(A)
 Public Function VecExp(ByVal A As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecExp"
     
@@ -252,15 +264,17 @@ Public Function VecExp(ByVal A As Tensor) As Tensor
     Set VecExp = VecExpNaive(A)
 End Function
 
-Public Function VecLn(ByVal A As Tensor) As Tensor
-    Const PROCEDURE_NAME As String = "MathFunctions.VecLn"
+'Y = Log(A)
+Public Function VecLog(ByVal A As Tensor) As Tensor
+    Const PROCEDURE_NAME As String = "MathFunctions.VecLog"
     
     If A Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    Set VecLn = VecLnNaive(A)
+    Set VecLog = VecLogNaive(A)
 End Function
 
+'Y = 1 ./ (1 + Exp(-A))
 Public Function VecSigmoid(ByVal A As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecSigmoid"
     
@@ -270,7 +284,7 @@ Public Function VecSigmoid(ByVal A As Tensor) As Tensor
     Set VecSigmoid = VecSigmoidNaive(A)
 End Function
 
-'A = alpha*A + beta*B
+'A = alpha .* A + beta .* B
 Public Sub VecLinComb_I(ByVal dblAlpha As Double, _
                         ByVal A As Tensor, _
                         ByVal dblBeta As Double, _
@@ -293,6 +307,7 @@ Public Sub VecLinComb_I(ByVal dblAlpha As Double, _
     End If
 End Sub
 
+'Y = alpha .* A + beta .* B
 Public Function VecLinComb(ByVal dblAlpha As Double, _
                            ByVal A As Tensor, _
                            ByVal dblBeta As Double, _
@@ -315,7 +330,7 @@ Public Function VecLinComb(ByVal dblAlpha As Double, _
     End If
 End Function
 
-'C = C + A*B
+'C = C + A * B
 Public Sub MatMul_I(ByVal C As Tensor, _
                     ByVal A As Tensor, _
                     ByVal B As Tensor, _
@@ -376,6 +391,7 @@ Public Sub MatMul_I(ByVal C As Tensor, _
     End If
 End Sub
 
+'Y = A * B
 Public Function MatMul(ByVal A As Tensor, _
                        ByVal B As Tensor, _
                        Optional ByVal bTransA As Boolean, _
@@ -701,7 +717,7 @@ Private Function VecExpNaive(ByVal A As Tensor) As Tensor
     Set VecExpNaive = A
 End Function
 
-Private Sub VecLnNaive_I(ByVal A As Tensor)
+Private Sub VecLogNaive_I(ByVal A As Tensor)
     Dim i As Long
     Dim A_() As Double
     
@@ -712,10 +728,10 @@ Private Sub VecLnNaive_I(ByVal A As Tensor)
     A.Flatten.RemoveAlias A_
 End Sub
 
-Private Function VecLnNaive(ByVal A As Tensor) As Tensor
+Private Function VecLogNaive(ByVal A As Tensor) As Tensor
     Set A = A.Clone
-    VecLnNaive_I A
-    Set VecLnNaive = A
+    VecLogNaive_I A
+    Set VecLogNaive = A
 End Function
 
 Private Sub VecSigmoidNaive_I(ByVal A As Tensor)
@@ -787,7 +803,7 @@ Private Sub MatMulNaive_I(ByVal C As Tensor, _
     Dim k As Long
     Dim i As Long
     Dim j As Long
-    Dim l As Long
+    Dim L As Long
     Dim dblSum As Double
     Dim A_() As Double
     Dim B_() As Double
@@ -804,21 +820,21 @@ Private Sub MatMulNaive_I(ByVal C As Tensor, _
             dblSum = 0
             Select Case True
                 Case Not bTransA And Not bTransB
-                    For l = 1 To k
-                        dblSum = dblSum + A_(i, l) * B_(l, j)
-                    Next l
+                    For L = 1 To k
+                        dblSum = dblSum + A_(i, L) * B_(L, j)
+                    Next L
                 Case bTransA And Not bTransB
-                    For l = 1 To k
-                        dblSum = dblSum + A_(l, i) * B_(l, j)
-                    Next l
+                    For L = 1 To k
+                        dblSum = dblSum + A_(L, i) * B_(L, j)
+                    Next L
                 Case Not bTransA And bTransB
-                    For l = 1 To k
-                        dblSum = dblSum + A_(i, l) * B_(j, l)
-                    Next l
+                    For L = 1 To k
+                        dblSum = dblSum + A_(i, L) * B_(j, L)
+                    Next L
                 Case bTransA And bTransB
-                    For l = 1 To k
-                        dblSum = dblSum + A_(l, i) * B_(j, l)
-                    Next l
+                    For L = 1 To k
+                        dblSum = dblSum + A_(L, i) * B_(j, L)
+                    Next L
             End Select
             C_(i, j) = C_(i, j) + dblSum
         Next j

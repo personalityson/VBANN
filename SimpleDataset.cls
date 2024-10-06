@@ -29,13 +29,9 @@ Public Property Get Item(ByVal vKey As Variant) As Tensor
     Set Item = m_oTensors.Item(vKey)
 End Property
 
-Private Sub Class_Initialize()
-    Set m_oTensors = CreateObject("Scripting.Dictionary")
-End Sub
-
 Public Sub Init()
     m_lNumSamples = 0
-    m_oTensors.RemoveAll
+    Set m_oTensors = CreateObject("Scripting.Dictionary")
 End Sub
 
 Public Sub Add(ByVal vKey As Variant, _
@@ -58,19 +54,16 @@ Public Sub Add(ByVal vKey As Variant, _
     Set m_oTensors.Item(vKey) = oTensor
 End Sub
 
-Public Function Exists(ByVal vKey As Variant) As Boolean
-    Exists = m_oTensors.Exists(vKey)
-End Function
-
 Public Function Gather(ByVal vIndices As Variant) As SimpleDataset
     Dim vKey As Variant
+    Dim oTensor As Tensor
     Dim oResult As SimpleDataset
     
     Set oResult = New SimpleDataset
+    oResult.Init
     For Each vKey In m_oTensors.Keys
-        With m_oTensors.Item(vKey)
-            oResult.Add vKey, .Gather(.NumDimensions, vIndices)
-        End With
+        Set oTensor = m_oTensors.Item(vKey)
+        oResult.Add vKey, oTensor.Gather(oTensor.NumDimensions, vIndices)
     Next vKey
     Set Gather = oResult
 End Function

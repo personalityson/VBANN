@@ -14,8 +14,12 @@ Option Explicit
 Implements ILayer
 Implements ISerializable
 
-Public Property Get Parameters() As Variant
-    Parameters = Array()
+'Cache
+Private m_X As Tensor
+Private m_Y As Tensor
+
+Public Property Get LearnableParameters() As Variant
+    LearnableParameters = Array()
 End Property
 
 Public Sub Init()
@@ -29,47 +33,64 @@ Public Function Forward(ByVal X As Tensor, _
     If X Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    Set Forward = CalculateOutput(X)
+    Set m_X = X
+    Set m_Y = CalculateOutput(X)
+    Set Forward = m_Y
 End Function
 
-Public Function Backward(ByVal X As Tensor, _
-                         ByVal Y As Tensor, _
-                         ByVal dLdY As Tensor) As Tensor
+Public Function Backward(ByVal dLdY As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "SigmoidLayer.Backward"
     
-    If Y Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    If m_Y Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Forward pass must be executed before the backward pass."
     End If
     If dLdY Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If Not Y.ShapeEquals(dLdY.Shape) Then
-        Err.Raise 5, PROCEDURE_NAME, "Shapes of Y and dLdY do not match."
+    If Not dLdY.ShapeEquals(m_Y.Shape) Then
+        Err.Raise 5, PROCEDURE_NAME, "Gradient tensor shape does not match the expected shape for backward pass."
     End If
-    Set Backward = CalculateInputError(Y, dLdY)
+    Set Backward = CalculateInputError(m_Y, dLdY)
 End Function
 
-Public Sub Save(ByVal oWorksheet As Serializer)
-    'Do nothing
-End Sub
-
-Public Sub Load(ByVal oWorksheet As Serializer)
-    'Do nothing
-End Sub
-
 Private Function CalculateOutput(ByVal X As Tensor) As Tensor
+    'Y = Sigmoid(X)
     Set CalculateOutput = VecSigmoid(X)
 End Function
 
 Private Function CalculateInputError(ByVal Y As Tensor, _
                                      ByVal dLdY As Tensor) As Tensor
-    'dLdY * Y * (1 - Y)
-    Set CalculateInputError = VecMul(VecMul(dLdY, Y), VecSubCRev(Y, 1))
+    'dLdX = dLdY * Y * (1 - Y)
+    Set CalculateInputError = VecMul(dLdY, VecMul(Y, VecSubCRev(Y, 1)))
 End Function
 
+Private Sub Save(ByVal oWorksheet As Serializer)
+    Const PROCEDURE_NAME As String = "SigmoidLayer.Save"
+    
+    If oWorksheet Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
+    End If
+    With oWorksheet
+        .WriteObject m_X
+        .WriteObject m_Y
+    End With
+End Sub
+
+Private Sub Load(ByVal oWorksheet As Serializer)
+    Const PROCEDURE_NAME As String = "SigmoidLayer.Load"
+    
+    If oWorksheet Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
+    End If
+    With oWorksheet
+        Set m_X = .ReadObject()
+        Set m_Y = .ReadObject()
+    End With
+End Sub
+
 #If USE_LATE_BINDING_IN_INTERFACES Then
-    Private Property Get ILayer_Parameters() As Variant
-        ILayer_Parameters = Parameters
+    Private Property Get ILayer_LearnableParameters() As Variant
+        ILayer_LearnableParameters = LearnableParameters
     End Property
     
     Private Function ILayer_Forward(ByVal X As Object, _
@@ -77,10 +98,8 @@ End Function
         Set ILayer_Forward = Forward(X, bIsTraining)
     End Function
     
-    Private Function ILayer_Backward(ByVal X As Object, _
-                                     ByVal Y As Object, _
-                                     ByVal dLdY As Object) As Object
-        Set ILayer_Backward = Backward(X, Y, dLdY)
+    Private Function ILayer_Backward(ByVal dLdY As Object) As Object
+        Set ILayer_Backward = Backward(dLdY)
     End Function
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Object)
@@ -91,8 +110,8 @@ End Function
         Load oWorksheet
     End Sub
 #Else
-    Private Property Get ILayer_Parameters() As Variant
-        ILayer_Parameters = Parameters
+    Private Property Get ILayer_LearnableParameters() As Variant
+        ILayer_LearnableParameters = LearnableParameters
     End Property
     
     Private Function ILayer_Forward(ByVal X As Tensor, _
@@ -100,10 +119,8 @@ End Function
         Set ILayer_Forward = Forward(X, bIsTraining)
     End Function
     
-    Private Function ILayer_Backward(ByVal X As Tensor, _
-                                     ByVal Y As Tensor, _
-                                     ByVal dLdY As Tensor) As Tensor
-        Set ILayer_Backward = Backward(X, Y, dLdY)
+    Private Function ILayer_Backward(ByVal dLdY As Tensor) As Tensor
+        Set ILayer_Backward = Backward(dLdY)
     End Function
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)
@@ -114,4 +131,3 @@ End Function
         Load oWorksheet
     End Sub
 #End If
-
