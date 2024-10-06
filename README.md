@@ -37,10 +37,6 @@ VBANN is designed to store everything in the same file. Your training data, your
 VBANN is modular and extensible. You can add your own layer classes.<br/>
 You can speed it up 6-10x by downloading and linking to [a prebuilt OpenBLAS dll](https://github.com/OpenMathLib/OpenBLAS/releases) inside the [MathFunctions](MathFunctions.bas) module.
 
-### Why do people use VBA?
-VBA runs on locked-down mandatory corporate Windows laptops with no software installation privileges, firewalled networking and USB ports disabled.<br/>
-Very often it is the only solution that can be implemented without approval from the IT department.
-
 ### Contributing
 Feel free to open issues or submit custom layers to enhance the functionality of VBANN.
 
