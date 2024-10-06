@@ -18,7 +18,6 @@ Private m_oGradient As Tensor
 Private m_lNumUpdates As Long
 Private m_dblLearningRateFactor As Double
 Private m_dblWeightDecayFactor As Double
-Private m_bIsInitialized As Boolean
 
 Public Property Get Variable() As Tensor
     Set Variable = m_oVariable
@@ -81,9 +80,6 @@ Public Sub Init(ByVal oVariable As Tensor, _
                 Optional ByVal dblWeightDecayFactor As Double = 1)
     Const PROCEDURE_NAME As String = "Parameter.Init"
     
-    If m_bIsInitialized Then
-        Err.Raise 5, PROCEDURE_NAME, "Object has already been initialized and cannot be modified."
-    End If
     If oVariable Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
@@ -92,7 +88,6 @@ Public Sub Init(ByVal oVariable As Tensor, _
     m_lNumUpdates = 0
     m_dblLearningRateFactor = dblLearningRateFactor
     m_dblWeightDecayFactor = dblWeightDecayFactor
-    m_bIsInitialized = True
 End Sub
 
 Public Sub ResetGradient()
