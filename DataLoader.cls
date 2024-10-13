@@ -52,7 +52,7 @@ Public Sub Shuffle()
     Next i
 End Sub
 
-Public Function GetBatch(ByVal lIndex As Long) As SimpleDataset
+Public Function GetBatch(ByVal lIndex As Long) As TensorDataset
     Const PROCEDURE_NAME As String = "DataLoader.GetBatch"
     Dim lStart As Long
     Dim lLength As Long

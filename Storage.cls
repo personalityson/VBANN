@@ -75,9 +75,6 @@ End Sub
 
 Public Function Clone() As Storage
     Set Clone = New Storage
-    If m_lNumElements < 1 Then
-        Exit Function
-    End If
     Clone.Resize m_lNumRows, m_lNumCols
     CopyMemory ByVal Clone.Address, ByVal m_pAddress, m_lNumElements * ELEMENT_SIZE
 End Function

@@ -14,9 +14,6 @@ Public Function Uniform(ByVal vShape As Variant, _
     Set Uniform = New Tensor
     With Uniform
         .Resize vShape
-        If .NumElements < 1 Then
-            Exit Function
-        End If
         .Flatten.CreateAlias A_
         For i = 1 To .NumElements
             A_(i) = dblLow + (dblHigh - dblLow) * Rnd()
@@ -34,9 +31,6 @@ Public Function Normal(ByVal vShape As Variant, _
     Set Normal = New Tensor
     With Normal
         .Resize vShape
-        If .NumElements < 1 Then
-            Exit Function
-        End If
         .Flatten.CreateAlias A_
         For i = 1 To .NumElements
             A_(i) = dblMu + dblSigma * NormRand()
@@ -53,9 +47,6 @@ Public Function Bernoulli(ByVal vShape As Variant, _
     Set Bernoulli = New Tensor
     With Bernoulli
         .Resize vShape
-        If .NumElements < 1 Then
-            Exit Function
-        End If
         .Flatten.CreateAlias A_
         For i = 1 To .NumElements
             A_(i) = -(Rnd() < dblProbability)

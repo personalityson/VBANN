@@ -24,7 +24,7 @@ Option Explicit
         '
     End Property
     
-    Public Function Gather(ByVal vIndices As Variant) As SimpleDataset
+    Public Function Gather(ByVal vIndices As Variant) As TensorDataset
         '
     End Function
 #End If

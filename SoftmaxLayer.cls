@@ -22,6 +22,10 @@ Public Property Get LearnableParameters() As Variant
     LearnableParameters = Array()
 End Property
 
+Public Sub Init()
+    'Do nothing
+End Sub
+
 Public Function Forward(ByVal X As Tensor, _
                         Optional ByVal bIsTraining As Boolean) As Tensor
     Const PROCEDURE_NAME As String = "SigmoidLayer.Forward"

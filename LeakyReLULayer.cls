@@ -77,7 +77,7 @@ Private Function CalculateInputError(ByVal X As Tensor, _
     Dim X_() As Double
     Dim dLdX_() As Double
     Dim dLdX As Tensor
-    
+
     Set dLdX = dLdY.Clone
     X.Flatten.CreateAlias X_
     dLdX.Flatten.CreateAlias dLdX_

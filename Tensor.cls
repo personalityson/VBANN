@@ -78,10 +78,10 @@ Public Sub Resize(ByVal vShape As Variant, _
     Reset
     SetShape vShape
     CalculateStrides
-    If Not oData Is Nothing Then
-        AttachData oData
-    Else
+    If oData Is Nothing Then
         AllocateData
+    Else
+        AttachData oData
     End If
 End Sub
 
@@ -241,9 +241,6 @@ Public Function ToArray() As Double()
 End Function
 
 Public Sub Fill(ByVal dblValue As Double)
-    If m_lNumElements < 1 Then
-        Exit Sub
-    End If
     TileMemory m_oData.Address, m_oData.NumElements * m_oData.ElementSize, VarPtr(dblValue), SIZEOF_DOUBLE
 End Sub
 
@@ -255,9 +252,6 @@ Public Sub Copy(ByVal oSource As Tensor)
     End If
     If Not oSource.ShapeEquals(m_alShape) Then
         Err.Raise 5, PROCEDURE_NAME, "Source tensor shape does not match the target tensor shape."
-    End If
-    If m_lNumElements < 1 Then
-        Exit Sub
     End If
     CopyMemory m_oData.Address, oSource.Address, m_lNumElements * m_oData.ElementSize
 End Sub
@@ -377,12 +371,12 @@ Private Sub AllocateDescriptor()
     Dim lErrorCode As Long
     Dim i As Long
     
-    If m_lNumDimensions = 0 Then
+    If m_lNumDimensions < 1 Then
         Exit Sub
     End If
     lErrorCode = SafeArrayAllocDescriptorEx(m_oData.DataType, m_lNumDimensions, m_pDescriptor)
     If lErrorCode <> S_OK Then
-        Err.Raise lErrorCode, PROCEDURE_NAME, GetSystemMessage(lErrorCode)
+        Err.Raise lErrorCode, PROCEDURE_NAME, "Failed to allocate descriptor."
     End If
     CopyMemory ByVal m_pDescriptor + SA_OFFSET_fFeatures, FADF_STATIC Or FADF_HAVEVARTYPE, SIZEOF_INTEGER
     CopyMemory ByVal m_pDescriptor + SA_OFFSET_cbElements, m_oData.ElementSize, SIZEOF_LONG
@@ -399,7 +393,7 @@ Private Sub DestroyDescriptor()
     
     lErrorCode = SafeArrayDestroyDescriptor(m_pDescriptor)
     If lErrorCode <> S_OK Then
-        Err.Raise lErrorCode, PROCEDURE_NAME, GetSystemMessage(lErrorCode)
+        Err.Raise lErrorCode, PROCEDURE_NAME, "Failed to destroy descriptor."
     End If
 End Sub
 
@@ -508,7 +502,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
     Dim A_() As Double
     Dim R_() As Double
     Dim A As Tensor
-    Dim r As Tensor
+    Dim R As Tensor
     Dim oResult As Tensor
     
     lOldSize = m_alShape(lDimension)
@@ -520,9 +514,9 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
     lInnerStride = m_alInnerStride(lDimension)
     lOuterStride = m_alOuterStride(lDimension)
     Set A = Me.View(Array(lInnerStride, lOldSize, lOuterStride))
-    Set r = oResult.View(Array(lInnerStride, lNewSize, lOuterStride))
+    Set R = oResult.View(Array(lInnerStride, lNewSize, lOuterStride))
     A.CreateAlias A_
-    r.CreateAlias R_
+    R.CreateAlias R_
     For i = 1 To lInnerStride
         For k = 1 To lOuterStride
             Select Case eReduction
@@ -540,7 +534,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
         Next k
     Next i
     A.RemoveAlias A_
-    r.RemoveAlias R_
+    R.RemoveAlias R_
     Set ReduceInternal = oResult
 End Function
 
@@ -589,9 +583,6 @@ Private Function SumInSlice(ByRef A_() As Double, _
     Dim j As Long
     Dim dblResult As Double
     
-    If lNumElements < 1 Then
-        Exit Function
-    End If
     dblResult = 0
     For j = 1 To lNumElements
          dblResult = dblResult + A_(i, j, k)
@@ -652,9 +643,6 @@ Private Function ProductInSlice(ByRef A_() As Double, _
     Dim j As Long
     Dim dblResult As Double
     
-    If lNumElements < 1 Then
-        Exit Function
-    End If
     dblResult = 1
     For j = 1 To lNumElements
         dblResult = dblResult * A_(i, j, k)

@@ -61,14 +61,6 @@ Public Declare PtrSafe Sub ZeroMemory Lib "kernel32.dll" Alias "RtlZeroMemory" (
 
 Public Declare PtrSafe Function VarPtrArray Lib "VBE7.dll" Alias "VarPtr" (ByRef Var() As Any) As LongPtr
 
-Public Declare PtrSafe Function FormatMessage Lib "kernel32.dll" Alias "FormatMessageA" (ByVal dwFlags As Long, _
-                                                                                         ByRef lpSource As Any, _
-                                                                                         ByVal dwMessageId As Long, _
-                                                                                         ByVal dwLanguageId As Long, _
-                                                                                         ByVal lpBuffer As String, _
-                                                                                         ByVal nSize As Long, _
-                                                                                         ByRef arguments As LongPtr) As Long
-
 Public Declare PtrSafe Function GetTickCount Lib "kernel32.dll" () As Long
 
 Private Declare PtrSafe Sub GetSystemTime Lib "kernel32.dll" (ByRef lpSystemTime As SYSTEMTIME)
@@ -710,22 +702,6 @@ End Function
 
 Public Function ConvertTimestampToDate(ByVal lTimestamp As Long) As Date
     ConvertTimestampToDate = DateAdd("s", lTimestamp, DateSerial(1970, 1, 1))
-End Function
-
-Public Function GetSystemMessage(ByVal lErrorCode As Long) As String
-    Const FORMAT_MESSAGE_FROM_SYSTEM As Long = &H1000
-    Const FORMAT_MESSAGE_IGNORE_INSERTS As Long = &H200
-    Const FORMAT_MESSAGE_MAX_WIDTH_MASK = &HFF
-    Dim sBuffer As String
-    Dim lBufferLength As Long
-    
-    sBuffer = String$(1024, vbNullChar)
-    lBufferLength = FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM Or FORMAT_MESSAGE_IGNORE_INSERTS Or FORMAT_MESSAGE_MAX_WIDTH_MASK, NULL_PTR, lErrorCode, 0, sBuffer, Len(sBuffer), NULL_PTR)
-    If lBufferLength > 0 Then
-        GetSystemMessage = Trim$(Left$(sBuffer, lBufferLength))
-    Else
-        GetSystemMessage = "Unknown Error."
-    End If
 End Function
 
 Public Sub LogError(ByVal sSource As String, _

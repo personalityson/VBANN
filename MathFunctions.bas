@@ -69,7 +69,7 @@ Public Function VecAdd(ByVal A As Tensor, _
     End If
 End Function
 
-'Y = A + Scalar
+'Y = A + scalar
 Public Function VecAddC(ByVal A As Tensor, _
                         ByVal dblScalar As Double) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecAddC"
@@ -105,7 +105,7 @@ Public Function VecSub(ByVal A As Tensor, _
     End If
 End Function
 
-'Y = A - Scalar
+'Y = A - scalar
 Public Function VecSubC(ByVal A As Tensor, _
                         ByVal dblScalar As Double) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecSubC"
@@ -120,7 +120,7 @@ Public Function VecSubC(ByVal A As Tensor, _
     End If
 End Function
 
-'Y = Scalar - A
+'Y = scalar - A
 Public Function VecSubCRev(ByVal A As Tensor, _
                            ByVal dblScalar As Double) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecSubCRev"
@@ -152,7 +152,7 @@ Public Function VecMul(ByVal A As Tensor, _
     Set VecMul = VecMulNaive(A, B)
 End Function
 
-'Y = A .* Scalar
+'Y = A .* scalar
 Public Function VecMulC(ByVal A As Tensor, _
                         ByVal dblScalar As Double) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecMulC"
@@ -184,13 +184,13 @@ Public Function VecDiv(ByVal A As Tensor, _
     Set VecDiv = VecDivNaive(A, B)
 End Function
 
-'Y = A ./ Scalar
+'Y = A ./ scalar
 Public Function VecDivC(ByVal A As Tensor, _
                         ByVal dblScalar As Double) As Tensor
     Set VecDivC = VecMulC(A, 1 / dblScalar)
 End Function
 
-'Y = Scalar ./ A
+'Y = scalar ./ A
 Public Function VecDivCRev(ByVal A As Tensor, _
                            ByVal dblScalar As Double) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecDivCRev"
@@ -201,7 +201,7 @@ Public Function VecDivCRev(ByVal A As Tensor, _
     Set VecDivCRev = VecDivCRevNaive(A, dblScalar)
 End Function
 
-'Y = A ./ (Sqrt(B) + Scalar)
+'Y = A ./ (Sqrt(B) + scalar)
 Public Function VecDivSqrtAddC(ByVal A As Tensor, _
                                ByVal B As Tensor, _
                                ByVal dblScalar As Double) As Tensor
@@ -803,7 +803,7 @@ Private Sub MatMulNaive_I(ByVal C As Tensor, _
     Dim k As Long
     Dim i As Long
     Dim j As Long
-    Dim L As Long
+    Dim l As Long
     Dim dblSum As Double
     Dim A_() As Double
     Dim B_() As Double
@@ -820,21 +820,21 @@ Private Sub MatMulNaive_I(ByVal C As Tensor, _
             dblSum = 0
             Select Case True
                 Case Not bTransA And Not bTransB
-                    For L = 1 To k
-                        dblSum = dblSum + A_(i, L) * B_(L, j)
-                    Next L
+                    For l = 1 To k
+                        dblSum = dblSum + A_(i, l) * B_(l, j)
+                    Next l
                 Case bTransA And Not bTransB
-                    For L = 1 To k
-                        dblSum = dblSum + A_(L, i) * B_(L, j)
-                    Next L
+                    For l = 1 To k
+                        dblSum = dblSum + A_(l, i) * B_(l, j)
+                    Next l
                 Case Not bTransA And bTransB
-                    For L = 1 To k
-                        dblSum = dblSum + A_(i, L) * B_(j, L)
-                    Next L
+                    For l = 1 To k
+                        dblSum = dblSum + A_(i, l) * B_(j, l)
+                    Next l
                 Case bTransA And bTransB
-                    For L = 1 To k
-                        dblSum = dblSum + A_(L, i) * B_(j, L)
-                    Next L
+                    For l = 1 To k
+                        dblSum = dblSum + A_(l, i) * B_(j, l)
+                    Next l
             End Select
             C_(i, j) = C_(i, j) + dblSum
         Next j
@@ -875,7 +875,7 @@ Private Sub MatMulBlas_I(ByVal C As Tensor, _
     m = C.Size(1)
     n = C.Size(2)
     k = IIf(bTransA, A.Size(1), A.Size(2))
-    dgemm sTransA, sTransB, m, n, k, 1#, A.Address, A.Size(1), B.Address, B.Size(1), 1#, C.Address, C.Size(1)
+    dgemm sTransA, sTransB, m, n, k, 1#, A.Address, A.Size(1), B.Address, B.Size(1), 1#, C.Address, m
 End Sub
 
 Private Function MatMulBlas(ByVal A As Tensor, _

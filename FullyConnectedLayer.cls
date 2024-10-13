@@ -103,7 +103,7 @@ End Function
 Private Sub UpdateGradients(ByVal X As Tensor, _
                             ByVal dLdY As Tensor)
     Dim lBatchSize As Long
-    
+
     lBatchSize = X.Size(2)
     'Update in-place, dLdW = dLdW + dLdY * X'
     MatMul_I m_W.Gradient, dLdY, X, , True

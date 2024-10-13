@@ -95,6 +95,12 @@ Public Function FullyConnectedLayer(ByVal lInputSize As Long, _
     FullyConnectedLayer.Init lInputSize, lOutputSize
 End Function
 
+Public Function InputNormalizationLayer(ByVal oTrainingSet As DataLoader, _
+                                        Optional ByVal dblEpsilon As Double = 0.00001) As InputNormalizationLayer
+    Set InputNormalizationLayer = New InputNormalizationLayer
+    InputNormalizationLayer.Init oTrainingSet, dblEpsilon
+End Function
+
 Public Function L1Loss() As L1Loss
     Set L1Loss = New L1Loss
 End Function
@@ -106,12 +112,6 @@ End Function
 Public Function LeakyReLULayer(Optional ByVal dblNegativeSlope As Double = 0.01) As LeakyReLULayer
     Set LeakyReLULayer = New LeakyReLULayer
     LeakyReLULayer.Init dblNegativeSlope
-End Function
-
-Public Function InputNormalizationLayer(ByVal oTrainingSet As DataLoader, _
-                                        Optional ByVal dblEpsilon As Double = 0.00001) As InputNormalizationLayer
-    Set InputNormalizationLayer = New InputNormalizationLayer
-    InputNormalizationLayer.Init oTrainingSet, dblEpsilon
 End Function
 
 Public Function Parameter(ByVal oVariable As Tensor, _
@@ -138,6 +138,11 @@ Public Function SigmoidLayer() As SigmoidLayer
     Set SigmoidLayer = New SigmoidLayer
 End Function
 
+Public Function TensorDataset() As TensorDataset
+    Set TensorDataset = New TensorDataset
+    TensorDataset.Init
+End Function
+
 Public Function SoftmaxLayer() As SoftmaxLayer
     Set SoftmaxLayer = New SoftmaxLayer
 End Function
@@ -151,11 +156,6 @@ End Function
 Public Function TensorFromArray(ByRef adblArray() As Double) As Tensor
     Set TensorFromArray = New Tensor
     TensorFromArray.FromArray adblArray
-End Function
-
-Public Function SimpleDataset() As SimpleDataset
-    Set SimpleDataset = New SimpleDataset
-    SimpleDataset.Init
 End Function
 
 Public Sub Serialize(ByVal sName As String, _
@@ -176,7 +176,7 @@ End Function
 Public Function ImportDatasetFromWorksheet(ByVal sName As String, _
                                            ByVal lInputSize As Long, _
                                            ByVal lLabelSize As Long, _
-                                           Optional ByVal bHasHeaders As Boolean) As SimpleDataset
+                                           Optional ByVal bHasHeaders As Boolean) As TensorDataset
     Const PROCEDURE_NAME As String = "FactoryFunctions.ImportDatasetFromWorksheet"
     Dim lFirstRow As Long
     Dim lFirstCol As Long
@@ -184,7 +184,7 @@ Public Function ImportDatasetFromWorksheet(ByVal sName As String, _
     Dim oInputs As Range
     Dim oLabels As Range
     Dim oSource As Worksheet
-    Dim oResult As SimpleDataset
+    Dim oResult As TensorDataset
     
     If Not WorksheetExists(ThisWorkbook, sName) Then
         Err.Raise 9, PROCEDURE_NAME, "Specified worksheet does not exist."
@@ -199,7 +199,7 @@ Public Function ImportDatasetFromWorksheet(ByVal sName As String, _
     lFirstRow = GetFirstRow(oSource) + IIf(bHasHeaders, 1, 0)
     lFirstCol = GetFirstColumn(oSource)
     lNumSamples = GetLastRow(oSource) - lFirstRow + 1
-    Set oResult = New SimpleDataset
+    Set oResult = New TensorDataset
     oResult.Init
     If lNumSamples > 0 Then
         Set oInputs = oSource.Cells(lFirstRow, lFirstCol).Resize(lNumSamples, lInputSize)
@@ -220,7 +220,7 @@ End Function
 Public Function ImportDatasetFromCsv(ByVal strPath As String, _
                                      ByVal lInputSize As Long, _
                                      ByVal lLabelSize As Long, _
-                                     Optional ByVal bHasHeaders As Boolean) As SimpleDataset
+                                     Optional ByVal bHasHeaders As Boolean) As TensorDataset
     Const PROCEDURE_NAME As String = "FactoryFunctions.ImportDatasetFromCsv"
     Const CHUNK_SIZE As Long = 10000
     Const ForReading As Long = 1
@@ -232,7 +232,7 @@ Public Function ImportDatasetFromCsv(ByVal strPath As String, _
     Dim dblValue As Double
     Dim adblInputs() As Double
     Dim adblLabels() As Double
-    Dim oResult As SimpleDataset
+    Dim oResult As TensorDataset
     
     If Not Fso.FileExists(strPath) Then
         Err.Raise 9, PROCEDURE_NAME, "Specified file does not exist."
@@ -269,11 +269,14 @@ Public Function ImportDatasetFromCsv(ByVal strPath As String, _
                     adblLabels(i - lInputSize, lNumRows) = dblValue
                 End If
             Next i
-            Application.StatusBar = "ImportDatasetFromCsv progress: " & lNumRows
+            If lNumRows Mod 100 = 0 Then
+                Application.StatusBar = "ImportDatasetFromCsv progress: " & lNumRows
+                DoEvents
+            End If
         Loop
         .Close
     End With
-    Set oResult = New SimpleDataset
+    Set oResult = New TensorDataset
     oResult.Init
     If lNumRows > 0 Then
         ReDim Preserve adblInputs(1 To lInputSize, 1 To lNumRows)
