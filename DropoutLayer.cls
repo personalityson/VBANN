@@ -9,10 +9,10 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
-
 Implements ILayer
 Implements ISerializable
+
+#Const USE_LATE_BINDING_IN_INTERFACES = True
 
 Private m_dblDropoutRate As Double
 

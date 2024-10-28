@@ -9,10 +9,10 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
-
 Implements ICriterion
 Implements ISerializable
+
+#Const USE_LATE_BINDING_IN_INTERFACES = True
 
 Public Sub Init()
     'Do nothing

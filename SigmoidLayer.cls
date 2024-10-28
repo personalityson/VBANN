@@ -9,10 +9,10 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
-
 Implements ILayer
 Implements ISerializable
+
+#Const USE_LATE_BINDING_IN_INTERFACES = True
 
 'Cache
 Private m_X As Tensor
@@ -54,14 +54,12 @@ Public Function Backward(ByVal dLdY As Tensor) As Tensor
 End Function
 
 Private Function CalculateOutput(ByVal X As Tensor) As Tensor
-    'Y = Sigmoid(X)
     Set CalculateOutput = VecSigmoid(X)
 End Function
 
 Private Function CalculateInputError(ByVal Y As Tensor, _
                                      ByVal dLdY As Tensor) As Tensor
-    'dLdX = dLdY * Y * (1 - Y)
-    Set CalculateInputError = VecMul(dLdY, VecMul(Y, VecSubCRev(Y, 1)))
+    Set CalculateInputError = VecMul(dLdY, VecSigmoidDerivative(Y))
 End Function
 
 Private Sub Save(ByVal oWorksheet As Serializer)

@@ -9,10 +9,14 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
-
 Implements IOptimizer
 Implements ISerializable
+
+#Const USE_LATE_BINDING_IN_INTERFACES = True
+
+Private Const KEY_STEP As String = "Step"
+Private Const KEY_MEAN As String = "Mean"
+Private Const KEY_VARIANCE As String = "Variance"
 
 Private m_dblLearningRate As Double
 Private m_dblBeta1 As Double
@@ -85,13 +89,13 @@ Private Sub ApplyUpdates(ByVal W As Parameter)
     End If
     GetStates W, lStep, m, v
     lStep = lStep + 1
-    dblAlpha = W.LearningRateFactor * m_dblLearningRate * Sqr(1 - m_dblBeta2 ^ lStep) / (1 - m_dblBeta1 ^ lStep)
-    dblWeightDecay = W.WeightDecayFactor * m_dblWeightDecay
-    'Update in-place, m = beta1 * m + (1 - beta1) * (dW / NumUpdates)
+    dblAlpha = W.LearningRateScale * m_dblLearningRate * Sqr(1 - m_dblBeta2 ^ lStep) / (1 - m_dblBeta1 ^ lStep)
+    dblWeightDecay = W.WeightDecayScale * m_dblWeightDecay
+    'm = beta1 * m + (1 - beta1) * (dW / NumUpdates)
     VecLinComb_I m_dblBeta1, m, (1 - m_dblBeta1) / (W.NumUpdates), W.Gradient
-    'Update in-place, v = beta2 * v + (1 - beta2) * (dW / NumUpdates)^2
+    'v = beta2 * v + (1 - beta2) * (dW / NumUpdates)^2
     VecLinComb_I m_dblBeta2, v, (1 - m_dblBeta2) / (W.NumUpdates * W.NumUpdates), VecPow2(W.Gradient)
-    'Update in-place, W = W - alpha * (m / (Sqr(v) + epsilon) + wd * W)
+    'W = W - alpha * (m / (Sqr(v) + epsilon) + wd * W)
     VecLinComb_I 1 - dblAlpha * dblWeightDecay, W.Variable, -dblAlpha, VecDivSqrtAddC(m, v, m_dblEpsilon)
     W.ResetGradient
     PutStates W, lStep, m, v
@@ -106,9 +110,9 @@ Private Sub GetStates(ByVal W As Parameter, _
             PutStates W, 0&, Zeros(W.Variable.Shape), Zeros(W.Variable.Shape)
         End If
         With .Item(W)
-            lStep = .Item("Step")
-            Set m = .Item("Mean")
-            Set v = .Item("Variance")
+            lStep = .Item(KEY_STEP)
+            Set m = .Item(KEY_MEAN)
+            Set v = .Item(KEY_VARIANCE)
         End With
     End With
 End Sub
@@ -122,9 +126,9 @@ Private Sub PutStates(ByVal W As Parameter, _
             Set .Item(W) = CreateObject("Scripting.Dictionary")
         End If
         With .Item(W)
-            .Item("Step") = lStep
-            Set .Item("Mean") = m
-            Set .Item("Variance") = v
+            .Item(KEY_STEP) = lStep
+            Set .Item(KEY_MEAN) = m
+            Set .Item(KEY_VARIANCE) = v
         End With
     End With
 End Sub

@@ -727,6 +727,46 @@ Public Sub LogError(ByVal sSource As String, _
         .Cells(lLastRow + 1, 3) = lErrorNumber
         .Cells(lLastRow + 1, 4) = sErrorDescription
         .Cells(lLastRow + 1, 1).Resize(1, 4).WrapText = False
-        Application.GoTo .Cells(lLastRow + 1, 1)
+        Application.Goto .Cells(lLastRow + 1, 1)
     End With
 End Sub
+
+Public Sub LogToWorksheet(ByVal sName As String, _
+                          ParamArray avArgs() As Variant)
+    Dim oLog As Worksheet
+    Dim bIsWorksheetNew As Boolean
+    Dim lLastRow As Long
+    Dim i As Long
+    Dim vHeader As Variant
+    Dim vHeaderCol As Variant
+    Dim vValue As Variant
+    
+    Set oLog = CreateWorksheet(ThisWorkbook, sName, False, bIsWorksheetNew)
+    If bIsWorksheetNew Then
+        lLastRow = 1
+    Else
+        lLastRow = GetLastRow(oLog)
+    End If
+    With oLog
+        On Error Resume Next
+        For i = 0 To UBound(avArgs) - 1 Step 2
+            vHeader = avArgs(i)
+            vHeaderCol = Application.Match(vHeader, .Rows(1), 0)
+            vValue = avArgs(i + 1)
+            If IsError(vHeaderCol) Then
+                vHeaderCol = GetLastColumn(oLog) + 1
+                .Cells(1, vHeaderCol) = vHeader
+            End If
+            .Cells(lLastRow + 1, vHeaderCol) = vValue
+            Application.Goto .Cells(lLastRow + 1, vHeaderCol)
+            DoEvents
+        Next i
+        On Error GoTo 0
+        If bIsWorksheetNew Then
+            .Activate
+            .Cells(2, 1).Select
+            ActiveWindow.FreezePanes = True
+        End If
+    End With
+End Sub
+

@@ -9,10 +9,10 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
-
 Implements ILayer
 Implements ISerializable
+
+#Const USE_LATE_BINDING_IN_INTERFACES = True
 
 Private m_lInputSize As Long
 Private m_lOutputSize As Long
@@ -82,16 +82,28 @@ Public Function Backward(ByVal dLdY As Tensor) As Tensor
     Set Backward = CalculateInputError(dLdY)
 End Function
 
+'Private Function CalculateOutput(ByVal X As Tensor) As Tensor
+'    Dim lBatchSize As Long
+'    Dim Y As Tensor
+'
+'    lBatchSize = X.Size(2)
+'    Set Y = Zeros(Array(m_lOutputSize, lBatchSize))
+'    'Y = Y + W * X
+'    MatMul_I Y, m_W.Variable, X
+'    'Y = Y + b
+'    MatMul_I Y, m_b.Variable, Ones(lBatchSize), True, True
+'    Set CalculateOutput = Y
+'End Function
+
 Private Function CalculateOutput(ByVal X As Tensor) As Tensor
     Dim lBatchSize As Long
     Dim Y As Tensor
 
     lBatchSize = X.Size(2)
-    Set Y = Zeros(Array(m_lOutputSize, lBatchSize))
-    'Update in-place, Y = Y + W * X
+    'Y = b
+    Set Y = m_b.Variable.View(Array(m_lOutputSize, 1)).Tile(2, lBatchSize)
+    'Y = Y + W * X
     MatMul_I Y, m_W.Variable, X
-    'Update in-place, Y = Y + b
-    MatMul_I Y, m_b.Variable, Ones(lBatchSize), True, True
     Set CalculateOutput = Y
 End Function
 
@@ -105,13 +117,26 @@ Private Sub UpdateGradients(ByVal X As Tensor, _
     Dim lBatchSize As Long
 
     lBatchSize = X.Size(2)
-    'Update in-place, dLdW = dLdW + dLdY * X'
+    'dLdW = dLdW + dLdY * X'
     MatMul_I m_W.Gradient, dLdY, X, , True
-    'Update in-place, dLdb = dLdb + dLdY
+    'dLdb = dLdb + dLdY
     MatMul_I m_b.Gradient, dLdY, Ones(lBatchSize)
     m_W.NumUpdates = m_W.NumUpdates + lBatchSize
     m_b.NumUpdates = m_b.NumUpdates + lBatchSize
 End Sub
+
+'Private Sub UpdateGradients(ByVal X As Tensor, _
+'                            ByVal dLdY As Tensor)
+'    Dim lBatchSize As Long
+'
+'    lBatchSize = X.Size(2)
+'    'dLdW = dLdW + dLdY * X'
+'    MatMul_I m_W.Gradient, dLdY, X, , True
+'    'dLdb = dLdb + dLdY
+'    VecAdd_I m_b.Gradient, dLdY.Reduce(2, rdcSum)
+'    m_W.NumUpdates = m_W.NumUpdates + lBatchSize
+'    m_b.NumUpdates = m_b.NumUpdates + lBatchSize
+'End Sub
 
 Private Sub Save(ByVal oWorksheet As Serializer)
     Const PROCEDURE_NAME As String = "FullyConnectedLayer.Save"

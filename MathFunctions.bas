@@ -42,11 +42,50 @@ Public Function IsBlasAvailable() As Boolean
     IsBlasAvailable = m_vIsBlasAvailable
 End Function
 
-Public Function Sigmoid(ByVal dblValue As Double) As Double
-    If dblValue >= -DOUBLE_MAX_LOG Then
-        Sigmoid = 1 / (1 + Exp(-dblValue))
+Public Function NormRand() As Double
+    NormRand = Sqr(-2 * Log(Rnd() + DOUBLE_MIN_ABS)) * Cos(MATH_2PI * Rnd())
+End Function
+
+Public Function SafeSigmoid(ByVal dblValue As Double) As Double
+    If dblValue < -DOUBLE_MAX_LOG Then
+        SafeSigmoid = 0
+    Else
+        SafeSigmoid = 1 / (1 + Exp(-dblValue))
     End If
 End Function
+
+Public Function SafeTanh(ByVal dblValue As Double) As Double
+    Dim dblExp As Double
+    
+    dblValue = 2 * dblValue
+    If dblValue > DOUBLE_MAX_LOG Then
+        SafeTanh = 1
+    Else
+        dblExp = Exp(dblValue)
+        SafeTanh = (dblExp - 1) / (dblExp + 1)
+    End If
+End Function
+
+'A = A + B
+Public Sub VecAdd_I(ByVal A As Tensor, _
+                    ByVal B As Tensor)
+    Const PROCEDURE_NAME As String = "MathFunctions.VecAdd_I"
+
+    If A Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If B Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If A.NumElements <> B.NumElements Then
+        Err.Raise 5, PROCEDURE_NAME, "Tensors A and B must have the same number of elements."
+    End If
+    If IsBlasAvailable() Then
+        VecLinCombBlas_I 1, A, 1, B
+    Else
+        VecAddNaive_I A, B
+    End If
+End Sub
 
 'Y = A + B
 Public Function VecAdd(ByVal A As Tensor, _
@@ -135,7 +174,7 @@ Public Function VecSubCRev(ByVal A As Tensor, _
     End If
 End Function
 
-'Y = A .* B
+'Y = A * B
 Public Function VecMul(ByVal A As Tensor, _
                        ByVal B As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecMul"
@@ -152,7 +191,7 @@ Public Function VecMul(ByVal A As Tensor, _
     Set VecMul = VecMulNaive(A, B)
 End Function
 
-'Y = A .* scalar
+'Y = A * scalar
 Public Function VecMulC(ByVal A As Tensor, _
                         ByVal dblScalar As Double) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecMulC"
@@ -167,7 +206,7 @@ Public Function VecMulC(ByVal A As Tensor, _
     End If
 End Function
 
-'Y = A ./ B
+'Y = A / B
 Public Function VecDiv(ByVal A As Tensor, _
                        ByVal B As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecDiv"
@@ -184,13 +223,13 @@ Public Function VecDiv(ByVal A As Tensor, _
     Set VecDiv = VecDivNaive(A, B)
 End Function
 
-'Y = A ./ scalar
+'Y = A / scalar
 Public Function VecDivC(ByVal A As Tensor, _
                         ByVal dblScalar As Double) As Tensor
     Set VecDivC = VecMulC(A, 1 / dblScalar)
 End Function
 
-'Y = scalar ./ A
+'Y = scalar / A
 Public Function VecDivCRev(ByVal A As Tensor, _
                            ByVal dblScalar As Double) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecDivCRev"
@@ -201,7 +240,7 @@ Public Function VecDivCRev(ByVal A As Tensor, _
     Set VecDivCRev = VecDivCRevNaive(A, dblScalar)
 End Function
 
-'Y = A ./ (Sqrt(B) + scalar)
+'Y = A / (Sqrt(B) + scalar)
 Public Function VecDivSqrtAddC(ByVal A As Tensor, _
                                ByVal B As Tensor, _
                                ByVal dblScalar As Double) As Tensor
@@ -239,7 +278,7 @@ Public Function VecSign(ByVal A As Tensor) As Tensor
     Set VecSign = VecSignNaive(A)
 End Function
 
-'Y = A .^ 2
+'Y = A^2
 Public Function VecPow2(ByVal A As Tensor) As Tensor
     Set VecPow2 = VecMul(A, A)
 End Function
@@ -274,7 +313,29 @@ Public Function VecLog(ByVal A As Tensor) As Tensor
     Set VecLog = VecLogNaive(A)
 End Function
 
-'Y = 1 ./ (1 + Exp(-A))
+'Y = If A > 0 Then A Else A * dblNegativeSlope
+Public Function VecLeakyReLU(ByVal A As Tensor, _
+                             ByVal dblNegativeSlope As Double) As Tensor
+    Const PROCEDURE_NAME As String = "MathFunctions.VecLeakyReLU"
+    
+    If A Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    Set VecLeakyReLU = VecLeakyReLUNaive(A, dblNegativeSlope)
+End Function
+
+'Y = If A > 0 Then 1 Else dblNegativeSlope
+Public Function VecLeakyReLUDerivative(ByVal A As Tensor, _
+                                       ByVal dblNegativeSlope As Double) As Tensor
+    Const PROCEDURE_NAME As String = "MathFunctions.VecLeakyReLUDerivative"
+    
+    If A Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    Set VecLeakyReLUDerivative = VecLeakyReLUDerivativeNaive(A, dblNegativeSlope)
+End Function
+
+'Y = 1 / (1 + Exp(-A))
 Public Function VecSigmoid(ByVal A As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecSigmoid"
     
@@ -284,7 +345,37 @@ Public Function VecSigmoid(ByVal A As Tensor) As Tensor
     Set VecSigmoid = VecSigmoidNaive(A)
 End Function
 
-'A = alpha .* A + beta .* B
+'Y = A * (1 - A)
+Public Function VecSigmoidDerivative(ByVal A As Tensor) As Tensor
+    Const PROCEDURE_NAME As String = "MathFunctions.VecSigmoidDerivative"
+    
+    If A Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    Set VecSigmoidDerivative = VecSigmoidDerivativeNaive(A)
+End Function
+
+'Y = Tanh(A)
+Public Function VecTanh(ByVal A As Tensor) As Tensor
+    Const PROCEDURE_NAME As String = "MathFunctions.VecTanh"
+    
+    If A Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    Set VecTanh = VecTanhNaive(A)
+End Function
+
+'Y = 1 - A^2
+Public Function VecTanhDerivative(ByVal A As Tensor) As Tensor
+    Const PROCEDURE_NAME As String = "MathFunctions.VecTanhDerivative"
+    
+    If A Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    Set VecTanhDerivative = VecTanhDerivativeNaive(A)
+End Function
+
+'A = alpha * A + beta * B
 Public Sub VecLinComb_I(ByVal dblAlpha As Double, _
                         ByVal A As Tensor, _
                         ByVal dblBeta As Double, _
@@ -307,7 +398,7 @@ Public Sub VecLinComb_I(ByVal dblAlpha As Double, _
     End If
 End Sub
 
-'Y = alpha .* A + beta .* B
+'Y = alpha * A + beta * B
 Public Function VecLinComb(ByVal dblAlpha As Double, _
                            ByVal A As Tensor, _
                            ByVal dblBeta As Double, _
@@ -734,13 +825,57 @@ Private Function VecLogNaive(ByVal A As Tensor) As Tensor
     Set VecLogNaive = A
 End Function
 
+Private Sub VecLeakyReLUNaive_I(ByVal A As Tensor, _
+                                ByVal dblNegativeSlope As Double)
+    Dim i As Long
+    Dim A_() As Double
+    
+    A.Flatten.CreateAlias A_
+    For i = 1 To A.NumElements
+        If A_(i) < 0 Then
+            A_(i) = dblNegativeSlope * A_(i)
+        End If
+    Next i
+    A.Flatten.RemoveAlias A_
+End Sub
+
+Private Function VecLeakyReLUNaive(ByVal A As Tensor, _
+                                   ByVal dblNegativeSlope As Double) As Tensor
+    Set A = A.Clone
+    VecLeakyReLUNaive_I A, dblNegativeSlope
+    Set VecLeakyReLUNaive = A
+End Function
+
+Private Sub VecLeakyReLUDerivativeNaive_I(ByVal A As Tensor, _
+                                          ByVal dblNegativeSlope As Double)
+    Dim i As Long
+    Dim A_() As Double
+    
+    A.Flatten.CreateAlias A_
+    For i = 1 To A.NumElements
+        If A_(i) < 0 Then
+            A_(i) = dblNegativeSlope
+        Else
+            A_(i) = 1
+        End If
+    Next i
+    A.Flatten.RemoveAlias A_
+End Sub
+
+Private Function VecLeakyReLUDerivativeNaive(ByVal A As Tensor, _
+                                             ByVal dblNegativeSlope As Double) As Tensor
+    Set A = A.Clone
+    VecLeakyReLUDerivativeNaive_I A, dblNegativeSlope
+    Set VecLeakyReLUDerivativeNaive = A
+End Function
+
 Private Sub VecSigmoidNaive_I(ByVal A As Tensor)
     Dim i As Long
     Dim A_() As Double
     
     A.Flatten.CreateAlias A_
     For i = 1 To A.NumElements
-        A_(i) = Sigmoid(A_(i))
+        A_(i) = SafeSigmoid(A_(i))
     Next i
     A.Flatten.RemoveAlias A_
 End Sub
@@ -749,6 +884,57 @@ Private Function VecSigmoidNaive(ByVal A As Tensor) As Tensor
     Set A = A.Clone
     VecSigmoidNaive_I A
     Set VecSigmoidNaive = A
+End Function
+
+Private Sub VecSigmoidDerivativeNaive_I(ByVal A As Tensor)
+    Dim i As Long
+    Dim A_() As Double
+    
+    A.Flatten.CreateAlias A_
+    For i = 1 To A.NumElements
+        A_(i) = A_(i) * (1 - A_(i))
+    Next i
+    A.Flatten.RemoveAlias A_
+End Sub
+
+Private Function VecSigmoidDerivativeNaive(ByVal A As Tensor) As Tensor
+    Set A = A.Clone
+    VecSigmoidDerivativeNaive_I A
+    Set VecSigmoidDerivativeNaive = A
+End Function
+
+Private Sub VecTanhNaive_I(ByVal A As Tensor)
+    Dim i As Long
+    Dim A_() As Double
+    
+    A.Flatten.CreateAlias A_
+    For i = 1 To A.NumElements
+        A_(i) = SafeTanh(A_(i))
+    Next i
+    A.Flatten.RemoveAlias A_
+End Sub
+
+Private Function VecTanhNaive(ByVal A As Tensor) As Tensor
+    Set A = A.Clone
+    VecTanhNaive_I A
+    Set VecTanhNaive = A
+End Function
+
+Private Sub VecTanhDerivativeNaive_I(ByVal A As Tensor)
+    Dim i As Long
+    Dim A_() As Double
+    
+    A.Flatten.CreateAlias A_
+    For i = 1 To A.NumElements
+        A_(i) = 1 - A_(i) * A_(i)
+    Next i
+    A.Flatten.RemoveAlias A_
+End Sub
+
+Private Function VecTanhDerivativeNaive(ByVal A As Tensor) As Tensor
+    Set A = A.Clone
+    VecTanhDerivativeNaive_I A
+    Set VecTanhDerivativeNaive = A
 End Function
 
 Private Sub VecLinCombNaive_I(ByVal dblAlpha As Double, _

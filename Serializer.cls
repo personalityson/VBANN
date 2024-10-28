@@ -9,29 +9,13 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
 
-Private Const SERIALIZABLE_TYPE_ADAM As String = "Adam"
-Private Const SERIALIZABLE_TYPE_BCE_LOSS As String = "BCELoss"
-Private Const SERIALIZABLE_TYPE_CCE_LOSS As String = "CCELoss"
-Private Const SERIALIZABLE_TYPE_DROPOUT_LAYER As String = "DropoutLayer"
-Private Const SERIALIZABLE_TYPE_FULLY_CONNECTED_LAYER As String = "FullyConnectedLayer"
-Private Const SERIALIZABLE_TYPE_INPUT_NORMALIZATION_LAYER As String = "InputNormalizationLayer"
-Private Const SERIALIZABLE_TYPE_L1_LOSS As String = "L1Loss"
-Private Const SERIALIZABLE_TYPE_L2_LOSS As String = "L2Loss"
-Private Const SERIALIZABLE_TYPE_LEAKY_RELU_LAYER As String = "LeakyReLULayer"
 Private Const SERIALIZABLE_TYPE_MEMO As String = "Memo"
 Private Const SERIALIZABLE_TYPE_NOTHING As String = "Nothing"
-Private Const SERIALIZABLE_TYPE_PARAMETER As String = "Parameter"
-Private Const SERIALIZABLE_TYPE_SEQUENTIAL As String = "Sequential"
-Private Const SERIALIZABLE_TYPE_SGDM As String = "SGDM"
-Private Const SERIALIZABLE_TYPE_SIGMOID_LAYER As String = "SigmoidLayer"
-Private Const SERIALIZABLE_TYPE_SOFTMAX_LAYER As String = "SoftmaxLayer"
-Private Const SERIALIZABLE_TYPE_STORAGE As String = "Storage"
-Private Const SERIALIZABLE_TYPE_TENSOR As String = "Tensor"
 
 Private m_oWorksheet As Worksheet
 Private m_lRow As Long
 Private m_lNumSerializedObjects As Long
-Private m_aoMemo() As ISerializable
+Private m_aoSerializedObjects() As ISerializable
 
 Public Property Get Worksheet() As Worksheet
     Set Worksheet = m_oWorksheet
@@ -42,7 +26,7 @@ Public Sub Init(ByVal sName As String, _
     Set m_oWorksheet = CreateWorksheet(ThisWorkbook, sName, bOverwrite)
     MoveFirst
     m_lNumSerializedObjects = 0
-    Erase m_aoMemo
+    Erase m_aoSerializedObjects
 End Sub
 
 Public Sub MoveFirst()
@@ -151,15 +135,15 @@ End Function
 
 Private Sub Memoize(ByVal oObject As ISerializable)
     m_lNumSerializedObjects = m_lNumSerializedObjects + 1
-    ReDim Preserve m_aoMemo(1 To m_lNumSerializedObjects)
-    Set m_aoMemo(m_lNumSerializedObjects) = oObject
+    ReDim Preserve m_aoSerializedObjects(1 To m_lNumSerializedObjects)
+    Set m_aoSerializedObjects(m_lNumSerializedObjects) = oObject
 End Sub
 
 Private Function IndexOf(ByVal oObject As ISerializable) As Long
     Dim i As Long
     
     For i = 1 To m_lNumSerializedObjects
-        If m_aoMemo(i) Is oObject Then
+        If m_aoSerializedObjects(i) Is oObject Then
             IndexOf = i
             Exit Function
         End If
@@ -241,7 +225,7 @@ Private Function ReadMemo() As ISerializable
     Dim lIndex As Long
     
     lIndex = ReadLong()
-    Set ReadMemo = m_aoMemo(lIndex)
+    Set ReadMemo = m_aoSerializedObjects(lIndex)
 End Function
 
 Private Function ReadSerializable(ByVal sTypeName As String) As ISerializable
@@ -254,37 +238,37 @@ Private Function CreateInstance(ByVal sTypeName As String) As ISerializable
     Const PROCEDURE_NAME As String = "Serializer.CreateInstance"
     
     Select Case sTypeName
-        Case SERIALIZABLE_TYPE_ADAM
+        Case "Adam"
             Set CreateInstance = New Adam
-        Case SERIALIZABLE_TYPE_BCE_LOSS
+        Case "BCELoss"
             Set CreateInstance = New BCELoss
-        Case SERIALIZABLE_TYPE_CCE_LOSS
+        Case "CCELoss"
             Set CreateInstance = New CCELoss
-        Case SERIALIZABLE_TYPE_DROPOUT_LAYER
+        Case "DropoutLayer"
             Set CreateInstance = New DropoutLayer
-        Case SERIALIZABLE_TYPE_FULLY_CONNECTED_LAYER
+        Case "FullyConnectedLayer"
             Set CreateInstance = New FullyConnectedLayer
-        Case SERIALIZABLE_TYPE_INPUT_NORMALIZATION_LAYER
+        Case "InputNormalizationLayer"
             Set CreateInstance = New InputNormalizationLayer
-        Case SERIALIZABLE_TYPE_L1_LOSS
+        Case "L1Loss"
             Set CreateInstance = New L1Loss
-        Case SERIALIZABLE_TYPE_L2_LOSS
+        Case "L2Loss"
             Set CreateInstance = New L2Loss
-        Case SERIALIZABLE_TYPE_LEAKY_RELU_LAYER
+        Case "LeakyReLULayer"
             Set CreateInstance = New LeakyReLULayer
-        Case SERIALIZABLE_TYPE_PARAMETER
+        Case "Parameter"
             Set CreateInstance = New Parameter
-        Case SERIALIZABLE_TYPE_SEQUENTIAL
+        Case "Sequential"
             Set CreateInstance = New Sequential
-        Case SERIALIZABLE_TYPE_SGDM
+        Case "SGDM"
             Set CreateInstance = New SGDM
-        Case SERIALIZABLE_TYPE_SIGMOID_LAYER
+        Case "SigmoidLayer"
             Set CreateInstance = New SigmoidLayer
-        Case SERIALIZABLE_TYPE_SOFTMAX_LAYER
+        Case "SoftmaxLayer"
             Set CreateInstance = New SoftmaxLayer
-        Case SERIALIZABLE_TYPE_STORAGE
+        Case "Storage"
             Set CreateInstance = New Storage
-        Case SERIALIZABLE_TYPE_TENSOR
+        Case "Tensor"
             Set CreateInstance = New Tensor
         Case Else
             Err.Raise 5, PROCEDURE_NAME, "Unsupported serializable type."

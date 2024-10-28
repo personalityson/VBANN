@@ -9,10 +9,12 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
-
 Implements IOptimizer
 Implements ISerializable
+
+#Const USE_LATE_BINDING_IN_INTERFACES = True
+
+Private Const KEY_VELOCITY As String = "Velocity"
 
 Private m_dblLearningRate As Double
 Private m_dblMomentum As Double
@@ -70,11 +72,11 @@ Private Sub ApplyUpdates(ByVal W As Parameter)
         Exit Sub
     End If
     GetStates W, v
-    dblLearningRate = W.LearningRateFactor * m_dblLearningRate
-    dblWeightDecay = W.WeightDecayFactor * m_dblWeightDecay
-    'Update in-place, v = momentum * v + (1 - momentum) * (dW / NumUpdates)
+    dblLearningRate = W.LearningRateScale * m_dblLearningRate
+    dblWeightDecay = W.WeightDecayScale * m_dblWeightDecay
+    'v = momentum * v + (1 - momentum) * (dW / NumUpdates)
     VecLinComb_I m_dblMomentum, v, (1 - m_dblMomentum) / W.NumUpdates, W.Gradient
-    'Update in-place, W = W - lr * (v + wd * W)
+    'W = W - lr * (v + wd * W)
     VecLinComb_I 1 - dblLearningRate * dblWeightDecay, W.Variable, -dblLearningRate, v
     W.ResetGradient
     'PutStates W, v
@@ -87,7 +89,7 @@ Private Sub GetStates(ByVal W As Parameter, _
             PutStates W, Zeros(W.Variable.Shape)
         End If
         With .Item(W)
-            Set v = .Item("Velocity")
+            Set v = .Item(KEY_VELOCITY)
         End With
     End With
 End Sub
@@ -99,7 +101,7 @@ Private Sub PutStates(ByVal W As Parameter, _
             Set .Item(W) = CreateObject("Scripting.Dictionary")
         End If
         With .Item(W)
-            Set .Item("Velocity") = v
+            Set .Item(KEY_VELOCITY) = v
         End With
     End With
 End Sub

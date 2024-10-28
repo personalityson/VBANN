@@ -9,10 +9,10 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
-
 Implements ILayer
 Implements ISerializable
+
+#Const USE_LATE_BINDING_IN_INTERFACES = True
 
 Private m_dblNegativeSlope As Double
 
@@ -56,39 +56,12 @@ Public Function Backward(ByVal dLdY As Tensor) As Tensor
 End Function
 
 Private Function CalculateOutput(ByVal X As Tensor) As Tensor
-    Dim i As Long
-    Dim Y_() As Double
-    Dim Y As Tensor
-    
-    Set Y = X.Clone
-    Y.Flatten.CreateAlias Y_
-    For i = 1 To X.NumElements
-        If Y_(i) < 0 Then
-            Y_(i) = Y_(i) * m_dblNegativeSlope
-        End If
-    Next i
-    Y.Flatten.RemoveAlias Y_
-    Set CalculateOutput = Y
+    Set CalculateOutput = VecLeakyReLU(X, m_dblNegativeSlope)
 End Function
 
 Private Function CalculateInputError(ByVal X As Tensor, _
                                      ByVal dLdY As Tensor) As Tensor
-    Dim i As Long
-    Dim X_() As Double
-    Dim dLdX_() As Double
-    Dim dLdX As Tensor
-
-    Set dLdX = dLdY.Clone
-    X.Flatten.CreateAlias X_
-    dLdX.Flatten.CreateAlias dLdX_
-    For i = 1 To X.NumElements
-        If X_(i) < 0 Then
-            dLdX_(i) = dLdX_(i) * m_dblNegativeSlope
-        End If
-    Next i
-    X.Flatten.RemoveAlias X_
-    dLdX.Flatten.RemoveAlias dLdX_
-    Set CalculateInputError = dLdX
+    Set CalculateInputError = VecMul(dLdY, VecLeakyReLUDerivative(X, m_dblNegativeSlope))
 End Function
 
 Private Sub Save(ByVal oWorksheet As Serializer)

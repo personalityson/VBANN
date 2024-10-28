@@ -9,15 +9,15 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
-
 Implements ISerializable
+
+#Const USE_LATE_BINDING_IN_INTERFACES = True
 
 Private m_oVariable As Tensor
 Private m_oGradient As Tensor
 Private m_lNumUpdates As Long
-Private m_dblLearningRateFactor As Double
-Private m_dblWeightDecayFactor As Double
+Private m_dblLearningRateScale As Double
+Private m_dblWeightDecayScale As Double
 
 Public Property Get Variable() As Tensor
     Set Variable = m_oVariable
@@ -59,25 +59,25 @@ Public Property Let NumUpdates(ByVal lNumUpdates As Long)
     m_lNumUpdates = lNumUpdates
 End Property
 
-Public Property Get LearningRateFactor() As Double
-    LearningRateFactor = m_dblLearningRateFactor
+Public Property Get LearningRateScale() As Double
+    LearningRateScale = m_dblLearningRateScale
 End Property
 
-Public Property Let LearningRateFactor(ByVal dblLearningRateFactor As Double)
-    m_dblLearningRateFactor = dblLearningRateFactor
+Public Property Let LearningRateScale(ByVal dblLearningRateScale As Double)
+    m_dblLearningRateScale = dblLearningRateScale
 End Property
 
-Public Property Get WeightDecayFactor() As Double
-    WeightDecayFactor = m_dblWeightDecayFactor
+Public Property Get WeightDecayScale() As Double
+    WeightDecayScale = m_dblWeightDecayScale
 End Property
 
-Public Property Let WeightDecayFactor(ByVal dblWeightDecayFactor As Double)
-    m_dblWeightDecayFactor = dblWeightDecayFactor
+Public Property Let WeightDecayScale(ByVal dblWeightDecayScale As Double)
+    m_dblWeightDecayScale = dblWeightDecayScale
 End Property
 
 Public Sub Init(ByVal oVariable As Tensor, _
-                Optional ByVal dblLearningRateFactor As Double = 1, _
-                Optional ByVal dblWeightDecayFactor As Double = 1)
+                Optional ByVal dblLearningRateScale As Double = 1, _
+                Optional ByVal dblWeightDecayScale As Double = 1)
     Const PROCEDURE_NAME As String = "Parameter.Init"
     
     If oVariable Is Nothing Then
@@ -86,8 +86,8 @@ Public Sub Init(ByVal oVariable As Tensor, _
     Set m_oVariable = oVariable
     Set m_oGradient = Zeros(m_oVariable.Shape)
     m_lNumUpdates = 0
-    m_dblLearningRateFactor = dblLearningRateFactor
-    m_dblWeightDecayFactor = dblWeightDecayFactor
+    m_dblLearningRateScale = dblLearningRateScale
+    m_dblWeightDecayScale = dblWeightDecayScale
 End Sub
 
 Public Sub ResetGradient()
@@ -105,8 +105,8 @@ Private Sub Save(ByVal oWorksheet As Serializer)
         .WriteObject m_oVariable
         .WriteObject m_oGradient
         .WriteLong m_lNumUpdates
-        .WriteDouble m_dblLearningRateFactor
-        .WriteDouble m_dblWeightDecayFactor
+        .WriteDouble m_dblLearningRateScale
+        .WriteDouble m_dblWeightDecayScale
     End With
 End Sub
 
@@ -120,8 +120,8 @@ Private Sub Load(ByVal oWorksheet As Serializer)
         Set m_oVariable = .ReadObject()
         Set m_oGradient = .ReadObject()
         m_lNumUpdates = .ReadLong()
-        m_dblLearningRateFactor = .ReadDouble()
-        m_dblWeightDecayFactor = .ReadDouble()
+        m_dblLearningRateScale = .ReadDouble()
+        m_dblWeightDecayScale = .ReadDouble()
     End With
 End Sub
 

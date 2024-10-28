@@ -1,66 +1,6 @@
 Attribute VB_Name = "FactoryFunctions"
 Option Explicit
 
-Public Function Zeros(ByVal vShape As Variant) As Tensor
-    Set Zeros = New Tensor
-    Zeros.Resize vShape
-End Function
-
-Public Function Ones(ByVal vShape As Variant) As Tensor
-    Set Ones = New Tensor
-    With Ones
-        .Resize vShape
-        .Fill 1
-    End With
-End Function
-
-Public Function Full(ByVal vShape As Variant, _
-                     ByVal dblValue As Double) As Tensor
-    Set Full = New Tensor
-    With Full
-        .Resize vShape
-        .Fill dblValue
-    End With
-End Function
-
-Public Function GlorotUniform(ByVal vShape As Variant, _
-                              ByVal lInputSize As Long, _
-                              ByVal lOutputSize As Long, _
-                              Optional ByVal dblGain As Double = 1) As Tensor
-    Dim dblLimit As Double
-    
-    dblLimit = dblGain * Sqr(6 / (lInputSize + lOutputSize))
-    Set GlorotUniform = Uniform(vShape, -dblLimit, dblLimit)
-End Function
-
-Public Function GlorotNormal(ByVal vShape As Variant, _
-                             ByVal lInputSize As Long, _
-                             ByVal lOutputSize As Long, _
-                             Optional ByVal dblGain As Double = 1) As Tensor
-    Dim dblSigma As Double
-
-    dblSigma = dblGain * Sqr(2 / (lInputSize + lOutputSize))
-    Set GlorotNormal = Normal(vShape, 0, dblSigma)
-End Function
-
-Public Function HeUniform(ByVal vShape As Variant, _
-                          ByVal lInputSize As Long, _
-                          Optional ByVal dblGain As Double = 1) As Tensor
-    Dim dblLimit As Double
-
-    dblLimit = dblGain * Sqr(6 / (lInputSize))
-    Set HeUniform = Uniform(vShape, -dblLimit, dblLimit)
-End Function
-
-Public Function HeNormal(ByVal vShape As Variant, _
-                         ByVal lInputSize As Long, _
-                         Optional ByVal dblGain As Double = 1) As Tensor
-    Dim dblSigma As Double
-
-    dblSigma = dblGain * Sqr(2 / lInputSize)
-    Set HeNormal = Normal(vShape, 0, dblSigma)
-End Function
-
 Public Function Adam(Optional ByVal dblLearningRate As Double = 0.001, _
                      Optional ByVal dblBeta1 As Double = 0.9, _
                      Optional ByVal dblBeta2 As Double = 0.999, _
@@ -115,10 +55,10 @@ Public Function LeakyReLULayer(Optional ByVal dblNegativeSlope As Double = 0.01)
 End Function
 
 Public Function Parameter(ByVal oVariable As Tensor, _
-                          Optional ByVal dblLearningRateFactor As Double = 1, _
-                          Optional ByVal dblWeightDecayFactor As Double = 1) As Parameter
+                          Optional ByVal dblLearningRateScale As Double = 1, _
+                          Optional ByVal dblWeightDecayScale As Double = 1) As Parameter
     Set Parameter = New Parameter
-    Parameter.Init oVariable, dblLearningRateFactor, dblWeightDecayFactor
+    Parameter.Init oVariable, dblLearningRateScale, dblWeightDecayScale
 End Function
 
 Public Function Sequential(ByVal oCriterion As ICriterion, _
@@ -145,17 +85,6 @@ End Function
 
 Public Function SoftmaxLayer() As SoftmaxLayer
     Set SoftmaxLayer = New SoftmaxLayer
-End Function
-
-Public Function TensorFromRange(ByVal oRange As Range, _
-                                ByVal bTrans As Boolean) As Tensor
-    Set TensorFromRange = New Tensor
-    TensorFromRange.FromRange oRange, bTrans
-End Function
-
-Public Function TensorFromArray(ByRef adblArray() As Double) As Tensor
-    Set TensorFromArray = New Tensor
-    TensorFromArray.FromArray adblArray
 End Function
 
 Public Sub Serialize(ByVal sName As String, _
@@ -293,43 +222,3 @@ Public Function ImportDatasetFromCsv(ByVal strPath As String, _
     End If
     Set ImportDatasetFromCsv = oResult
 End Function
-
-Public Sub LogToWorksheet(ByVal sName As String, _
-                          ParamArray avArgs() As Variant)
-    Dim oLog As Worksheet
-    Dim bIsWorksheetNew As Boolean
-    Dim lLastRow As Long
-    Dim i As Long
-    Dim vHeader As Variant
-    Dim vValue As Variant
-    Dim lHeaderCol As Long
-    
-    Set oLog = CreateWorksheet(ThisWorkbook, sName, False, bIsWorksheetNew)
-    If bIsWorksheetNew Then
-        lLastRow = 1
-    Else
-        lLastRow = GetLastRow(oLog)
-    End If
-    With oLog
-        On Error Resume Next
-        For i = 0 To UBound(avArgs) - 1 Step 2
-            vHeader = avArgs(i)
-            vValue = avArgs(i + 1)
-            lHeaderCol = 0
-            lHeaderCol = WorksheetFunction.Match(vHeader, .Rows(1), 0)
-            If lHeaderCol = 0 Then
-                lHeaderCol = GetLastColumn(oLog) + 1
-                .Cells(1, lHeaderCol) = vHeader
-            End If
-            .Cells(lLastRow + 1, lHeaderCol) = vValue
-            Application.GoTo .Cells(lLastRow + 1, lHeaderCol)
-            DoEvents
-        Next i
-        On Error GoTo 0
-        If bIsWorksheetNew Then
-            .Activate
-            .Cells(2, 1).Select
-            ActiveWindow.FreezePanes = True
-        End If
-    End With
-End Sub
