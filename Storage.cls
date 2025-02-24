@@ -109,7 +109,7 @@ Public Function ToArray() As Double()
 End Function
 
 Public Sub FromRange(ByVal oRange As Range, _
-                     Optional bTrans As Boolean)
+                     Optional bTranspose As Boolean)
     Dim lNumRows As Long
     Dim lNumCols As Long
     Dim i As Long
@@ -122,7 +122,7 @@ Public Sub FromRange(ByVal oRange As Range, _
     With oRange.Areas(1)
         lNumRows = .Rows.Count
         lNumCols = .Columns.Count
-        If bTrans Then
+        If bTranspose Then
             Resize lNumCols, lNumRows
             For i = 1 To lNumRows
                 For j = 1 To lNumCols

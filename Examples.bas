@@ -10,17 +10,13 @@ Public Sub SetupAndTrain()
     Dim lNumEpochs As Long
     Dim oTrainingSet As DataLoader
     Dim oTestSet As DataLoader
-    Dim lStart As Long
-    Dim lEnd As Long
-
-    Randomize 777
 
     lBatchSize = 10
-    lNumEpochs = 5
-    
+    lNumEpochs = 40
+
     Set oTrainingSet = DataLoader(ImportDatasetFromWorksheet("ConcreteTrain", 8, 1, True), lBatchSize)
     Set oTestSet = DataLoader(ImportDatasetFromWorksheet("ConcreteTest", 8, 1, True), lBatchSize)
-    
+
     Set m_oModel = Sequential(L2Loss(), SGDM())
     m_oModel.Add InputNormalizationLayer(oTrainingSet)
     m_oModel.Add FullyConnectedLayer(8, 200)
@@ -30,14 +26,9 @@ Public Sub SetupAndTrain()
     m_oModel.Add FullyConnectedLayer(100, 50)
     m_oModel.Add LeakyReLULayer()
     m_oModel.Add FullyConnectedLayer(50, 1)
-    
-    lStart = GetTickCount()
     m_oModel.Fit oTrainingSet, oTestSet, lNumEpochs
-    lEnd = GetTickCount()
 
-    MsgBox (lEnd - lStart) / 1000
-
-    'Serialize MODEL_NAME, m_oModel
+    Serialize MODEL_NAME, m_oModel
 
     Beep
 End Sub
@@ -73,116 +64,94 @@ Public Function PredictInWorksheet(ByVal oInput As Range) As Double()
     PredictInWorksheet = Y.ToArray
 End Function
 
-Public Sub TestEx()
+Sub WorkingWithTensors()
     Dim A As Tensor
     Dim B As Tensor
-    Dim C As Tensor
-    Dim D As Tensor
-    Dim lStart As Long
-    Dim lEnd As Long
-    Dim i As Long
-    Dim j As Long
-    Dim k As Long
     Dim A_() As Double
     Dim B_() As Double
-    Dim C_() As Double
-    Dim lBatchSize As Long
-    Dim dblMean As Double
-    Dim dblVariance As Double
-    Dim dblTemp As Double
-    Dim v As Variant
-    Dim oLayer As ILayer
-    Dim oTrainingSet As DataLoader
+    Dim adblArray() As Double
+    
+    'Create an empty tensor A filled with zeros, with shape (2, 3, 4).
+    Set A = Zeros(Array(2, 3, 4))
+    
+    'Create a tensor A filled with constant values.
+    Set A = Ones(Array(2, 3, 4))
+    Set A = Full(Array(2, 3, 4), 42)
+    
+    'Create a tensor A filled with random values.
+    Set A = Uniform(Array(2, 3, 4), 0, 1)
+    Set A = Normal(Array(2, 3, 4), 0, 1)
+    Set A = Bernoulli(Array(2, 3, 4), 0.5)
+    
+    'Basic properties of A.
+    MsgBox A.NumDimensions
+    MsgBox A.Size(1)
+    MsgBox A.Size(2)
+    MsgBox A.Size(3)
+    MsgBox A.NumElements
+    MsgBox A.Address
+    
+    'Fill tensor A with a constant value.
+    A.Fill 42
+    
+    'Copy tensor A into a new tensor B. (B must be resized to match A's shape.)
+    Set B = New Tensor
+    B.Resize A.Shape
+    B.Copy A
+    
+    'Clone tensor A into a new tensor B.
+    Set B = A.Clone
+    
+    'Use ShapeEquals to check if A's shape matches (2, 3, 4).
+    MsgBox A.ShapeEquals(Array(2, 3, 4))
+    
+    'Create a different view of A with a new shape (6, 4).
+    'This view shares the same underlying data but has a different layout.
+    Set B = A.View(Array(6, 4))
+    
+    'Create alias arrays for direct memory access.
+    A.CreateAlias A_
+    B.CreateAlias B_
+    
+    ' Modify an element via the alias from A's perspective.
+    A_(1, 1, 1) = 777
+    
+    'Both return 777.
+    MsgBox A_(1, 1, 1)
+    MsgBox B_(1, 1)
+    
+    'Erase the B_ alias to simulate clearing the fixed-size array.
+    Erase B_
+    
+    'Both return 0.
+    MsgBox A_(1, 1, 1)
+    MsgBox B_(1, 1)
+    
+    'Remove the aliases to avoid memory deallocation.
+    A.RemoveAlias A_
+    B.RemoveAlias B_
+    
+    'Create a flattened view of A. Same as B = A.View(Array(24)).
+    Set B = A.Flatten
+    
+    'Reshape A to a 2D tensor (4, 6). Number of elements must be the same, 2 * 3 * 4 = 24 and 4 * 6 = 24.
+    A.Reshape Array(4, 6)
 
-
-    lBatchSize = 10
-
-    Randomize 777
-
-    Set oTrainingSet = DataLoader(ImportDatasetFromCsv("C:\Users\hello\OneDrive\Documents\VBANN\mnist_train.csv", 10, 10), 10)
-
-'    Set oLayer = SoftmaxLayer()
-'
-'    ReDim A_(1 To 2, 1 To 2)
-'    A_(1, 1) = 2
-'    A_(2, 1) = 1
-'    A_(1, 2) = 0.5
-'    A_(2, 2) = 0.5
-'    Set A = New Tensor
-'    A.FromArray A_
-'
-'    ReDim B_(1 To 2, 1 To 2)
-'    B_(1, 1) = 0.1
-'    B_(2, 1) = -0.2
-'    B_(1, 2) = -0.3
-'    B_(2, 2) = 0.4
-'    Set B = New Tensor
-'    B.FromArray B_
-'
-'    Set C = oLayer.Forward(A)
-'
-'    MsgBox "ok"
-'
-'    Set C = oLayer.Backward(B)
-'
-'    MsgBox "ok"
-'    Set A = Bernoulli(Array(3, 4, 5), 0.1)
-'    MsgBox "ok"
-'    Set B = Zeros(Array(3, 4, 5))
-'    Set C = A.Flatten
-'    Set D = B.Flatten
-
-'    Set C = A.Tile(3, 2)
-
-'    Set oLayer = New Parameter
-'    Serialize "jj", oLayer
-'
-'    Set oLayer = Unserialize("jj")
-
-'    A.Flatten.CreateAlias A_
-'    For i = 1 To A.NumElements
-'        A_(i) = i
-'    Next i
-'    A.Flatten.RemoveAlias A_
-'
-'    Serialize "test", A
-'    Set B = Uniform(Array(5, 10))
-'    Set C = Zeros(Array(10000))
-'    'MatMul False, False, 1, A, B, 1, C
-'    MsgBox C.NumDimensions
-
-    'MsgBox a.CallMethodDynamically("AddNumbers", 4, 3)
-
-'    lStart = GetTickCount()
-'    For k = 1 To 100
-'        Set A = Bernoulli(Array(1000, 1000))
-'    Next k
-'    lEnd = GetTickCount()
-'
-'    MsgBox (lEnd - lStart) / 1000
-
-'    ReDim A_(1 To 10, 1 To 10)
-'    ReDim B_(1 To 10, 1 To 10)
-'    v = WorksheetFunction.MMult(A_, B_)
-'    MsgBox v(1, 1)
-'    MsgBox C.ToArray()(1, 1)
-'
-'    MsgBox X.ToArray()(1, 1)
-'    Set Y = X.Sum(2)
-'    A.CreateAlias A_
-'    C.CreateAlias C_
-'    MsgBox A_(1, 1, 1)
-'    MsgBox C_(1, 1, 1)
-'    A.RemoveAlias A_
-'    C.RemoveAlias C_
-'
-'    MsgBox dblTemp
-
-    'MsgBox (lEnd - lStart) / 1000
-
-    'MsgBox C.ToArray()(1, 1, 1)
-
-
-
+    'Reduce A along dimension 2 using mean reduction. The new shape is (4, 1).
+    Set A = A.Reduce(2, rdcMean)
+    
+    'Tile A along dimension 2, repeating it 3 times. The new shape is (4, 3).
+    Set A = A.Tile(2, 3)
+    
+    'Slice A along dimension 1 from index 2 to 3. The new shape is (2, 3).
+    Set A = A.Slice(1, 2, 3)
+    
+    'Create tensor A from a native VBA array.
+    Set A = TensorFromArray(adblArray)
+    
+    'Create tensor A from an Excel range.
+    Set A = TensorFromRange(ThisWorkbook.Worksheets("Sheet1").Range("A1:B3"))
+    
+    'Copy tensor A to a native VBA array.
+    adblArray = A.ToArray
 End Sub
-

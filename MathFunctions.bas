@@ -42,30 +42,6 @@ Public Function IsBlasAvailable() As Boolean
     IsBlasAvailable = m_vIsBlasAvailable
 End Function
 
-Public Function NormRand() As Double
-    NormRand = Sqr(-2 * Log(Rnd() + DOUBLE_MIN_ABS)) * Cos(MATH_2PI * Rnd())
-End Function
-
-Public Function SafeSigmoid(ByVal dblValue As Double) As Double
-    If dblValue < -DOUBLE_MAX_LOG Then
-        SafeSigmoid = 0
-    Else
-        SafeSigmoid = 1 / (1 + Exp(-dblValue))
-    End If
-End Function
-
-Public Function SafeTanh(ByVal dblValue As Double) As Double
-    Dim dblExp As Double
-    
-    dblValue = 2 * dblValue
-    If dblValue > DOUBLE_MAX_LOG Then
-        SafeTanh = 1
-    Else
-        dblExp = Exp(dblValue)
-        SafeTanh = (dblExp - 1) / (dblExp + 1)
-    End If
-End Function
-
 'A = A + B
 Public Sub VecAdd_I(ByVal A As Tensor, _
                     ByVal B As Tensor)
@@ -313,7 +289,7 @@ Public Function VecLog(ByVal A As Tensor) As Tensor
     Set VecLog = VecLogNaive(A)
 End Function
 
-'Y = If A > 0 Then A Else A * dblNegativeSlope
+'Y = If A > 0 Then A Else dblNegativeSlope * A
 Public Function VecLeakyReLU(ByVal A As Tensor, _
                              ByVal dblNegativeSlope As Double) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.VecLeakyReLU"
@@ -425,8 +401,8 @@ End Function
 Public Sub MatMul_I(ByVal C As Tensor, _
                     ByVal A As Tensor, _
                     ByVal B As Tensor, _
-                    Optional ByVal bTransA As Boolean, _
-                    Optional ByVal bTransB As Boolean)
+                    Optional ByVal bTransposeA As Boolean, _
+                    Optional ByVal bTransposeB As Boolean)
     Const PROCEDURE_NAME As String = "MathFunctions.MatMul_I"
     Dim lNumRowsA As Long
     Dim lNumColsA As Long
@@ -457,10 +433,10 @@ Public Sub MatMul_I(ByVal C As Tensor, _
     If B.NumDimensions = 1 Then
         Set B = B.View(Array(B.Size(1), 1))
     End If
-    lNumRowsA = IIf(bTransA, A.Size(2), A.Size(1))
-    lNumColsA = IIf(bTransA, A.Size(1), A.Size(2))
-    lNumRowsB = IIf(bTransB, B.Size(2), B.Size(1))
-    lNumColsB = IIf(bTransB, B.Size(1), B.Size(2))
+    lNumRowsA = IIf(bTransposeA, A.Size(2), A.Size(1))
+    lNumColsA = IIf(bTransposeA, A.Size(1), A.Size(2))
+    lNumRowsB = IIf(bTransposeB, B.Size(2), B.Size(1))
+    lNumColsB = IIf(bTransposeB, B.Size(1), B.Size(2))
     If lNumColsA <> lNumRowsB Then
         Err.Raise 5, PROCEDURE_NAME, "Shapes of tensors A and B are incompatible for matrix multiplication."
     End If
@@ -476,17 +452,17 @@ Public Sub MatMul_I(ByVal C As Tensor, _
         Err.Raise 5, PROCEDURE_NAME, "Output tensor shape does not match the expected shape for matrix multiplication."
     End If
     If IsBlasAvailable() Then
-        MatMulBlas_I C, A, B, bTransA, bTransB
+        MatMulBlas_I C, A, B, bTransposeA, bTransposeB
     Else
-        MatMulNaive_I C, A, B, bTransA, bTransB
+        MatMulNaive_I C, A, B, bTransposeA, bTransposeB
     End If
 End Sub
 
 'Y = A * B
 Public Function MatMul(ByVal A As Tensor, _
                        ByVal B As Tensor, _
-                       Optional ByVal bTransA As Boolean, _
-                       Optional ByVal bTransB As Boolean) As Tensor
+                       Optional ByVal bTransposeA As Boolean, _
+                       Optional ByVal bTransposeB As Boolean) As Tensor
     Const PROCEDURE_NAME As String = "MathFunctions.MatMul"
     Dim lNumColsA As Long
     Dim lNumRowsB As Long
@@ -509,15 +485,35 @@ Public Function MatMul(ByVal A As Tensor, _
     If B.NumDimensions = 1 Then
         Set B = B.View(Array(B.Size(1), 1))
     End If
-    lNumColsA = IIf(bTransA, A.Size(1), A.Size(2))
-    lNumRowsB = IIf(bTransB, B.Size(2), B.Size(1))
+    lNumColsA = IIf(bTransposeA, A.Size(1), A.Size(2))
+    lNumRowsB = IIf(bTransposeB, B.Size(2), B.Size(1))
     If lNumColsA <> lNumRowsB Then
         Err.Raise 5, PROCEDURE_NAME, "Shapes of tensors A and B are incompatible for matrix multiplication."
     End If
     If IsBlasAvailable() Then
-        Set MatMul = MatMulBlas(A, B, bTransA, bTransB)
+        Set MatMul = MatMulBlas(A, B, bTransposeA, bTransposeB)
     Else
-        Set MatMul = MatMulNaive(A, B, bTransA, bTransB)
+        Set MatMul = MatMulNaive(A, B, bTransposeA, bTransposeB)
+    End If
+End Function
+
+Private Function SafeSigmoid(ByVal dblValue As Double) As Double
+    If dblValue < -DOUBLE_MAX_LOG Then
+        SafeSigmoid = 0
+    Else
+        SafeSigmoid = 1 / (1 + Exp(-dblValue))
+    End If
+End Function
+
+Private Function SafeTanh(ByVal dblValue As Double) As Double
+    Dim dblExp As Double
+    
+    dblValue = 2 * dblValue
+    If dblValue > DOUBLE_MAX_LOG Then
+        SafeTanh = 1
+    Else
+        dblExp = Exp(dblValue)
+        SafeTanh = (dblExp - 1) / (dblExp + 1)
     End If
 End Function
 
@@ -982,8 +978,8 @@ End Function
 Private Sub MatMulNaive_I(ByVal C As Tensor, _
                           ByVal A As Tensor, _
                           ByVal B As Tensor, _
-                          ByVal bTransA As Boolean, _
-                          ByVal bTransB As Boolean)
+                          ByVal bTransposeA As Boolean, _
+                          ByVal bTransposeB As Boolean)
     Dim m As Long
     Dim n As Long
     Dim k As Long
@@ -997,7 +993,7 @@ Private Sub MatMulNaive_I(ByVal C As Tensor, _
     
     m = C.Size(1)
     n = C.Size(2)
-    k = IIf(bTransA, A.Size(1), A.Size(2))
+    k = IIf(bTransposeA, A.Size(1), A.Size(2))
     A.CreateAlias A_
     B.CreateAlias B_
     C.CreateAlias C_
@@ -1005,19 +1001,19 @@ Private Sub MatMulNaive_I(ByVal C As Tensor, _
         For j = 1 To n
             dblSum = 0
             Select Case True
-                Case Not bTransA And Not bTransB
+                Case Not bTransposeA And Not bTransposeB
                     For l = 1 To k
                         dblSum = dblSum + A_(i, l) * B_(l, j)
                     Next l
-                Case bTransA And Not bTransB
+                Case bTransposeA And Not bTransposeB
                     For l = 1 To k
                         dblSum = dblSum + A_(l, i) * B_(l, j)
                     Next l
-                Case Not bTransA And bTransB
+                Case Not bTransposeA And bTransposeB
                     For l = 1 To k
                         dblSum = dblSum + A_(i, l) * B_(j, l)
                     Next l
-                Case bTransA And bTransB
+                Case bTransposeA And bTransposeB
                     For l = 1 To k
                         dblSum = dblSum + A_(l, i) * B_(j, l)
                     Next l
@@ -1032,49 +1028,49 @@ End Sub
 
 Private Function MatMulNaive(ByVal A As Tensor, _
                              ByVal B As Tensor, _
-                             ByVal bTransA As Boolean, _
-                             ByVal bTransB As Boolean) As Tensor
+                             ByVal bTransposeA As Boolean, _
+                             ByVal bTransposeB As Boolean) As Tensor
     Dim m As Long
     Dim n As Long
     Dim C As Tensor
     
-    m = IIf(bTransA, A.Size(2), A.Size(1))
-    n = IIf(bTransB, B.Size(1), B.Size(2))
+    m = IIf(bTransposeA, A.Size(2), A.Size(1))
+    n = IIf(bTransposeB, B.Size(1), B.Size(2))
     Set C = Zeros(Array(m, n))
-    MatMulNaive_I C, A, B, bTransA, bTransB
+    MatMulNaive_I C, A, B, bTransposeA, bTransposeB
     Set MatMulNaive = C
 End Function
 
 Private Sub MatMulBlas_I(ByVal C As Tensor, _
                          ByVal A As Tensor, _
                          ByVal B As Tensor, _
-                         ByVal bTransA As Boolean, _
-                         ByVal bTransB As Boolean)
+                         ByVal bTransposeA As Boolean, _
+                         ByVal bTransposeB As Boolean)
     Dim sTransA As String
     Dim sTransB As String
     Dim m As Long
     Dim n As Long
     Dim k As Long
     
-    sTransA = IIf(bTransA, "T", "N")
-    sTransB = IIf(bTransB, "T", "N")
+    sTransA = IIf(bTransposeA, "T", "N")
+    sTransB = IIf(bTransposeB, "T", "N")
     m = C.Size(1)
     n = C.Size(2)
-    k = IIf(bTransA, A.Size(1), A.Size(2))
+    k = IIf(bTransposeA, A.Size(1), A.Size(2))
     dgemm sTransA, sTransB, m, n, k, 1#, A.Address, A.Size(1), B.Address, B.Size(1), 1#, C.Address, m
 End Sub
 
 Private Function MatMulBlas(ByVal A As Tensor, _
                             ByVal B As Tensor, _
-                            ByVal bTransA As Boolean, _
-                            ByVal bTransB As Boolean) As Tensor
+                            ByVal bTransposeA As Boolean, _
+                            ByVal bTransposeB As Boolean) As Tensor
     Dim m As Long
     Dim n As Long
     Dim C As Tensor
     
-    m = IIf(bTransA, A.Size(2), A.Size(1))
-    n = IIf(bTransB, B.Size(1), B.Size(2))
+    m = IIf(bTransposeA, A.Size(2), A.Size(1))
+    n = IIf(bTransposeB, B.Size(1), B.Size(2))
     Set C = Zeros(Array(m, n))
-    MatMulBlas_I C, A, B, bTransA, bTransB
+    MatMulBlas_I C, A, B, bTransposeA, bTransposeB
     Set MatMulBlas = C
 End Function

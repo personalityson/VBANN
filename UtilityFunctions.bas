@@ -33,6 +33,7 @@ Public Const SIZEOF_DOUBLE As Long = 8
     Public Const SIZEOF_VARIANT As Long = 16
 #End If
 
+
 Public Enum RoundingType
     rndNearest
     rndDown
@@ -188,18 +189,6 @@ Public Function MaxDbl3(ByVal A As Double, _
     End If
     If MaxDbl3 < C Then
         MaxDbl3 = C
-    End If
-End Function
-
-Public Function Clip(ByVal dblValue As Double, _
-                     ByVal dblMin As Double, _
-                     ByVal dblMax As Double) As Double
-    Clip = dblValue
-    If Clip < dblMin Then
-        Clip = dblMin
-    End If
-    If Clip > dblMax Then
-        Clip = dblMax
     End If
 End Function
 
@@ -727,7 +716,7 @@ Public Sub LogError(ByVal sSource As String, _
         .Cells(lLastRow + 1, 3) = lErrorNumber
         .Cells(lLastRow + 1, 4) = sErrorDescription
         .Cells(lLastRow + 1, 1).Resize(1, 4).WrapText = False
-        Application.Goto .Cells(lLastRow + 1, 1)
+        Application.GoTo .Cells(lLastRow + 1, 1)
     End With
 End Sub
 
@@ -758,7 +747,7 @@ Public Sub LogToWorksheet(ByVal sName As String, _
                 .Cells(1, vHeaderCol) = vHeader
             End If
             .Cells(lLastRow + 1, vHeaderCol) = vValue
-            Application.Goto .Cells(lLastRow + 1, vHeaderCol)
+            Application.GoTo .Cells(lLastRow + 1, vHeaderCol)
             DoEvents
         Next i
         On Error GoTo 0
@@ -769,4 +758,3 @@ Public Sub LogToWorksheet(ByVal sName As String, _
         End If
     End With
 End Sub
-

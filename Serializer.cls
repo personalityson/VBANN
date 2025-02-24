@@ -268,6 +268,8 @@ Private Function CreateInstance(ByVal sTypeName As String) As ISerializable
             Set CreateInstance = New SoftmaxLayer
         Case "Storage"
             Set CreateInstance = New Storage
+        Case "TanhLayer"
+            Set CreateInstance = New TanhLayer
         Case "Tensor"
             Set CreateInstance = New Tensor
         Case Else

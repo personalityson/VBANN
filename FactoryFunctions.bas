@@ -78,13 +78,17 @@ Public Function SigmoidLayer() As SigmoidLayer
     Set SigmoidLayer = New SigmoidLayer
 End Function
 
+Public Function SoftmaxLayer() As SoftmaxLayer
+    Set SoftmaxLayer = New SoftmaxLayer
+End Function
+
+Public Function TanhLayer() As TanhLayer
+    Set TanhLayer = New TanhLayer
+End Function
+
 Public Function TensorDataset() As TensorDataset
     Set TensorDataset = New TensorDataset
     TensorDataset.Init
-End Function
-
-Public Function SoftmaxLayer() As SoftmaxLayer
-    Set SoftmaxLayer = New SoftmaxLayer
 End Function
 
 Public Sub Serialize(ByVal sName As String, _

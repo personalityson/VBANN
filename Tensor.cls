@@ -33,10 +33,10 @@ Private Declare PtrSafe Function SafeArrayDestroyDescriptor Lib "oleaut32.dll" (
 
 Public Enum ReductionType
     rdcSum
-    rdcMean
+    rdcProduct
     rdcMin
     rdcMax
-    rdcProduct
+    rdcMean
 End Enum
 
 Private m_lNumDimensions As Long
@@ -47,8 +47,7 @@ Private m_lNumElements As Long
 Private m_oData As Storage
 Private m_pDescriptor As LongPtr
 Private m_bIsDescriptorAllocated As Boolean
-Private m_oCachedView1 As Tensor
-Private m_oCachedView2 As Tensor
+Private m_oFlatView As Tensor
 
 Public Property Get NumDimensions() As Long
     NumDimensions = m_lNumDimensions
@@ -66,24 +65,6 @@ Public Property Get Size(ByVal lDimension As Long) As Long
     End If
     Size = m_alShape(lDimension)
 End Property
-
-'Public Property Get InnerStride(ByVal lDimension As Long) As Long
-'    Const PROCEDURE_NAME As String = "Tensor.InnerStride"
-'
-'    If lDimension < 1 Or lDimension > m_lNumDimensions Then
-'        Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
-'    End If
-'    InnerStride = m_alInnerStride(lDimension)
-'End Property
-'
-'Public Property Get OuterStride(ByVal lDimension As Long) As Long
-'    Const PROCEDURE_NAME As String = "Tensor.OuterStride"
-'
-'    If lDimension < 1 Or lDimension > m_lNumDimensions Then
-'        Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
-'    End If
-'    OuterStride = m_alOuterStride(lDimension)
-'End Property
 
 Public Property Get NumElements() As Long
     NumElements = m_lNumElements
@@ -115,10 +96,10 @@ Public Function View(ByVal vShape As Variant) As Tensor
 End Function
 
 Public Function Flatten() As Tensor
-    If m_oCachedView1 Is Nothing Then
-        Set m_oCachedView1 = Me.View(m_lNumElements)
+    If m_oFlatView Is Nothing Then
+        Set m_oFlatView = Me.View(m_lNumElements)
     End If
-    Set Flatten = m_oCachedView1
+    Set Flatten = m_oFlatView
 End Function
 
 Public Function Gather(ByVal lDimension As Long, _
@@ -178,27 +159,27 @@ Public Function Tile(ByVal lDimension As Long, _
 End Function
 
 Public Function Sum() As Double
-    Sum = AggregateInternal(rdcSum)
-End Function
-
-Public Function Mean() As Double
-    Mean = AggregateInternal(rdcMean)
-End Function
-
-Public Function Min() As Double
-    Min = AggregateInternal(rdcMin)
-End Function
-
-Public Function Max() As Double
-    Max = AggregateInternal(rdcMax)
+    Sum = Me.Flatten.Reduce(1, rdcSum).ToArray()(1)
 End Function
 
 Public Function Product() As Double
-    Product = AggregateInternal(rdcProduct)
+    Product = Me.Flatten.Reduce(1, rdcProduct).ToArray()(1)
+End Function
+
+Public Function Min() As Double
+    Min = Me.Flatten.Reduce(1, rdcMin).ToArray()(1)
+End Function
+
+Public Function Max() As Double
+    Max = Me.Flatten.Reduce(1, rdcMax).ToArray()(1)
+End Function
+
+Public Function Mean() As Double
+    Mean = Me.Flatten.Reduce(1, rdcMean).ToArray()(1)
 End Function
 
 Public Sub FromRange(ByVal oRange As Range, _
-                     Optional ByVal bTrans As Boolean)
+                     Optional ByVal bTranspose As Boolean)
     Dim lNumRows As Long
     Dim lNumCols As Long
     Dim oData As Storage
@@ -211,8 +192,8 @@ Public Sub FromRange(ByVal oRange As Range, _
         lNumRows = .Rows.Count
         lNumCols = .Columns.Count
         Set oData = New Storage
-        oData.FromRange .Cells, bTrans
-        If bTrans Then
+        oData.FromRange .Cells, bTranspose
+        If bTranspose Then
             Resize Array(lNumCols, lNumRows), oData
         Else
             Resize Array(lNumRows, lNumCols), oData
@@ -310,8 +291,7 @@ Private Sub Reset()
     Set m_oData = Nothing
     m_pDescriptor = NULL_PTR
     m_bIsDescriptorAllocated = False
-    Set m_oCachedView1 = Nothing
-    Set m_oCachedView2 = Nothing
+    Set m_oFlatView = Nothing
 End Sub
 
 Private Sub SetShape(ByVal vShape As Variant)
@@ -414,9 +394,9 @@ Private Sub AllocateDescriptorLazily()
     End If
 End Sub
 
-Public Function GatherInternal(ByVal lDimension As Long, _
-                               ByVal lNumIndices As Long, _
-                               ByRef alIndices() As Long) As Tensor
+Private Function GatherInternal(ByVal lDimension As Long, _
+                                ByVal lNumIndices As Long, _
+                                ByRef alIndices() As Long) As Tensor
     Dim lOldSize As Long
     Dim lNewSize As Long
     Dim alNewShape() As Long
@@ -475,18 +455,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
     R.CreateAlias R_
     For i = 1 To lInnerStride
         For k = 1 To lOuterStride
-            Select Case eReduction
-                Case rdcSum
-                    R_(i, 1, k) = SumOverDimension(A_, i, lOldSize, k)
-                Case rdcMean
-                    R_(i, 1, k) = MeanOverDimension(A_, i, lOldSize, k)
-                Case rdcMin
-                    R_(i, 1, k) = MinOverDimension(A_, i, lOldSize, k)
-                Case rdcMax
-                    R_(i, 1, k) = MaxOverDimension(A_, i, lOldSize, k)
-                Case rdcProduct
-                    R_(i, 1, k) = ProductOverDimension(A_, i, lOldSize, k)
-            End Select
+            R_(i, 1, k) = AggregateOverDimension(A_, i, lOldSize, k, eReduction)
         Next k
     Next i
     A.RemoveAlias A_
@@ -548,108 +517,45 @@ Private Function TileInternal(ByVal lDimension As Long, _
     Set TileInternal = oResult
 End Function
 
-Private Function AggregateInternal(ByVal eReduction As ReductionType) As Double
-    Dim A_() As Double
-    Dim dblResult As Double
-    
-    With GetCollapsedView
-        .CreateAlias A_
-        Select Case eReduction
-            Case rdcSum
-                dblResult = SumOverDimension(A_, 1, m_lNumElements, 1)
-            Case rdcMean
-                dblResult = MeanOverDimension(A_, 1, m_lNumElements, 1)
-            Case rdcMin
-                dblResult = MinOverDimension(A_, 1, m_lNumElements, 1)
-            Case rdcMax
-                dblResult = MaxOverDimension(A_, 1, m_lNumElements, 1)
-            Case rdcProduct
-                dblResult = ProductOverDimension(A_, 1, m_lNumElements, 1)
-        End Select
-        .RemoveAlias A_
-    End With
-    AggregateInternal = dblResult
-End Function
-
-Private Function GetCollapsedView() As Tensor
-    If m_oCachedView2 Is Nothing Then
-        Set m_oCachedView2 = Me.View(Array(1, m_lNumElements, 1))
-    End If
-    Set GetCollapsedView = m_oCachedView2
-End Function
-
-Private Function SumOverDimension(ByRef A_() As Double, _
-                                  ByVal i As Long, _
-                                  ByVal lNumElements As Long, _
-                                  ByVal k As Long) As Double
+Private Function AggregateOverDimension(ByRef A_() As Double, _
+                                        ByVal i As Long, _
+                                        ByVal lNumElements As Long, _
+                                        ByVal k As Long, _
+                                        ByVal eReduction As ReductionType) As Double
+    Const PROCEDURE_NAME As String = "Tensor.AggregateOverDimension"
     Dim j As Long
     Dim dblResult As Double
     
-    dblResult = 0
-    For j = 1 To lNumElements
-         dblResult = dblResult + A_(i, j, k)
-    Next j
-    SumOverDimension = dblResult
-End Function
-
-Private Function MeanOverDimension(ByRef A_() As Double, _
-                                   ByVal i As Long, _
-                                   ByVal lNumElements As Long, _
-                                   ByVal k As Long) As Double
-    If lNumElements < 1 Then
-        Exit Function
-    End If
-    MeanOverDimension = SumOverDimension(A_, i, lNumElements, k) / lNumElements
-End Function
-
-Private Function MinOverDimension(ByRef A_() As Double, _
-                                  ByVal i As Long, _
-                                  ByVal lNumElements As Long, _
-                                  ByVal k As Long) As Double
-    Const PROCEDURE_NAME As String = "Tensor.MinOverDimension"
-    Dim j As Long
-    Dim dblResult As Double
-    
-    If lNumElements < 1 Then
+    If lNumElements < 1 And (eReduction = rdcMin Or _
+                             eReduction = rdcMax Or _
+                             eReduction = rdcMean) Then
         Err.Raise 5, PROCEDURE_NAME, "Reducing over an empty dimension is not allowed."
     End If
-    dblResult = A_(i, 1, k)
-    For j = 2 To lNumElements
-         dblResult = MinLng2(dblResult, A_(i, j, k))
-    Next j
-    MinOverDimension = dblResult
-End Function
-
-Private Function MaxOverDimension(ByRef A_() As Double, _
-                                  ByVal i As Long, _
-                                  ByVal lNumElements As Long, _
-                                  ByVal k As Long) As Double
-    Const PROCEDURE_NAME As String = "Tensor.MaxOverDimension"
-    Dim j As Long
-    Dim dblResult As Double
-    
-    If lNumElements < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Reducing over an empty dimension is not allowed."
-    End If
-    dblResult = A_(i, 1, k)
-    For j = 2 To lNumElements
-         dblResult = MaxLng2(dblResult, A_(i, j, k))
-    Next j
-    MaxOverDimension = dblResult
-End Function
-
-Private Function ProductOverDimension(ByRef A_() As Double, _
-                                      ByVal i As Long, _
-                                      ByVal lNumElements As Long, _
-                                      ByVal k As Long) As Double
-    Dim j As Long
-    Dim dblResult As Double
-    
-    dblResult = 1
-    For j = 1 To lNumElements
-        dblResult = dblResult * A_(i, j, k)
-    Next j
-    ProductOverDimension = dblResult
+    Select Case eReduction
+        Case rdcSum
+            dblResult = 0
+            For j = 1 To lNumElements
+                dblResult = dblResult + A_(i, j, k)
+            Next j
+        Case rdcProduct
+            dblResult = 1
+            For j = 1 To lNumElements
+                dblResult = dblResult * A_(i, j, k)
+            Next j
+        Case rdcMin
+            dblResult = A_(i, 1, k)
+            For j = 2 To lNumElements
+                dblResult = MinDbl2(dblResult, A_(i, j, k))
+            Next j
+        Case rdcMax
+            dblResult = A_(i, 1, k)
+            For j = 2 To lNumElements
+                dblResult = MaxDbl2(dblResult, A_(i, j, k))
+            Next j
+        Case rdcMean
+            dblResult = AggregateOverDimension(A_, i, lNumElements, k, rdcSum) / lNumElements
+    End Select
+    AggregateOverDimension = dblResult
 End Function
 
 Private Sub TileMemory(ByVal pTarget As LongPtr, _

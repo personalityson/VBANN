@@ -112,12 +112,16 @@ Public Function HeNormal(ByVal vShape As Variant, _
 End Function
 
 Public Function TensorFromRange(ByVal oRange As Range, _
-                                ByVal bTrans As Boolean) As Tensor
+                                Optional ByVal bTranspose As Boolean) As Tensor
     Set TensorFromRange = New Tensor
-    TensorFromRange.FromRange oRange, bTrans
+    TensorFromRange.FromRange oRange, bTranspose
 End Function
 
 Public Function TensorFromArray(ByRef adblArray() As Double) As Tensor
     Set TensorFromArray = New Tensor
     TensorFromArray.FromArray adblArray
+End Function
+
+Private Function NormRand() As Double
+    NormRand = Sqr(-2 * Log(Rnd() + DOUBLE_MIN_ABS)) * Cos(MATH_2PI * Rnd())
 End Function
