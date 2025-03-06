@@ -1,5 +1,18 @@
 ## VBANN
 
+### What is VBANN?
+VBANN is a small machine learning framework implemented in VBA, which can be used to set up and train simple neural networks. I'm writing this project from scratch to deepen my understanding of neural networks.<br/>
+VBANN is designed to store everything in the same file. Your training data, your model and the framework itself are all contained in the same workbook.<br/>
+VBANN is modular and extensible. You can add your own layer classes.<br/>
+You can speed it up 6-10x by downloading and linking to [a prebuilt OpenBLAS dll](https://github.com/OpenMathLib/OpenBLAS/releases) inside the [MathFunctions](MathFunctions.bas) module.
+
+### Contributing
+Feel free to open issues or submit custom layers to enhance the functionality of VBANN.
+
+### License
+This project is licensed under the [Creative Commons Zero v1.0 Universal](LICENSE.txt).
+
+### Examples
 ```vba
 Const MODEL_NAME As String = "MyModel"
 
@@ -145,15 +158,3 @@ Sub WorkingWithTensors()
     adblArray = A.ToArray
 End Sub
 ```
-
-### What is VBANN?
-VBANN is a small machine learning framework implemented in VBA, which can be used to set up and train simple neural networks. I'm writing this project from scratch to deepen my understanding of neural networks.<br/>
-VBANN is designed to store everything in the same file. Your training data, your model and the framework itself are all contained in the same workbook.<br/>
-VBANN is modular and extensible. You can add your own layer classes.<br/>
-You can speed it up 6-10x by downloading and linking to [a prebuilt OpenBLAS dll](https://github.com/OpenMathLib/OpenBLAS/releases) inside the [MathFunctions](MathFunctions.bas) module.
-
-### Contributing
-Feel free to open issues or submit custom layers to enhance the functionality of VBANN.
-
-### License
-This project is licensed under the [Creative Commons Zero v1.0 Universal](LICENSE.txt).
