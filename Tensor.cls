@@ -159,47 +159,24 @@ Public Function Tile(ByVal lDimension As Long, _
 End Function
 
 Public Function Sum() As Double
-    Sum = Me.Flatten.Reduce(1, rdcSum).ToArray()(1)
+    Sum = AggregateAll(rdcSum)
 End Function
 
 Public Function Product() As Double
-    Product = Me.Flatten.Reduce(1, rdcProduct).ToArray()(1)
+    Product = AggregateAll(rdcProduct)
 End Function
 
 Public Function Min() As Double
-    Min = Me.Flatten.Reduce(1, rdcMin).ToArray()(1)
+    Min = AggregateAll(rdcMin)
 End Function
 
 Public Function Max() As Double
-    Max = Me.Flatten.Reduce(1, rdcMax).ToArray()(1)
+    Max = AggregateAll(rdcMax)
 End Function
 
 Public Function Mean() As Double
-    Mean = Me.Flatten.Reduce(1, rdcMean).ToArray()(1)
+    Mean = AggregateAll(rdcMean)
 End Function
-
-Public Sub FromRange(ByVal oRange As Range, _
-                     Optional ByVal bTranspose As Boolean)
-    Dim lNumRows As Long
-    Dim lNumCols As Long
-    Dim oData As Storage
-    
-    If oRange Is Nothing Then
-        Resize Array()
-        Exit Sub
-    End If
-    With oRange.Areas(1)
-        lNumRows = .Rows.Count
-        lNumCols = .Columns.Count
-        Set oData = New Storage
-        oData.FromRange .Cells, bTranspose
-        If bTranspose Then
-            Resize Array(lNumCols, lNumRows), oData
-        Else
-            Resize Array(lNumRows, lNumCols), oData
-        End If
-    End With
-End Sub
 
 Public Sub FromArray(ByRef adblArray() As Double)
     Dim lNumDimensions As Long
@@ -228,6 +205,29 @@ Public Function ToArray() As Double()
     ToArray = A_
     Me.RemoveAlias A_
 End Function
+
+Public Sub FromRange(ByVal oRange As Range, _
+                     Optional ByVal bTranspose As Boolean)
+    Dim lNumRows As Long
+    Dim lNumCols As Long
+    Dim oData As Storage
+    
+    If oRange Is Nothing Then
+        Resize Array()
+        Exit Sub
+    End If
+    With oRange.Areas(1)
+        lNumRows = .Rows.Count
+        lNumCols = .Columns.Count
+        Set oData = New Storage
+        oData.FromRange .Cells, bTranspose
+        If bTranspose Then
+            Resize Array(lNumCols, lNumRows), oData
+        Else
+            Resize Array(lNumRows, lNumCols), oData
+        End If
+    End With
+End Sub
 
 Public Sub Fill(ByVal dblValue As Double)
     TileMemory m_oData.Address, m_oData.NumElements * m_oData.ElementSize, VarPtr(dblValue), SIZEOF_DOUBLE
@@ -556,6 +556,10 @@ Private Function AggregateOverDimension(ByRef A_() As Double, _
             dblResult = AggregateOverDimension(A_, i, lNumElements, k, rdcSum) / lNumElements
     End Select
     AggregateOverDimension = dblResult
+End Function
+
+Private Function AggregateAll(ByVal eReduction As ReductionType) As Double
+    AggregateAll = Me.Flatten.Reduce(1, eReduction).ToArray()(1)
 End Function
 
 Private Sub TileMemory(ByVal pTarget As LongPtr, _

@@ -56,20 +56,20 @@ Private Function CalculateLoss(ByVal Y As Tensor, _
     Dim Y_() As Double
     Dim T_() As Double
     Dim L_() As Double
-    Dim l As Tensor
+    Dim L As Tensor
     
     'L = -T * Log(Y) - (1 - T) * Log(1 - Y)
-    Set l = Zeros(Y.Shape)
+    Set L = Zeros(Y.Shape)
     Y.Flatten.CreateAlias Y_
     T.Flatten.CreateAlias T_
-    l.Flatten.CreateAlias L_
+    L.Flatten.CreateAlias L_
     For i = 1 To Y.NumElements
         L_(i) = -T_(i) * Log(Y_(i) + DOUBLE_MIN_ABS) - (1 - T_(i)) * Log(1 - Y_(i) + DOUBLE_MIN_ABS)
     Next i
     Y.Flatten.RemoveAlias Y_
     T.Flatten.RemoveAlias T_
-    l.Flatten.RemoveAlias L_
-    Set CalculateLoss = l
+    L.Flatten.RemoveAlias L_
+    Set CalculateLoss = L
 End Function
 
 Private Function CalculateOutputError(ByVal Y As Tensor, _

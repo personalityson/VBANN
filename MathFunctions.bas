@@ -985,7 +985,7 @@ Private Sub MatMulNaive_I(ByVal C As Tensor, _
     Dim k As Long
     Dim i As Long
     Dim j As Long
-    Dim l As Long
+    Dim p As Long
     Dim dblSum As Double
     Dim A_() As Double
     Dim B_() As Double
@@ -1002,21 +1002,21 @@ Private Sub MatMulNaive_I(ByVal C As Tensor, _
             dblSum = 0
             Select Case True
                 Case Not bTransposeA And Not bTransposeB
-                    For l = 1 To k
-                        dblSum = dblSum + A_(i, l) * B_(l, j)
-                    Next l
+                    For p = 1 To k
+                        dblSum = dblSum + A_(i, p) * B_(p, j)
+                    Next p
                 Case bTransposeA And Not bTransposeB
-                    For l = 1 To k
-                        dblSum = dblSum + A_(l, i) * B_(l, j)
-                    Next l
+                    For p = 1 To k
+                        dblSum = dblSum + A_(p, i) * B_(p, j)
+                    Next p
                 Case Not bTransposeA And bTransposeB
-                    For l = 1 To k
-                        dblSum = dblSum + A_(i, l) * B_(j, l)
-                    Next l
+                    For p = 1 To k
+                        dblSum = dblSum + A_(i, p) * B_(j, p)
+                    Next p
                 Case bTransposeA And bTransposeB
-                    For l = 1 To k
-                        dblSum = dblSum + A_(l, i) * B_(j, l)
-                    Next l
+                    For p = 1 To k
+                        dblSum = dblSum + A_(p, i) * B_(j, p)
+                    Next p
             End Select
             C_(i, j) = C_(i, j) + dblSum
         Next j
@@ -1046,18 +1046,18 @@ Private Sub MatMulBlas_I(ByVal C As Tensor, _
                          ByVal B As Tensor, _
                          ByVal bTransposeA As Boolean, _
                          ByVal bTransposeB As Boolean)
-    Dim sTransA As String
-    Dim sTransB As String
+    Dim sTransposeA As String
+    Dim sTransposeB As String
     Dim m As Long
     Dim n As Long
     Dim k As Long
     
-    sTransA = IIf(bTransposeA, "T", "N")
-    sTransB = IIf(bTransposeB, "T", "N")
+    sTransposeA = IIf(bTransposeA, "T", "N")
+    sTransposeB = IIf(bTransposeB, "T", "N")
     m = C.Size(1)
     n = C.Size(2)
     k = IIf(bTransposeA, A.Size(1), A.Size(2))
-    dgemm sTransA, sTransB, m, n, k, 1#, A.Address, A.Size(1), B.Address, B.Size(1), 1#, C.Address, m
+    dgemm sTransposeA, sTransposeB, m, n, k, 1#, A.Address, A.Size(1), B.Address, B.Size(1), 1#, C.Address, m
 End Sub
 
 Private Function MatMulBlas(ByVal A As Tensor, _

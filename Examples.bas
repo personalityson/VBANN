@@ -74,15 +74,6 @@ Sub WorkingWithTensors()
     'Create an empty tensor A filled with zeros, with shape (2, 3, 4).
     Set A = Zeros(Array(2, 3, 4))
     
-    'Create a tensor A filled with constant values.
-    Set A = Ones(Array(2, 3, 4))
-    Set A = Full(Array(2, 3, 4), 42)
-    
-    'Create a tensor A filled with random values.
-    Set A = Uniform(Array(2, 3, 4), 0, 1)
-    Set A = Normal(Array(2, 3, 4), 0, 1)
-    Set A = Bernoulli(Array(2, 3, 4), 0.5)
-    
     'Basic properties of A.
     MsgBox A.NumDimensions
     MsgBox A.Size(1)
@@ -91,9 +82,18 @@ Sub WorkingWithTensors()
     MsgBox A.NumElements
     MsgBox A.Address
     
-    'Fill tensor A with a constant value.
-    A.Fill 42
+    'Create a tensor A filled with constant values.
+    Set A = Ones(Array(2, 3, 4))
+    Set A = Full(Array(2, 3, 4), 777)
     
+    'Create a tensor A filled with random values.
+    Set A = Uniform(Array(2, 3, 4), 0, 1)
+    Set A = Normal(Array(2, 3, 4), 0, 1)
+    Set A = Bernoulli(Array(2, 3, 4), 0.5)
+    
+    'Fill tensor A with a constant value.
+    A.Fill 777
+
     'Copy tensor A into a new tensor B. (B must be resized to match A's shape.)
     Set B = New Tensor
     B.Resize A.Shape
@@ -106,7 +106,7 @@ Sub WorkingWithTensors()
     MsgBox A.ShapeEquals(Array(2, 3, 4))
     
     'Create a different view of A with a new shape (6, 4).
-    'This view shares the same underlying data but has a different layout.
+    'This view shares the same underlying data, but has a different layout.
     Set B = A.View(Array(6, 4))
     
     'Create alias arrays for direct memory access.
@@ -131,27 +131,30 @@ Sub WorkingWithTensors()
     A.RemoveAlias A_
     B.RemoveAlias B_
     
-    'Create a flattened view of A. Same as B = A.View(Array(24)).
-    Set B = A.Flatten
+    'Create a flattened view of A with shared underlying data. The new shape is (24).
+    Set A = A.Flatten
     
-    'Reshape A to a 2D tensor (4, 6). Number of elements must be the same, 2 * 3 * 4 = 24 and 4 * 6 = 24.
+    'Add singleton dimensions on both sides. The new shape is (1, 24, 1).
+    Set A = A.View(Array(1, 24, 1))
+    
+    'Reshape A to a 2D tensor (4, 6). Number of elements must remain the same.
     A.Reshape Array(4, 6)
-
+    
     'Reduce A along dimension 2 using mean reduction. The new shape is (4, 1).
     Set A = A.Reduce(2, rdcMean)
-    
-    'Tile A along dimension 2, repeating it 3 times. The new shape is (4, 3).
-    Set A = A.Tile(2, 3)
     
     'Slice A along dimension 1 from index 2 to 3. The new shape is (2, 3).
     Set A = A.Slice(1, 2, 3)
     
-    'Create tensor A from a native VBA array.
-    Set A = TensorFromArray(adblArray)
+    'Tile A along dimension 2, repeating it 3 times. The new shape is (4, 3).
+    Set A = A.Tile(2, 3)
     
-    'Create tensor A from an Excel range.
-    Set A = TensorFromRange(ThisWorkbook.Worksheets("Sheet1").Range("A1:B3"))
+    'Create tensor A from a native VBA array.
+    A.FromArray adblArray
     
     'Copy tensor A to a native VBA array.
     adblArray = A.ToArray
+    
+    'Create tensor A from an Excel range.
+    A.FromRange ThisWorkbook.Worksheets("Sheet1").Range("A1:B3")
 End Sub
