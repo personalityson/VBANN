@@ -63,7 +63,7 @@ Public Sub ContinueTraining()
     Beep
 End Sub
 
-Sub WorkingWithTensors()
+Public Sub WorkingWithTensors()
     Dim A As Tensor
     Dim B As Tensor
     Dim A_() As Double
@@ -83,7 +83,7 @@ Sub WorkingWithTensors()
     
     'Create a tensor A filled with constant values.
     Set A = Ones(Array(2, 3, 4))
-    Set A = Full(Array(2, 3, 4), 42)
+    Set A = Full(Array(2, 3, 4), 777)
     
     'Create a tensor A filled with random values.
     Set A = Uniform(Array(2, 3, 4), 0, 1)
@@ -91,7 +91,7 @@ Sub WorkingWithTensors()
     Set A = Bernoulli(Array(2, 3, 4), 0.5)
     
     'Fill tensor A with a constant value.
-    A.Fill 42
+    A.Fill 777
 
     'Copy tensor A into a new tensor B. (B must be resized to match A's shape.)
     Set B = New Tensor
@@ -151,10 +151,10 @@ Sub WorkingWithTensors()
     'Create tensor A from a native VBA array.
     A.FromArray adblArray
     
-    'Create tensor A from an Excel range.
-    A.FromRange ThisWorkbook.Worksheets("Sheet1").Range("A1:B3")
-    
     'Copy tensor A to a native VBA array.
     adblArray = A.ToArray
+    
+    'Create tensor A from an Excel range.
+    A.FromRange ThisWorkbook.Worksheets("Sheet1").Range("A1:B3")
 End Sub
 ```
