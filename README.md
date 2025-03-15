@@ -138,14 +138,14 @@ Public Sub WorkingWithTensors()
     
     'Reshape A to a 2D tensor (4, 6). Number of elements must remain the same.
     A.Reshape Array(4, 6)
-    
+
     'Reduce A along dimension 2 using mean reduction. The new shape is (4, 1).
     Set A = A.Reduce(2, rdcMean)
-    
-    'Slice A along dimension 1 from index 2 to 3. The new shape is (2, 3).
-    Set A = A.Slice(1, 2, 3)
-    
-    'Tile A along dimension 2, repeating it 3 times. The new shape is (4, 3).
+
+    'Slice A along dimension 1 from index 3 to 4. The new shape is (2, 1).
+    Set A = A.Slice(1, 3, 4)
+
+    'Tile A along dimension 2, repeating it 3 times. The new shape is (2, 3).
     Set A = A.Tile(2, 3)
     
     'Create tensor A from a native VBA array.
