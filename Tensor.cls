@@ -46,7 +46,6 @@ Private m_alOuterStride() As Long
 Private m_lNumElements As Long
 Private m_oData As Storage
 Private m_pDescriptor As LongPtr
-Private m_bIsDescriptorAllocated As Boolean
 Private m_oFlatView As Tensor
 
 Public Property Get NumDimensions() As Long
@@ -108,7 +107,7 @@ Public Function Gather(ByVal lDimension As Long, _
     Dim lNumIndices As Long
     Dim alIndices() As Long
     Dim i As Long
-    
+
     If lDimension < 1 Or lDimension > m_lNumDimensions Then
         Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
     End If
@@ -124,7 +123,7 @@ End Function
 Public Function Reduce(ByVal lDimension As Long, _
                        ByVal eReduction As ReductionType) As Tensor
     Const PROCEDURE_NAME As String = "Tensor.Reduce"
-    
+
     If lDimension < 1 Or lDimension > m_lNumDimensions Then
         Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
     End If
@@ -151,7 +150,7 @@ End Function
 Public Function Tile(ByVal lDimension As Long, _
                      ByVal lNumRepeats As Long) As Tensor
     Const PROCEDURE_NAME As String = "Tensor.Tile"
-    
+
     If lDimension < 1 Or lDimension > m_lNumDimensions Then
         Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
     End If
@@ -183,7 +182,7 @@ Public Sub FromArray(ByRef adblArray() As Double)
     Dim alShape() As Long
     Dim i As Long
     Dim oData As Storage
-    
+
     lNumDimensions = GetRank(adblArray)
     If lNumDimensions < 1 Then
         Resize Array()
@@ -200,7 +199,7 @@ End Sub
 
 Public Function ToArray() As Double()
     Dim A_() As Double
-    
+
     Me.CreateAlias A_
     ToArray = A_
     Me.RemoveAlias A_
@@ -211,7 +210,7 @@ Public Sub FromRange(ByVal oRange As Range, _
     Dim lNumRows As Long
     Dim lNumCols As Long
     Dim oData As Storage
-    
+
     If oRange Is Nothing Then
         Resize Array()
         Exit Sub
@@ -235,7 +234,7 @@ End Sub
 
 Public Sub Copy(ByVal oSource As Tensor)
     Const PROCEDURE_NAME As String = "Tensor.Copy"
-    
+
     If oSource Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
@@ -254,7 +253,7 @@ Public Function ShapeEquals(ByVal vShape As Variant) As Boolean
     Dim lOtherNumDimensions As Long
     Dim alOtherShape() As Long
     Dim i As Long
-    
+
     ParseVariantToLongArray vShape, lOtherNumDimensions, alOtherShape
     If lOtherNumDimensions <> m_lNumDimensions Then
         Exit Function
@@ -289,8 +288,6 @@ Private Sub Reset()
     Erase m_alOuterStride
     m_lNumElements = 0
     Set m_oData = Nothing
-    m_pDescriptor = NULL_PTR
-    m_bIsDescriptorAllocated = False
     Set m_oFlatView = Nothing
 End Sub
 
@@ -332,7 +329,7 @@ End Sub
 
 Private Sub AttachData(ByVal oData As Storage)
     Const PROCEDURE_NAME As String = "Tensor.AttachData"
-    
+
     If oData Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Storage object is required."
     End If
@@ -345,7 +342,7 @@ End Sub
 Private Sub AllocateData()
     Dim lNumRows As Long
     Dim lNumCols As Long
-    
+
     Set m_oData = New Storage
     If m_lNumDimensions > 0 Then
         lNumRows = m_alInnerStride(m_lNumDimensions)
@@ -360,7 +357,7 @@ Private Sub AllocateDescriptor()
     Const FADF_HAVEVARTYPE As Integer = &H80
     Dim lErrorCode As Long
     Dim i As Long
-    
+
     If m_lNumDimensions < 1 Then
         Exit Sub
     End If
@@ -380,17 +377,17 @@ End Sub
 Private Sub DestroyDescriptor()
     Const PROCEDURE_NAME As String = "Tensor.DestroyDescriptor"
     Dim lErrorCode As Long
-    
+
     lErrorCode = SafeArrayDestroyDescriptor(m_pDescriptor)
     If lErrorCode <> S_OK Then
         Err.Raise lErrorCode, PROCEDURE_NAME, "Failed to destroy descriptor."
     End If
+    m_pDescriptor = NULL_PTR
 End Sub
 
 Private Sub AllocateDescriptorLazily()
-    If Not m_bIsDescriptorAllocated Then
+    If m_lNumDimensions > 0 And m_pDescriptor = NULL_PTR Then
         AllocateDescriptor
-        m_bIsDescriptorAllocated = True
     End If
 End Sub
 
@@ -406,7 +403,7 @@ Private Function GatherInternal(ByVal lDimension As Long, _
     Dim j As Long
     Dim lIndex As Long
     Dim oResult As Tensor
-    
+
     lOldSize = m_alShape(lDimension)
     lNewSize = MinLng2(lOldSize, lNumIndices)
     alNewShape = m_alShape
@@ -440,7 +437,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
     Dim A As Tensor
     Dim R As Tensor
     Dim oResult As Tensor
-    
+
     lOldSize = m_alShape(lDimension)
     lNewSize = 1
     alNewShape = m_alShape
@@ -473,7 +470,7 @@ Private Function SliceInternal(ByVal lDimension As Long, _
     Dim lOuterStride As Long
     Dim i As Long
     Dim oResult As Tensor
-    
+
     lOldSize = m_alShape(lDimension)
     lNewSize = MaxLng2(0, lEnd - lStart + 1)
     alNewShape = m_alShape
@@ -499,7 +496,7 @@ Private Function TileInternal(ByVal lDimension As Long, _
     Dim lOuterStride As Long
     Dim i As Long
     Dim oResult As Tensor
-    
+
     lOldSize = m_alShape(lDimension)
     lNewSize = MaxLng2(0, lNumRepeats * lOldSize)
     alNewShape = m_alShape
@@ -525,7 +522,7 @@ Private Function AggregateOverDimension(ByRef A_() As Double, _
     Const PROCEDURE_NAME As String = "Tensor.AggregateOverDimension"
     Dim j As Long
     Dim dblResult As Double
-    
+
     If lNumElements < 1 And (eReduction = rdcMin Or _
                              eReduction = rdcMax Or _
                              eReduction = rdcMean) Then
@@ -569,7 +566,7 @@ Private Sub TileMemory(ByVal pTarget As LongPtr, _
     Const PROCEDURE_NAME As String = "Tensor.TileMemory"
     Dim i As LongPtr
     Dim pLength As LongPtr
-    
+
     If pTargetLength < 1 Then
         Exit Sub
     End If
@@ -594,7 +591,7 @@ End Sub
 
 Private Sub Save(ByVal oWorksheet As Serializer)
     Const PROCEDURE_NAME As String = "Tensor.Save"
-    
+
     If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
@@ -608,7 +605,7 @@ Private Sub Load(ByVal oWorksheet As Serializer)
     Const PROCEDURE_NAME As String = "Tensor.Load"
     Dim alShape() As Long
     Dim oData As Storage
-    
+
     If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
@@ -623,7 +620,7 @@ End Sub
     Private Sub ISerializable_Save(ByVal oWorksheet As Object)
         Save oWorksheet
     End Sub
-    
+
     Private Sub ISerializable_Load(ByVal oWorksheet As Object)
         Load oWorksheet
     End Sub
@@ -631,7 +628,7 @@ End Sub
     Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)
         Save oWorksheet
     End Sub
-    
+
     Private Sub ISerializable_Load(ByVal oWorksheet As Serializer)
         Load oWorksheet
     End Sub

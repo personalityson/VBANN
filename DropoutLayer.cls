@@ -55,7 +55,7 @@ Public Function Backward(ByVal dLdY As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "DropoutLayer.Backward"
     
     If m_oMask Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Forward pass must be executed before the backward pass."
+        Err.Raise 5, PROCEDURE_NAME, "Forward pass must be executed in training before the backward pass."
     End If
     If dLdY Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."

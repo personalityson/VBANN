@@ -2,16 +2,22 @@ Attribute VB_Name = "UtilityFunctions"
 '---------------------------------------------------------------------------------------
 ' Module    : UtilityFunctions
 ' Author    : personalityson
-' Date      : 01.09.2024
+' Date      : 01.05.2025
 ' Purpose   :
 '---------------------------------------------------------------------------------------
 
 Option Explicit
 
-Public Const MATH_PI As Double = 3.14159265358979
-Public Const MATH_2PI As Double = 6.28318530717959
-Public Const MATH_PI2 As Double = 1.5707963267949
-Public Const MATH_E As Double = 2.71828182845905
+Public Const MATH_PI As Double = 3.14159265358979    'pi
+Public Const MATH_2PI As Double = 6.28318530717959   '2*pi
+Public Const MATH_PI2 As Double = 1.5707963267949    'pi/2
+Public Const MATH_RPI As Double = 0.318309886183791  '1/pi
+Public Const MATH_SQRT2 As Double = 1.4142135623731  'sqrt(2)
+Public Const MATH_SQRT3 As Double = 1.73205080756888 'sqrt(3)
+Public Const MATH_LN2 As Double = 0.693147180559945  'ln(2)
+Public Const MATH_LN3 As Double = 1.09861228866811   'ln(3)
+Public Const MATH_E As Double = 2.71828182845905     'e
+Public Const MATH_RE As Double = 0.367879441171442   '1/e
 
 Public Const DOUBLE_MIN_ABS As Double = 4.94065645841247E-324
 Public Const DOUBLE_MAX_ABS As Double = 1.79769313486231E+308
@@ -252,7 +258,7 @@ Public Sub ParseVariantToLongArray(ByVal vValueOrArray As Variant, _
                                    ByRef alArray() As Long)
     Const PROCEDURE_NAME As String = "Tensor.ParseVariantToLongArray"
     Dim lRank As Long
-    Dim lLBound As Long
+    Dim lLbound As Long
     Dim lUBound As Long
     Dim i As Long
     
@@ -266,16 +272,16 @@ Public Sub ParseVariantToLongArray(ByVal vValueOrArray As Variant, _
             lNumElements = 0
             Erase alArray
         Case 1
-            lLBound = LBound(vValueOrArray)
+            lLbound = LBound(vValueOrArray)
             lUBound = UBound(vValueOrArray)
-            If lLBound > lUBound Then
+            If lLbound > lUBound Then
                 lNumElements = 0
                 Erase alArray
             Else
-                lNumElements = lUBound - lLBound + 1
+                lNumElements = lUBound - lLbound + 1
                 ReDim alArray(1 To lNumElements)
                 For i = 1 To lNumElements
-                    alArray(i) = CLng(vValueOrArray(lLBound + i - 1))
+                    alArray(i) = CLng(vValueOrArray(lLbound + i - 1))
                 Next i
             End If
         Case Else
@@ -625,7 +631,7 @@ Public Function CreateWorksheet(ByVal oParent As Workbook, _
     sName = SanitizeWorksheetName(sName)
     If WorksheetExists(oParent, sName) Then
         If bOverwrite Then
-            Set oResult = oParent.Worksheets.Add(after:=Parent.Worksheets(sName))
+            Set oResult = oParent.Worksheets.Add(After:=oParent.Worksheets(sName))
             Application.DisplayAlerts = False
             oParent.Worksheets(sName).Delete
             Application.DisplayAlerts = bDisplayAlertsSave
@@ -635,7 +641,7 @@ Public Function CreateWorksheet(ByVal oParent As Workbook, _
             Exit Function
         End If
     Else
-        Set oResult = oParent.Worksheets.Add(after:=oParent.Worksheets(oParent.Worksheets.Count))
+        Set oResult = oParent.Worksheets.Add(After:=oParent.Worksheets(oParent.Worksheets.Count))
     End If
     oResult.Name = sName
     oResult.Activate

@@ -28,7 +28,7 @@ Public Property Get LearnableParameters() As Variant
 End Property
 
 Public Sub Init(ByVal oTrainingSet As DataLoader, _
-                Optional ByVal dblEpsilon As Double = 0.00001)
+                Optional ByVal dblEpsilon As Double = 0.00000001)
     Const PROCEDURE_NAME As String = "InputNormalizationLayer.Init"
     Dim X As Tensor
     
@@ -75,12 +75,12 @@ End Function
 
 Private Sub Adapt(ByVal oTrainingSet As DataLoader)
     Dim lBatch As Long
+    Dim lNumSamples As Long
     Dim X As Tensor
     Dim oBatchSum As Tensor
     Dim oBatchSquaredSum As Tensor
     Dim oTotalSum As Tensor
     Dim oTotalSquaredSum As Tensor
-    Dim lNumSamples As Long
     
     With oTrainingSet
         For lBatch = 1 To .NumBatches
