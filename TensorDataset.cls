@@ -30,6 +30,8 @@ Public Sub Init(ByVal vTensors As Variant, _
     Const PROCEDURE_NAME As String = "TensorDataset.Init"
     
     Select Case GetRank(vTensors)
+        Case -1
+            Me.Init Array(vTensors), vSampleIndices
         Case 0
             Clear
         Case 1
@@ -41,7 +43,7 @@ Public Sub Init(ByVal vTensors As Variant, _
                 SetIndices vSampleIndices
             End If
         Case Else
-            Err.Raise 5, PROCEDURE_NAME, "Some error."
+            Err.Raise 5, PROCEDURE_NAME, "Expected a single tensor, an uninitialized array, or a one-dimensional array of tensors."
     End Select
 End Sub
 

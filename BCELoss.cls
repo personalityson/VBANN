@@ -20,7 +20,7 @@ End Sub
 
 Public Function Loss(ByVal Y As Tensor, _
                      ByVal T As Tensor) As Tensor
-    Const PROCEDURE_NAME As String = "BCELoss.Forward"
+    Const PROCEDURE_NAME As String = "BCELoss.Loss"
     
     If Y Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
@@ -36,7 +36,7 @@ End Function
 
 Public Function Gradient(ByVal Y As Tensor, _
                          ByVal T As Tensor) As Tensor
-    Const PROCEDURE_NAME As String = "BCELoss.Backward"
+    Const PROCEDURE_NAME As String = "BCELoss.Gradient"
     
     If Y Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
