@@ -16,7 +16,7 @@ This project is licensed under the [Creative Commons Zero v1.0 Universal](LICENS
 ```vba
 Option Explicit
 
-Public Sub SetupAndTrain()
+Public Sub SetupAndTrainSequential()
     Const MODEL_NAME As String = "MySequentialModel"
     Dim lBatchSize As Long
     Dim lNumEpochs As Long
