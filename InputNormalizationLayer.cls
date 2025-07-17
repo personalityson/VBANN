@@ -14,12 +14,16 @@ Implements ISerializable
 
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
-Private m_alInputShape() As Long
-Private m_dblEpsilon As Double
-Private m_m As Tensor
-Private m_v As Tensor
+Private Const EPSILON As Double = 0.00000001
 
-'Cache
+'Dimensions
+Private m_alInputShape() As Long
+
+'Normalization stats
+Private m_oMean As Tensor
+Private m_oVariance As Tensor
+
+'Forward/backward cache
 Private m_X As Tensor
 Private m_Y As Tensor
 
@@ -27,34 +31,25 @@ Public Property Get LearnableParameters() As Variant
     LearnableParameters = Array()
 End Property
 
-Public Sub Init(ByVal oTrainingSet As DataLoader, _
-                Optional ByVal dblEpsilon As Double = 0.00000001)
+Public Sub Init(ByVal oTrainingLoader As DataLoader)
     Const PROCEDURE_NAME As String = "InputNormalizationLayer.Init"
-    Dim X As Tensor
-    
-    If oTrainingSet Is Nothing Then
+
+    If oTrainingLoader Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid DataLoader object is required."
     End If
-    If oTrainingSet.NumBatches < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Number of batches in the training set must be greater than 0."
-    End If
-    Set X = oTrainingSet.GetBatch(1).Item("Input")
-    m_alInputShape = X.Shape
-    'Set last dimension size to wildcard
-    m_alInputShape(X.NumDimensions) = -1
-    m_dblEpsilon = dblEpsilon
-    Adapt oTrainingSet
+    Clear
+    Adapt oTrainingLoader
 End Sub
 
 Public Function Forward(ByVal X As Tensor, _
                         Optional ByVal bIsTraining As Boolean) As Tensor
     Const PROCEDURE_NAME As String = "InputNormalizationLayer.Forward"
-    
+
     If X Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
     If Not X.ShapeEquals(m_alInputShape) Then
-        Err.Raise 5, PROCEDURE_NAME, "Input tensor shape does not match the expected shape for forward pass."
+        Err.Raise 5, PROCEDURE_NAME, "Input tensor does not match the expected shape for forward pass."
     End If
     Set m_X = X
     Set m_Y = CalculateOutput(X)
@@ -68,110 +63,125 @@ Public Function Backward(ByVal dLdY As Tensor) As Tensor
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
     If Not dLdY.ShapeEquals(m_alInputShape) Then
-        Err.Raise 5, PROCEDURE_NAME, "Gradient tensor shape does not match the expected shape for backward pass."
+        Err.Raise 5, PROCEDURE_NAME, "Gradient tensor does not match the expected shape for backward pass."
     End If
     Set Backward = CalculateInputError(dLdY)
 End Function
 
-Private Sub Adapt(ByVal oTrainingSet As DataLoader)
-    Dim lBatch As Long
+'Y = (X - m) / Sqrt(v + Epsilon)
+Private Function CalculateOutput(ByVal X As Tensor) As Tensor
+    Dim lBatchDimension As Long
+    Dim lBatchSize As Long
+    Dim oTiledMean As Tensor
+    Dim oTiledVariance As Tensor
+
+    lBatchDimension = X.NumDimensions
+    lBatchSize = X.Size(lBatchDimension)
+    Set oTiledMean = m_oMean.Tile(lBatchDimension, lBatchSize)
+    Set oTiledVariance = m_oVariance.Tile(lBatchDimension, lBatchSize)
+    Set CalculateOutput = VecDivSqrtAddC(VecSub(X, oTiledMean), oTiledVariance, EPSILON)
+End Function
+
+'dLdX = dLdY / Sqrt(v + Epsilon)
+Private Function CalculateInputError(ByVal dLdY As Tensor) As Tensor
+    Dim lBatchDimension As Long
+    Dim lBatchSize As Long
+    Dim oTiledVariance As Tensor
+
+    lBatchDimension = dLdY.NumDimensions
+    lBatchSize = dLdY.Size(lBatchDimension)
+    Set oTiledVariance = m_oVariance.Tile(lBatchDimension, lBatchSize)
+    Set CalculateInputError = VecDivSqrtAddC(dLdY, oTiledVariance, EPSILON)
+End Function
+
+Private Sub Adapt(ByVal oTrainingLoader As DataLoader)
+    Dim lBatchDimension As Long
+    Dim lBatchSize As Long
     Dim lNumSamples As Long
     Dim X As Tensor
-    Dim oBatchSum As Tensor
-    Dim oBatchSquaredSum As Tensor
-    Dim oTotalSum As Tensor
-    Dim oTotalSquaredSum As Tensor
-    
-    With oTrainingSet
-        For lBatch = 1 To .NumBatches
-            With .GetBatch(lBatch)
-                Set X = .Item("Input")
-                Set oBatchSum = X.Reduce(X.NumDimensions, rdcSum)
-                Set oBatchSquaredSum = VecPow2(X).Reduce(X.NumDimensions, rdcSum)
-                If lBatch = 1 Then
-                    Set oTotalSum = oBatchSum
-                    Set oTotalSquaredSum = oBatchSquaredSum
-                Else
-                    Set oTotalSum = VecAdd(oTotalSum, oBatchSum)
-                    Set oTotalSquaredSum = VecAdd(oTotalSquaredSum, oBatchSquaredSum)
-                End If
-                lNumSamples = lNumSamples + .NumSamples
-            End With
-        Next lBatch
+    Dim oMean As Tensor
+    Dim oM2 As Tensor
+    Dim oDelta As Tensor
+    Dim oBatchMean As Tensor
+    Dim oBatchM2 As Tensor
+    Dim oBatch As TensorDataset
+
+    With oTrainingLoader
+        .Reset
+        Do While .Fetch(oBatch)
+            Set X = oBatch.Item(1)
+            lBatchDimension = X.NumDimensions
+            lBatchSize = oBatch.NumSamples
+            Set oBatchMean = X.Reduce(lBatchDimension, rdcMean)
+            Set oBatchM2 = VecPow2(VecSub(X, oBatchMean.Tile(lBatchDimension, lBatchSize))).Reduce(lBatchDimension, rdcSum)
+            If lNumSamples = 0 Then
+                m_alInputShape = X.Shape
+                m_alInputShape(X.NumDimensions) = -1
+                Set oMean = oBatchMean
+                Set oM2 = oBatchM2
+                lNumSamples = lBatchSize
+            Else
+                Set oDelta = VecSub(oBatchMean, oMean)
+                VecLinComb_I 1, oMean, lBatchSize / (lNumSamples + lBatchSize), oDelta
+                VecLinComb_I 1, oM2, 1, oBatchM2
+                VecLinComb_I 1, oM2, lNumSamples * lBatchSize / (lNumSamples + lBatchSize), VecPow2(oDelta)
+                lNumSamples = lNumSamples + lBatchSize
+            End If
+        Loop
     End With
     If lNumSamples > 0 Then
-        Set m_m = VecDivC(oTotalSum, lNumSamples)
-        'Variance = E[X^2] - E[X]^2
-        Set m_v = VecSub(VecDivC(oTotalSquaredSum, lNumSamples), VecPow2(m_m))
+        Set m_oMean = oMean
+        Set m_oVariance = VecDivC(oM2, lNumSamples)
     End If
 End Sub
 
-Private Function CalculateOutput(ByVal X As Tensor) As Tensor
-    Dim lBatchSize As Long
-    Dim m As Tensor
-    Dim v As Tensor
-    
-    lBatchSize = X.Size(X.NumDimensions)
-    Set m = m_m.Tile(m_m.NumDimensions, lBatchSize)
-    Set v = m_v.Tile(m_v.NumDimensions, lBatchSize)
-    'Y = (X - m) / (v + Epsilon)
-    Set CalculateOutput = VecDivSqrtAddC(VecSub(X, m), v, m_dblEpsilon)
-End Function
-
-Private Function CalculateInputError(ByVal dLdY As Tensor) As Tensor
-    Dim lBatchSize As Long
-    Dim v As Tensor
-    
-    lBatchSize = dLdY.Size(dLdY.NumDimensions)
-    Set v = m_v.Tile(m_v.NumDimensions, lBatchSize)
-    'dLdX = dLdY / (v + Epsilon)
-    Set CalculateInputError = VecDivSqrtAddC(dLdY, v, m_dblEpsilon)
-End Function
+Private Sub Clear()
+    Erase m_alInputShape
+    Set m_oMean = Nothing
+    Set m_oVariance = Nothing
+    Set m_X = Nothing
+    Set m_Y = Nothing
+End Sub
 
 Private Sub Save(ByVal oWorksheet As Serializer)
     Const PROCEDURE_NAME As String = "InputNormalizationLayer.Save"
-    
+
     If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
     With oWorksheet
         .WriteLongArray m_alInputShape
-        .WriteDouble m_dblEpsilon
-        .WriteObject m_m
-        .WriteObject m_v
-        .WriteObject m_X
-        .WriteObject m_Y
+        .WriteObject m_oMean
+        .WriteObject m_oVariance
     End With
 End Sub
 
 Private Sub Load(ByVal oWorksheet As Serializer)
     Const PROCEDURE_NAME As String = "InputNormalizationLayer.Load"
-    
+
     If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
+    Clear
     With oWorksheet
         m_alInputShape = .ReadLongArray()
-        m_dblEpsilon = .ReadDouble()
-        Set m_m = .ReadObject()
-        Set m_v = .ReadObject()
-        Set m_X = .ReadObject()
-        Set m_Y = .ReadObject()
+        Set m_oMean = .ReadObject()
+        Set m_oVariance = .ReadObject()
     End With
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
     Private Property Get ILayer_LearnableParameters() As Variant
-        ILayer_LearnableParameters = LearnableParameters
+        ILayer_LearnableParameters = Me.LearnableParameters
     End Property
     
     Private Function ILayer_Forward(ByVal X As Object, _
                                     Optional ByVal bIsTraining As Boolean) As Object
-        Set ILayer_Forward = Forward(X, bIsTraining)
+        Set ILayer_Forward = Me.Forward(X, bIsTraining)
     End Function
     
     Private Function ILayer_Backward(ByVal dLdY As Object) As Object
-        Set ILayer_Backward = Backward(dLdY)
+        Set ILayer_Backward = Me.Backward(dLdY)
     End Function
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Object)
@@ -183,16 +193,16 @@ End Sub
     End Sub
 #Else
     Private Property Get ILayer_LearnableParameters() As Variant
-        ILayer_LearnableParameters = LearnableParameters
+        ILayer_LearnableParameters = Me.LearnableParameters
     End Property
     
     Private Function ILayer_Forward(ByVal X As Tensor, _
                                     Optional ByVal bIsTraining As Boolean) As Tensor
-        Set ILayer_Forward = Forward(X, bIsTraining)
+        Set ILayer_Forward = Me.Forward(X, bIsTraining)
     End Function
     
     Private Function ILayer_Backward(ByVal dLdY As Tensor) As Tensor
-        Set ILayer_Backward = Backward(dLdY)
+        Set ILayer_Backward = Me.Backward(dLdY)
     End Function
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)
@@ -203,3 +213,4 @@ End Sub
         Load oWorksheet
     End Sub
 #End If
+

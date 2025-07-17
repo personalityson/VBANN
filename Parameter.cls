@@ -13,42 +13,21 @@ Implements ISerializable
 
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
+'Hyperparameters
+Private m_dblLearningRateScale As Double
+Private m_dblWeightDecayScale As Double
+
+'State
 Private m_oVariable As Tensor
 Private m_oGradient As Tensor
 Private m_lNumUpdates As Long
-Private m_dblLearningRateScale As Double
-Private m_dblWeightDecayScale As Double
 
 Public Property Get Variable() As Tensor
     Set Variable = m_oVariable
 End Property
 
-Public Property Set Variable(ByVal oVariable As Tensor)
-    Const PROCEDURE_NAME As String = "Parameter.Variable"
-
-    If oVariable Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
-    End If
-    If Not oVariable.ShapeEquals(m_oVariable.Shape) Then
-        Err.Raise 5, PROCEDURE_NAME, "Shape of the provided learnable does not match the current learnable's shape."
-    End If
-    Set m_oVariable = oVariable
-End Property
-
 Public Property Get Gradient() As Tensor
     Set Gradient = m_oGradient
-End Property
-
-Public Property Set Gradient(ByVal oGradient As Tensor)
-    Const PROCEDURE_NAME As String = "Parameter.Gradient"
-    
-    If oGradient Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
-    End If
-    If Not oGradient.ShapeEquals(m_oGradient.Shape) Then
-        Err.Raise 5, PROCEDURE_NAME, "Shape of the provided gradient does not match the current gradient's shape."
-    End If
-    Set m_oGradient = oGradient
 End Property
 
 Public Property Get NumUpdates() As Long
@@ -63,16 +42,8 @@ Public Property Get LearningRateScale() As Double
     LearningRateScale = m_dblLearningRateScale
 End Property
 
-Public Property Let LearningRateScale(ByVal dblLearningRateScale As Double)
-    m_dblLearningRateScale = dblLearningRateScale
-End Property
-
 Public Property Get WeightDecayScale() As Double
     WeightDecayScale = m_dblWeightDecayScale
-End Property
-
-Public Property Let WeightDecayScale(ByVal dblWeightDecayScale As Double)
-    m_dblWeightDecayScale = dblWeightDecayScale
 End Property
 
 Public Sub Init(ByVal oVariable As Tensor, _
@@ -83,6 +54,7 @@ Public Sub Init(ByVal oVariable As Tensor, _
     If oVariable Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
+    Clear
     Set m_oVariable = oVariable
     Set m_oGradient = Zeros(m_oVariable.Shape)
     m_lNumUpdates = 0
@@ -93,6 +65,14 @@ End Sub
 Public Sub ResetGradient()
     m_oGradient.Fill 0
     m_lNumUpdates = 0
+End Sub
+
+Private Sub Clear()
+    Set m_oVariable = Nothing
+    Set m_oGradient = Nothing
+    m_lNumUpdates = 0
+    m_dblLearningRateScale = 0
+    m_dblWeightDecayScale = 0
 End Sub
 
 Private Sub Save(ByVal oWorksheet As Serializer)
@@ -116,6 +96,7 @@ Private Sub Load(ByVal oWorksheet As Serializer)
     If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
+    Clear
     With oWorksheet
         Set m_oVariable = .ReadObject()
         Set m_oGradient = .ReadObject()

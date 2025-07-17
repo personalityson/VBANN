@@ -18,11 +18,14 @@ Private Const KEY_STEP As String = "Step"
 Private Const KEY_MEAN As String = "Mean"
 Private Const KEY_VARIANCE As String = "Variance"
 
+'Hyperparameters
 Private m_dblLearningRate As Double
 Private m_dblBeta1 As Double
 Private m_dblBeta2 As Double
 Private m_dblEpsilon As Double
 Private m_dblWeightDecay As Double
+
+'State
 Private m_oStates As Object
 
 Public Property Get LearningRate() As Double
@@ -33,7 +36,7 @@ Public Property Let LearningRate(ByVal dblLearningRate As Double)
     Const PROCEDURE_NAME As String = "Adam.LearningRate"
     
     If dblLearningRate <= 0 Then
-        Err.Raise 5, PROCEDURE_NAME, "Learning rate must be greater than 0."
+        Err.Raise 5, PROCEDURE_NAME, "Learning rate must be > 0."
     End If
     m_dblLearningRate = dblLearningRate
 End Property
@@ -46,26 +49,26 @@ Public Sub Init(Optional ByVal dblLearningRate As Double = 0.001, _
     Const PROCEDURE_NAME As String = "Adam.Init"
     
     If dblLearningRate <= 0 Then
-        Err.Raise 5, PROCEDURE_NAME, "Learning rate must be greater than 0."
+        Err.Raise 5, PROCEDURE_NAME, "Learning rate must be > 0."
     End If
     If dblBeta1 <= 0 Or dblBeta1 >= 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Beta1 must be greater than 0 and less than 1."
+        Err.Raise 5, PROCEDURE_NAME, "Beta1 must be > 0 and < 1."
     End If
     If dblBeta2 <= 0 Or dblBeta2 >= 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Beta2 must be greater than 0 and less than 1."
+        Err.Raise 5, PROCEDURE_NAME, "Beta2 must be > 0 and < 1."
     End If
     If dblEpsilon <= 0 Then
-        Err.Raise 5, PROCEDURE_NAME, "Epsilon must be greater than 0."
+        Err.Raise 5, PROCEDURE_NAME, "Epsilon must be > 0."
     End If
     If dblWeightDecay < 0 Then
-        Err.Raise 5, PROCEDURE_NAME, "Weight decay must be greater than or equal to 0."
+        Err.Raise 5, PROCEDURE_NAME, "Weight decay must be >= 0."
     End If
+    Clear
     m_dblLearningRate = dblLearningRate
     m_dblBeta1 = dblBeta1
     m_dblBeta2 = dblBeta2
     m_dblEpsilon = dblEpsilon
     m_dblWeightDecay = dblWeightDecay
-    Set m_oStates = CreateObject("Scripting.Dictionary")
 End Sub
 
 Public Sub Update(ByVal W As Parameter)
@@ -77,6 +80,9 @@ Public Sub Update(ByVal W As Parameter)
     ApplyUpdates W
 End Sub
 
+'m = beta1 * m + (1 - beta1) * (dW / NumUpdates)
+'v = beta2 * v + (1 - beta2) * (dW / NumUpdates)^2
+'W = W - alpha * (m / (Sqr(v) + epsilon) + wd * W)
 Private Sub ApplyUpdates(ByVal W As Parameter)
     Dim lStep As Long
     Dim dblAlpha As Double
@@ -91,11 +97,8 @@ Private Sub ApplyUpdates(ByVal W As Parameter)
     lStep = lStep + 1
     dblAlpha = W.LearningRateScale * m_dblLearningRate * Sqr(1 - m_dblBeta2 ^ lStep) / (1 - m_dblBeta1 ^ lStep)
     dblWeightDecay = W.WeightDecayScale * m_dblWeightDecay
-    'm = beta1 * m + (1 - beta1) * (dW / NumUpdates)
     VecLinComb_I m_dblBeta1, m, (1 - m_dblBeta1) / (W.NumUpdates), W.Gradient
-    'v = beta2 * v + (1 - beta2) * (dW / NumUpdates)^2
     VecLinComb_I m_dblBeta2, v, (1 - m_dblBeta2) / (W.NumUpdates * W.NumUpdates), VecPow2(W.Gradient)
-    'W = W - alpha * (m / (Sqr(v) + epsilon) + wd * W)
     VecLinComb_I 1 - dblAlpha * dblWeightDecay, W.Variable, -dblAlpha, VecDivSqrtAddC(m, v, m_dblEpsilon)
     W.ResetGradient
     PutStates W, lStep, m, v
@@ -133,6 +136,15 @@ Private Sub PutStates(ByVal W As Parameter, _
     End With
 End Sub
 
+Private Sub Clear()
+    m_dblLearningRate = 0
+    m_dblBeta1 = 0
+    m_dblBeta2 = 0
+    m_dblEpsilon = 0
+    m_dblWeightDecay = 0
+    Set m_oStates = CreateObject("Scripting.Dictionary")
+End Sub
+
 Private Sub Save(ByVal oWorksheet As Serializer)
     Const PROCEDURE_NAME As String = "Adam.Save"
     Dim W As Variant
@@ -149,7 +161,7 @@ Private Sub Save(ByVal oWorksheet As Serializer)
         .WriteDouble m_dblBeta2
         .WriteDouble m_dblEpsilon
         .WriteDouble m_dblWeightDecay
-        .WriteLong m_oStates.Count
+        .WriteLong m_oStates.count
         For Each W In m_oStates.Keys
             GetStates W, lStep, m, v
             .WriteObject W
@@ -172,7 +184,7 @@ Private Sub Load(ByVal oWorksheet As Serializer)
     If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
-    Set m_oStates = CreateObject("Scripting.Dictionary")
+    Clear
     With oWorksheet
         m_dblLearningRate = .ReadDouble()
         m_dblBeta1 = .ReadDouble()
@@ -192,15 +204,15 @@ End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
     Private Property Get IOptimizer_LearningRate() As Double
-        IOptimizer_LearningRate = LearningRate
+        IOptimizer_LearningRate = Me.LearningRate
     End Property
     
     Private Property Let IOptimizer_LearningRate(ByVal dblLearningRate As Double)
-        LearningRate = dblLearningRate
+        Me.LearningRate = dblLearningRate
     End Property
     
     Private Sub IOptimizer_Update(ByVal W As Object)
-        Update W
+        Me.Update W
     End Sub
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Object)
@@ -212,15 +224,15 @@ End Sub
     End Sub
 #Else
     Private Property Get IOptimizer_LearningRate() As Double
-        IOptimizer_LearningRate = LearningRate
+        IOptimizer_LearningRate = Me.LearningRate
     End Property
     
     Private Property Let IOptimizer_LearningRate(ByVal dblLearningRate As Double)
-        LearningRate = dblLearningRate
+        Me.LearningRate = dblLearningRate
     End Property
     
     Private Sub IOptimizer_Update(ByVal W As Parameter)
-        Update W
+        Me.Update W
     End Sub
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)

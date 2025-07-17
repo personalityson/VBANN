@@ -16,9 +16,12 @@ Implements ISerializable
 
 Private Const KEY_VELOCITY As String = "Velocity"
 
+'Hyperparameters
 Private m_dblLearningRate As Double
 Private m_dblMomentum As Double
 Private m_dblWeightDecay As Double
+
+'State
 Private m_oStates As Object
 
 Public Property Get LearningRate() As Double
@@ -29,7 +32,7 @@ Public Property Let LearningRate(ByVal dblLearningRate As Double)
     Const PROCEDURE_NAME As String = "SGDM.LearningRate"
     
     If dblLearningRate <= 0 Then
-        Err.Raise 5, PROCEDURE_NAME, "Learning rate must be greater than 0."
+        Err.Raise 5, PROCEDURE_NAME, "Learning rate must be > 0."
     End If
     m_dblLearningRate = dblLearningRate
 End Property
@@ -40,18 +43,18 @@ Public Sub Init(Optional ByVal dblLearningRate As Double = 0.001, _
     Const PROCEDURE_NAME As String = "SGDM.Init"
     
     If dblLearningRate <= 0 Then
-        Err.Raise 5, PROCEDURE_NAME, "Learning rate must be greater than 0."
+        Err.Raise 5, PROCEDURE_NAME, "Learning rate must be > 0."
     End If
     If dblMomentum < 0 Or dblMomentum >= 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Momentum must be greater than or equal to 0 and less than 1."
+        Err.Raise 5, PROCEDURE_NAME, "Momentum must be >= 0 and < 1."
     End If
     If dblWeightDecay < 0 Then
-        Err.Raise 5, PROCEDURE_NAME, "Weight decay must be greater than or equal to 0."
+        Err.Raise 5, PROCEDURE_NAME, "Weight decay must be >= 0."
     End If
+    Clear
     m_dblLearningRate = dblLearningRate
     m_dblMomentum = dblMomentum
     m_dblWeightDecay = dblWeightDecay
-    Set m_oStates = CreateObject("Scripting.Dictionary")
 End Sub
 
 Public Sub Update(ByVal W As Parameter)
@@ -63,6 +66,15 @@ Public Sub Update(ByVal W As Parameter)
     ApplyUpdates W
 End Sub
 
+Private Sub Clear()
+    m_dblLearningRate = 0
+    m_dblMomentum = 0
+    m_dblWeightDecay = 0
+    Set m_oStates = CreateObject("Scripting.Dictionary")
+End Sub
+
+'v = momentum * v + (1 - momentum) * (dW / NumUpdates)
+'W = W - lr * (v + wd * W)
 Private Sub ApplyUpdates(ByVal W As Parameter)
     Dim dblLearningRate As Double
     Dim dblWeightDecay As Double
@@ -74,9 +86,7 @@ Private Sub ApplyUpdates(ByVal W As Parameter)
     GetStates W, v
     dblLearningRate = W.LearningRateScale * m_dblLearningRate
     dblWeightDecay = W.WeightDecayScale * m_dblWeightDecay
-    'v = momentum * v + (1 - momentum) * (dW / NumUpdates)
     VecLinComb_I m_dblMomentum, v, (1 - m_dblMomentum) / W.NumUpdates, W.Gradient
-    'W = W - lr * (v + wd * W)
     VecLinComb_I 1 - dblLearningRate * dblWeightDecay, W.Variable, -dblLearningRate, v
     W.ResetGradient
     'PutStates W, v
@@ -118,7 +128,7 @@ Private Sub Save(ByVal oWorksheet As Serializer)
         .WriteDouble m_dblLearningRate
         .WriteDouble m_dblMomentum
         .WriteDouble m_dblWeightDecay
-        .WriteLong m_oStates.Count
+        .WriteLong m_oStates.count
         For Each W In m_oStates.Keys
             GetStates W, v
             .WriteObject W
@@ -137,7 +147,7 @@ Private Sub Load(ByVal oWorksheet As Serializer)
     If oWorksheet Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
-    Set m_oStates = CreateObject("Scripting.Dictionary")
+    Clear
     With oWorksheet
         m_dblLearningRate = .ReadDouble()
         m_dblMomentum = .ReadDouble()
@@ -153,15 +163,15 @@ End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
     Private Property Get IOptimizer_LearningRate() As Double
-        IOptimizer_LearningRate = LearningRate
+        IOptimizer_LearningRate = Me.LearningRate
     End Property
     
     Private Property Let IOptimizer_LearningRate(ByVal dblLearningRate As Double)
-        LearningRate = dblLearningRate
+        Me.LearningRate = dblLearningRate
     End Property
     
     Private Sub IOptimizer_Update(ByVal W As Object)
-        Update W
+        Me.Update W
     End Sub
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Object)
@@ -173,15 +183,15 @@ End Sub
     End Sub
 #Else
     Private Property Get IOptimizer_LearningRate() As Double
-        IOptimizer_LearningRate = LearningRate
+        IOptimizer_LearningRate = Me.LearningRate
     End Property
     
     Private Property Let IOptimizer_LearningRate(ByVal dblLearningRate As Double)
-        LearningRate = dblLearningRate
+        Me.LearningRate = dblLearningRate
     End Property
     
     Private Sub IOptimizer_Update(ByVal W As Parameter)
-        Update W
+        Me.Update W
     End Sub
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)

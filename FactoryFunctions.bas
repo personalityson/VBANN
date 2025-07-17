@@ -18,7 +18,7 @@ Public Function CCELoss() As CCELoss
     Set CCELoss = New CCELoss
 End Function
 
-Public Function DataLoader(ByVal oDataset As IDataset, _
+Public Function DataLoader(ByVal oDataset As TensorDataset, _
                            ByVal lBatchSize As Long) As DataLoader
     Set DataLoader = New DataLoader
     DataLoader.Init oDataset, lBatchSize
@@ -35,10 +35,9 @@ Public Function FullyConnectedLayer(ByVal lInputSize As Long, _
     FullyConnectedLayer.Init lInputSize, lOutputSize
 End Function
 
-Public Function InputNormalizationLayer(ByVal oTrainingSet As DataLoader, _
-                                        Optional ByVal dblEpsilon As Double = 0.00001) As InputNormalizationLayer
+Public Function InputNormalizationLayer(ByVal oTrainingLoader As DataLoader) As InputNormalizationLayer
     Set InputNormalizationLayer = New InputNormalizationLayer
-    InputNormalizationLayer.Init oTrainingSet, dblEpsilon
+    InputNormalizationLayer.Init oTrainingLoader
 End Function
 
 Public Function L1Loss() As L1Loss
@@ -86,9 +85,20 @@ Public Function TanhLayer() As TanhLayer
     Set TanhLayer = New TanhLayer
 End Function
 
-Public Function TensorDataset() As TensorDataset
+Public Function TensorDataset(ByVal vTensors As Variant, _
+                              Optional ByVal vSampleIndices As Variant) As TensorDataset
     Set TensorDataset = New TensorDataset
-    TensorDataset.Init
+    TensorDataset.Init vTensors, vSampleIndices
+End Function
+
+Public Function XGBoost(ByVal oCriterion As ICriterion, _
+                        Optional ByVal dblLearningRate As Double = 0.1, _
+                        Optional ByVal lMaxDepth As Long = 6, _
+                        Optional ByVal dblLambda As Double = 1, _
+                        Optional ByVal dblGamma As Double = 0, _
+                        Optional ByVal dblMinChildWeight As Double = 1) As XGBoost
+    Set XGBoost = New XGBoost
+    XGBoost.Init oCriterion, dblLearningRate, lMaxDepth, dblLambda, dblGamma, dblMinChildWeight
 End Function
 
 Public Sub Serialize(ByVal sName As String, _
@@ -107,122 +117,80 @@ Public Function Unserialize(ByVal sName As String) As ISerializable
 End Function
 
 Public Function ImportDatasetFromWorksheet(ByVal sName As String, _
-                                           ByVal lInputSize As Long, _
-                                           ByVal lLabelSize As Long, _
+                                           ByVal vGroupWidths As Variant, _
+                                           Optional ByVal bSqueeze As Boolean, _
                                            Optional ByVal bHasHeaders As Boolean) As TensorDataset
     Const PROCEDURE_NAME As String = "FactoryFunctions.ImportDatasetFromWorksheet"
+    Dim i As Long
+    Dim lNumGroups As Long
+    Dim alGroupWidths() As Long
     Dim lFirstRow As Long
     Dim lFirstCol As Long
     Dim lNumSamples As Long
-    Dim oInputs As Range
-    Dim oLabels As Range
+    Dim X As Tensor
+    Dim alTensors() As Tensor
     Dim oSource As Worksheet
     Dim oResult As TensorDataset
     
     If Not WorksheetExists(ThisWorkbook, sName) Then
         Err.Raise 9, PROCEDURE_NAME, "Specified worksheet does not exist."
     End If
-    If lInputSize < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Input size must be greater than 0."
-    End If
-    If lLabelSize < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Label size must be greater than 0."
-    End If
+    ParseVariantToLongArray vGroupWidths, lNumGroups, alGroupWidths
+    For i = 1 To lNumGroups
+        If alGroupWidths(i) < 1 Then
+            Err.Raise 5, PROCEDURE_NAME, "Group width must be >= 1."
+        End If
+    Next i
     Set oSource = ThisWorkbook.Sheets(sName)
     lFirstRow = GetFirstRow(oSource) + IIf(bHasHeaders, 1, 0)
     lFirstCol = GetFirstColumn(oSource)
     lNumSamples = GetLastRow(oSource) - lFirstRow + 1
+    ReDim alTensors(1 To lNumGroups)
     Set oResult = New TensorDataset
-    oResult.Init
-    If lNumSamples > 0 Then
-        Set oInputs = oSource.Cells(lFirstRow, lFirstCol).Resize(lNumSamples, lInputSize)
-        Set oLabels = oSource.Cells(lFirstRow, lFirstCol + lInputSize).Resize(lNumSamples, lLabelSize)
-        With oResult
-            .Add "Input", TensorFromRange(oInputs, True)
-            .Add "Label", TensorFromRange(oLabels, True)
-        End With
-    Else
-        With oResult
-            .Add "Input", Zeros(Array(lInputSize, 0))
-            .Add "Label", Zeros(Array(lLabelSize, 0))
-        End With
-    End If
+    For i = 1 To lNumGroups
+        If lNumSamples > 0 Then
+            Set X = TensorFromRange(oSource.Cells(lFirstRow, lFirstCol).Resize(lNumSamples, alGroupWidths(i)), True)
+        Else
+            Set X = Zeros(Array(alGroupWidths(i), 0))
+        End If
+        If bSqueeze Then
+            Set X = X.Squeeze
+        End If
+        Set alTensors(i) = X
+        lFirstCol = lFirstCol + alGroupWidths(i)
+    Next i
+    oResult.Init alTensors
     Set ImportDatasetFromWorksheet = oResult
 End Function
 
-Public Function ImportDatasetFromCsv(ByVal strPath As String, _
-                                     ByVal lInputSize As Long, _
-                                     ByVal lLabelSize As Long, _
-                                     Optional ByVal bHasHeaders As Boolean) As TensorDataset
-    Const PROCEDURE_NAME As String = "FactoryFunctions.ImportDatasetFromCsv"
-    Const CHUNK_SIZE As Long = 10000
-    Const ForReading As Long = 1
-    Dim lNumRows As Long
-    Dim lNumAllocatedRows As Long
-    Dim lNumFields As Long
-    Dim i As Long
-    Dim vFields As Variant
-    Dim dblValue As Double
-    Dim adblInputs() As Double
-    Dim adblLabels() As Double
-    Dim oResult As TensorDataset
-    
-    If Not Fso.FileExists(strPath) Then
-        Err.Raise 9, PROCEDURE_NAME, "Specified file does not exist."
+Public Sub RandomSplit(ByVal oDataset As IDataset, _
+                       ByVal dblAt As Double, _
+                       ByRef A As IDataset, _
+                       ByRef B As IDataset)
+    Const PROCEDURE_NAME As String = "FactoryFunctions.RandomSplit"
+    Dim lSizeA As Long
+    Dim lSizeB As Long
+    Dim alFullIndices() As Long
+    Dim alIndicesA() As Long
+    Dim alIndicesB() As Long
+
+    If oDataset Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid IDataset object is required."
     End If
-    If lInputSize < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Input size must be greater than 0."
+    If dblAt < 0 Or dblAt > 1 Then
+        Err.Raise 5, PROCEDURE_NAME, "Fraction must be >= 0 and <= 1."
     End If
-    If lLabelSize < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Label size must be greater than 0."
+    alFullIndices = GetRandomPermutationArray(oDataset.NumSamples)
+    lSizeA = CLng(dblAt * oDataset.NumSamples + 0.5)
+    lSizeB = oDataset.NumSamples - lSizeA
+    If lSizeA > 0 Then
+        ReDim alIndicesA(1 To lSizeA)
+        CopyMemory alIndicesA(1), alFullIndices(1), lSizeA * SIZEOF_LONG
     End If
-    With Fso.OpenTextFile(strPath, ForReading)
-        If Not .AtEndOfStream And bHasHeaders Then
-            .SkipLine
-        End If
-        Do While Not .AtEndOfStream
-            lNumRows = lNumRows + 1
-            If lNumRows > lNumAllocatedRows Then
-                lNumAllocatedRows = lNumAllocatedRows + CHUNK_SIZE
-                ReDim Preserve adblInputs(1 To lInputSize, 1 To lNumAllocatedRows)
-                ReDim Preserve adblLabels(1 To lLabelSize, 1 To lNumAllocatedRows)
-            End If
-            'vFields = Split(.ReadLine, ",")
-            vFields = Split(.ReadLine, ";")
-            lNumFields = UBound(vFields) + 1
-            If lNumFields < lInputSize + lLabelSize Then
-                Err.Raise 5, PROCEDURE_NAME, "Number of fields must be greater than or equal to the sum of input size and label size."
-            End If
-            For i = 1 To lNumFields
-                'dblValue = Val(vFields(i - 1))
-                dblValue = CDbl(vFields(i - 1))
-                If i <= lInputSize Then
-                    adblInputs(i, lNumRows) = dblValue
-                ElseIf i <= lInputSize + lLabelSize Then
-                    adblLabels(i - lInputSize, lNumRows) = dblValue
-                End If
-            Next i
-            If lNumRows Mod 100 = 0 Then
-                Application.StatusBar = "ImportDatasetFromCsv progress: " & lNumRows
-                DoEvents
-            End If
-        Loop
-        .Close
-    End With
-    Set oResult = New TensorDataset
-    oResult.Init
-    If lNumRows > 0 Then
-        ReDim Preserve adblInputs(1 To lInputSize, 1 To lNumRows)
-        ReDim Preserve adblLabels(1 To lLabelSize, 1 To lNumRows)
-        With oResult
-            .Add "Input", TensorFromArray(adblInputs)
-            .Add "Label", TensorFromArray(adblLabels)
-        End With
-    Else
-        With oResult
-            .Add "Input", Zeros(Array(lInputSize, 0))
-            .Add "Label", Zeros(Array(lLabelSize, 0))
-        End With
+    If lSizeB > 0 Then
+        ReDim alIndicesB(1 To lSizeB)
+        CopyMemory alIndicesB(1), alFullIndices(lSizeA + 1), lSizeB * SIZEOF_LONG
     End If
-    Set ImportDatasetFromCsv = oResult
-End Function
+    Set A = oDataset.Subset(alIndicesA)
+    Set B = oDataset.Subset(alIndicesB)
+End Sub

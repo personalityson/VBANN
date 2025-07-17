@@ -16,7 +16,11 @@ Option Explicit
         '
     End Property
     
-    Public Function Gather(ByVal vIndices As Variant) As Object
+    Public Function Item(ByVal lTensorIndex As Long) As Object
+        '
+    End Function
+    
+    Public Function Subset(ByVal vSampleIndices As Variant) As Object
         '
     End Function
 #Else
@@ -24,7 +28,11 @@ Option Explicit
         '
     End Property
     
-    Public Function Gather(ByVal vIndices As Variant) As TensorDataset
+    Public Function Item(ByVal lTensorIndex As Long) As Tensor
+        '
+    End Function
+    
+    Public Function Subset(ByVal vSampleIndices As Variant) As IDataset
         '
     End Function
 #End If

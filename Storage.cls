@@ -22,9 +22,12 @@ Private Const ELEMENT_SIZE As Long = SIZEOF_DOUBLE
     Private Const SA_OFFSET_pvData As Long = 12
 #End If
 
+'Dimensions
 Private m_lNumRows As Long
 Private m_lNumCols As Long
 Private m_lNumElements As Long
+
+'Buffer
 Private m_adblBuffer() As Double
 Private m_pAddress As LongPtr
 
@@ -57,26 +60,27 @@ Public Sub Resize(ByVal lNumRows As Long, _
     Const PROCEDURE_NAME As String = "Storage.Resize"
     
     If lNumRows < 0 Then
-        Err.Raise 5, PROCEDURE_NAME, "Number of rows must be greater than or equal to 0."
+        Err.Raise 5, PROCEDURE_NAME, "Number of rows must be >= 0."
     End If
     If lNumCols < 0 Then
-        Err.Raise 5, PROCEDURE_NAME, "Number of columns must be greater than or equal to 0."
+        Err.Raise 5, PROCEDURE_NAME, "Number of columns must be >= 0."
     End If
-    Reset
+    Clear
     m_lNumRows = lNumRows
     m_lNumCols = lNumCols
     m_lNumElements = m_lNumRows * m_lNumCols
-    If m_lNumElements < 1 Then
-        Exit Sub
+    If m_lNumElements > 0 Then
+        ReDim m_adblBuffer(1 To m_lNumRows, 1 To m_lNumCols)
+        m_pAddress = VarPtr(m_adblBuffer(1, 1))
     End If
-    ReDim m_adblBuffer(1 To m_lNumRows, 1 To m_lNumCols)
-    m_pAddress = VarPtr(m_adblBuffer(1, 1))
 End Sub
 
 Public Function Clone() As Storage
     Set Clone = New Storage
     Clone.Resize m_lNumRows, m_lNumCols
-    CopyMemory ByVal Clone.Address, ByVal m_pAddress, m_lNumElements * ELEMENT_SIZE
+    If m_lNumElements > 0 Then
+        CopyMemory ByVal Clone.Address, ByVal m_pAddress, m_lNumElements * ELEMENT_SIZE
+    End If
 End Function
 
 Public Sub FromArray(ByRef adblArray() As Double)
@@ -87,9 +91,9 @@ Public Sub FromArray(ByRef adblArray() As Double)
     Dim pDescriptor As LongPtr
     Dim pData As LongPtr
     
+    Clear
     lNumDimensions = GetRank(adblArray)
     If lNumDimensions < 1 Then
-        Reset
         Exit Sub
     End If
     lNumRows = 1
@@ -99,9 +103,11 @@ Public Sub FromArray(ByRef adblArray() As Double)
         lNumCols = UBound(adblArray, i) - LBound(adblArray, i) + 1
     Next i
     Resize lNumRows, lNumCols
-    CopyMemory pDescriptor, ByVal VarPtrArray(adblArray), SIZEOF_LONGPTR
-    CopyMemory pData, ByVal pDescriptor + SA_OFFSET_pvData, SIZEOF_LONGPTR
-    CopyMemory ByVal m_pAddress, ByVal pData, m_lNumElements * ELEMENT_SIZE
+    If m_lNumElements > 0 Then
+        CopyMemory pDescriptor, ByVal VarPtrArray(adblArray), SIZEOF_LONGPTR
+        CopyMemory pData, ByVal pDescriptor + SA_OFFSET_pvData, SIZEOF_LONGPTR
+        CopyMemory ByVal m_pAddress, ByVal pData, m_lNumElements * ELEMENT_SIZE
+    End If
 End Sub
 
 Public Function ToArray() As Double()
@@ -115,13 +121,13 @@ Public Sub FromRange(ByVal oRange As Range, _
     Dim i As Long
     Dim j As Long
     
+    Clear
     If oRange Is Nothing Then
-        Reset
         Exit Sub
     End If
     With oRange.Areas(1)
-        lNumRows = .Rows.Count
-        lNumCols = .Columns.Count
+        lNumRows = .Rows.count
+        lNumCols = .Columns.count
         If bTranspose Then
             Resize lNumCols, lNumRows
             For i = 1 To lNumRows
@@ -141,10 +147,10 @@ Public Sub FromRange(ByVal oRange As Range, _
 End Sub
 
 Private Sub Class_Terminate()
-    Reset
+    Clear
 End Sub
 
-Private Sub Reset()
+Private Sub Clear()
     m_lNumRows = 0
     m_lNumCols = 0
     m_lNumElements = 0

@@ -12,10 +12,13 @@ Option Explicit
 Private Const SERIALIZABLE_TYPE_MEMO As String = "Memo"
 Private Const SERIALIZABLE_TYPE_NOTHING As String = "Nothing"
 
+'Dependencies
 Private m_oWorksheet As Worksheet
-Private m_lRow As Long
+
+'State
 Private m_lNumSerializedObjects As Long
 Private m_aoSerializedObjects() As ISerializable
+Private m_lCursor As Long
 
 Public Property Get Worksheet() As Worksheet
     Set Worksheet = m_oWorksheet
@@ -23,29 +26,26 @@ End Property
 
 Public Sub Init(ByVal sName As String, _
                 ByVal bOverwrite As Boolean)
+    Clear
     Set m_oWorksheet = CreateWorksheet(ThisWorkbook, sName, bOverwrite)
-    MoveFirst
     m_lNumSerializedObjects = 0
     Erase m_aoSerializedObjects
+    Me.Reset
 End Sub
 
-Public Sub MoveFirst()
-    m_lRow = 1
-End Sub
-
-Public Sub MoveLast()
-    m_lRow = GetLastRow(m_oWorksheet) + 1
+Public Sub Reset()
+    m_lCursor = 1
 End Sub
 
 Public Sub WriteObject(ByVal oObject As ISerializable)
-    Dim lIndex As Long
+    Dim lMemoIndex As Long
 
     If oObject Is Nothing Then
         WriteNothing
     Else
-        lIndex = IndexOf(oObject)
-        If lIndex > 0 Then
-            WriteMemo lIndex
+        lMemoIndex = IndexOf(oObject)
+        If lMemoIndex > 0 Then
+            WriteMemo lMemoIndex
         Else
             WriteSerializable oObject
         End If
@@ -71,7 +71,7 @@ End Sub
 Public Sub WriteString(ByVal sValue As String)
     With GetCell()
         .NumberFormat = "@"
-        .Value = sValue
+        .value = sValue
     End With
 End Sub
 
@@ -151,31 +151,31 @@ Private Function IndexOf(ByVal oObject As ISerializable) As Long
 End Function
 
 Private Function GetCell() As Range
-    Set GetCell = m_oWorksheet.Cells(m_lRow, 1)
-    m_lRow = m_lRow + 1
+    Set GetCell = m_oWorksheet.Cells(m_lCursor, 1)
+    m_lCursor = m_lCursor + 1
 End Function
 
 Private Function GetRange(ByVal lNumRows As Long, _
                           ByVal lNumCols As Long) As Range
     Const PROCEDURE_NAME As String = "Serializer.GetRange"
-    
+
     If lNumRows < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Number of rows must be greater than 0."
+        Err.Raise 5, PROCEDURE_NAME, "Number of rows must be >= 1."
     End If
     If lNumCols < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Number of columns must be greater than 0."
+        Err.Raise 5, PROCEDURE_NAME, "Number of columns must be >= 1."
     End If
-    Set GetRange = m_oWorksheet.Cells(m_lRow, 1).Resize(lNumRows, lNumCols)
-    m_lRow = m_lRow + lNumRows
+    Set GetRange = m_oWorksheet.Cells(m_lCursor, 1).Resize(lNumRows, lNumCols)
+    m_lCursor = m_lCursor + lNumRows
 End Function
 
 Private Sub WriteNothing()
     WriteString SERIALIZABLE_TYPE_NOTHING
 End Sub
 
-Private Sub WriteMemo(ByVal lIndex As Long)
+Private Sub WriteMemo(ByVal lMemoIndex As Long)
     WriteString SERIALIZABLE_TYPE_MEMO
-    WriteLong lIndex
+    WriteLong lMemoIndex
 End Sub
 
 Private Sub WriteSerializable(ByVal oObject As ISerializable)
@@ -213,7 +213,7 @@ Private Sub WriteArray(ByVal vArray As Variant)
         If (VarType(vArray) And Not vbArray) = vbString Then
             .NumberFormat = "@"
         End If
-        .Value = vArray
+        .value = vArray
     End With
 End Sub
 
@@ -222,10 +222,10 @@ Private Function ReadNothing() As ISerializable
 End Function
 
 Private Function ReadMemo() As ISerializable
-    Dim lIndex As Long
+    Dim lMemoIndex As Long
     
-    lIndex = ReadLong()
-    Set ReadMemo = m_aoSerializedObjects(lIndex)
+    lMemoIndex = ReadLong()
+    Set ReadMemo = m_aoSerializedObjects(lMemoIndex)
 End Function
 
 Private Function ReadSerializable(ByVal sTypeName As String) As ISerializable
@@ -272,6 +272,10 @@ Private Function CreateInstance(ByVal sTypeName As String) As ISerializable
             Set CreateInstance = New TanhLayer
         Case "Tensor"
             Set CreateInstance = New Tensor
+        Case "XGBoost"
+            Set CreateInstance = New XGBoost
+        Case "XGBoostNode"
+            Set CreateInstance = New XGBoostNode
         Case Else
             Err.Raise 5, PROCEDURE_NAME, "Unsupported serializable type."
     End Select
@@ -312,4 +316,11 @@ Private Sub ReadArray(ByRef vArray As Variant)
         Case Else
             Err.Raise 5, PROCEDURE_NAME, "Number of dimensions must be 0, 1, or 2."
     End Select
+End Sub
+
+Private Sub Clear()
+    Set m_oWorksheet = Nothing
+    m_lNumSerializedObjects = 0
+    Erase m_aoSerializedObjects()
+    m_lCursor = 0
 End Sub

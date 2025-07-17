@@ -18,8 +18,8 @@ Public Sub Init()
     'Do nothing
 End Sub
 
-Public Function Forward(ByVal Y As Tensor, _
-                        ByVal T As Tensor) As Tensor
+Public Function Loss(ByVal Y As Tensor, _
+                     ByVal T As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "CCELoss.Forward"
     
     If Y Is Nothing Then
@@ -29,12 +29,12 @@ Public Function Forward(ByVal Y As Tensor, _
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
     If Not Y.ShapeEquals(T.Shape) Then
-        Err.Raise 5, PROCEDURE_NAME, "Shapes of Y and T do not match."
+        Err.Raise 5, PROCEDURE_NAME, "Output and target tensors must have the same shape."
     End If
-    Set Forward = CalculateLoss(Y, T)
+    Set Loss = CalculateLoss(Y, T)
 End Function
 
-Public Function Backward(ByVal Y As Tensor, _
+Public Function Gradient(ByVal Y As Tensor, _
                          ByVal T As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "CCELoss.Backward"
     
@@ -45,42 +45,58 @@ Public Function Backward(ByVal Y As Tensor, _
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
     If Not Y.ShapeEquals(T.Shape) Then
-        Err.Raise 5, PROCEDURE_NAME, "Shapes of Y and T do not match."
+        Err.Raise 5, PROCEDURE_NAME, "Output and target tensors must have the same shape."
     End If
-    Set Backward = CalculateOutputError(Y, T)
+    Set Gradient = CalculateGradient(Y, T)
 End Function
 
+Public Function Hessian(ByVal Y As Tensor, _
+                        ByVal T As Tensor) As Tensor
+    Const PROCEDURE_NAME As String = "CCELoss.Hessian"
+    
+    If Y Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If T Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If Not Y.ShapeEquals(T.Shape) Then
+        Err.Raise 5, PROCEDURE_NAME, "Output and target tensors must have the same shape."
+    End If
+    Set Hessian = CalculateHessian(Y, T)
+End Function
+
+'L = -T * Log(Y)
 Private Function CalculateLoss(ByVal Y As Tensor, _
                                ByVal T As Tensor) As Tensor
     Dim i As Long
     Dim Y_() As Double
     Dim T_() As Double
     Dim L_() As Double
-    Dim L As Tensor
+    Dim l As Tensor
     
-    'L = -T * Log(Y)
-    Set L = Zeros(Y.Shape)
+    Set l = Zeros(Y.Shape)
     Y.Flatten.CreateAlias Y_
     T.Flatten.CreateAlias T_
-    L.Flatten.CreateAlias L_
+    l.Flatten.CreateAlias L_
     For i = 1 To Y.NumElements
         L_(i) = -T_(i) * Log(Y_(i) + DOUBLE_MIN_ABS)
     Next i
     Y.Flatten.RemoveAlias Y_
     T.Flatten.RemoveAlias T_
-    L.Flatten.RemoveAlias L_
-    Set CalculateLoss = L
+    l.Flatten.RemoveAlias L_
+    Set CalculateLoss = l
 End Function
 
-Private Function CalculateOutputError(ByVal Y As Tensor, _
-                                      ByVal T As Tensor) As Tensor
+'dLdY = -T / Y
+Private Function CalculateGradient(ByVal Y As Tensor, _
+                                   ByVal T As Tensor) As Tensor
     Dim i As Long
     Dim Y_() As Double
     Dim T_() As Double
     Dim dLdY_() As Double
     Dim dLdY As Tensor
     
-    'dLdY = -T / Y
     Set dLdY = Zeros(Y.Shape)
     Y.Flatten.CreateAlias Y_
     T.Flatten.CreateAlias T_
@@ -91,7 +107,29 @@ Private Function CalculateOutputError(ByVal Y As Tensor, _
     Y.Flatten.RemoveAlias Y_
     T.Flatten.RemoveAlias T_
     dLdY.Flatten.RemoveAlias dLdY_
-    Set CalculateOutputError = dLdY
+    Set CalculateGradient = dLdY
+End Function
+
+'d^2L/dY^2 = T / Y^2
+Private Function CalculateHessian(ByVal Y As Tensor, _
+                                  ByVal T As Tensor) As Tensor
+    Dim i As Long
+    Dim Y_() As Double
+    Dim T_() As Double
+    Dim d2LdY2_() As Double
+    Dim d2LdY2 As Tensor
+    
+    Set d2LdY2 = Zeros(Y.Shape)
+    Y.Flatten.CreateAlias Y_
+    T.Flatten.CreateAlias T_
+    d2LdY2.Flatten.CreateAlias d2LdY2_
+    For i = 1 To Y.NumElements
+        d2LdY2_(i) = T_(i) / ((Y_(i) + DOUBLE_MIN_ABS) ^ 2)
+    Next i
+    Y.Flatten.RemoveAlias Y_
+    T.Flatten.RemoveAlias T_
+    d2LdY2.Flatten.RemoveAlias d2LdY2_
+    Set CalculateHessian = d2LdY2
 End Function
 
 Private Sub Save(ByVal oWorksheet As Serializer)
@@ -103,14 +141,19 @@ Private Sub Load(ByVal oWorksheet As Serializer)
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
-    Private Function ICriterion_Forward(ByVal Y As Object, _
+    Private Function ICriterion_Loss(ByVal Y As Object, _
                                         ByVal T As Object) As Object
-        Set ICriterion_Forward = Forward(Y, T)
+        Set ICriterion_Loss = Loss(Y, T)
     End Function
     
-    Private Function ICriterion_Backward(ByVal Y As Object, _
+    Private Function ICriterion_Gradient(ByVal Y As Object, _
                                          ByVal T As Object) As Object
-        Set ICriterion_Backward = Backward(Y, T)
+        Set ICriterion_Gradient = Gradient(Y, T)
+    End Function
+    
+    Private Function ICriterion_Hessian(ByVal Y As Object, _
+                                        ByVal T As Object) As Object
+        Set ICriterion_Hessian = Hessian(Y, T)
     End Function
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Object)
@@ -121,14 +164,19 @@ End Sub
         Load oWorksheet
     End Sub
 #Else
-    Private Function ICriterion_Forward(ByVal Y As Tensor, _
+    Private Function ICriterion_Loss(ByVal Y As Tensor, _
                                         ByVal T As Tensor) As Tensor
-        Set ICriterion_Forward = Forward(Y, T)
+        Set ICriterion_Loss = Loss(Y, T)
     End Function
     
-    Private Function ICriterion_Backward(ByVal Y As Tensor, _
+    Private Function ICriterion_Gradient(ByVal Y As Tensor, _
                                          ByVal T As Tensor) As Tensor
-        Set ICriterion_Backward = Backward(Y, T)
+        Set ICriterion_Gradient = Gradient(Y, T)
+    End Function
+    
+    Private Function ICriterion_Hessian(ByVal Y As Tensor, _
+                                        ByVal T As Tensor) As Tensor
+        Set ICriterion_Hessian = Hessian(Y, T)
     End Function
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)

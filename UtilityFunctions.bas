@@ -39,7 +39,6 @@ Public Const SIZEOF_DOUBLE As Long = 8
     Public Const SIZEOF_VARIANT As Long = 16
 #End If
 
-
 Public Enum RoundingType
     rndNearest
     rndDown
@@ -257,13 +256,13 @@ Public Sub ParseVariantToLongArray(ByVal vValueOrArray As Variant, _
                                    ByRef lNumElements As Long, _
                                    ByRef alArray() As Long)
     Const PROCEDURE_NAME As String = "Tensor.ParseVariantToLongArray"
-    Dim lRank As Long
-    Dim lLbound As Long
-    Dim lUBound As Long
+    Dim iRank As Integer
+    Dim lLowerBound As Long
+    Dim lUpperBound As Long
     Dim i As Long
     
-    lRank = GetRank(vValueOrArray)
-    Select Case lRank
+    iRank = GetRank(vValueOrArray)
+    Select Case iRank
         Case -1
             lNumElements = 1
             ReDim alArray(1 To lNumElements)
@@ -272,22 +271,53 @@ Public Sub ParseVariantToLongArray(ByVal vValueOrArray As Variant, _
             lNumElements = 0
             Erase alArray
         Case 1
-            lLbound = LBound(vValueOrArray)
-            lUBound = UBound(vValueOrArray)
-            If lLbound > lUBound Then
+            lLowerBound = LBound(vValueOrArray)
+            lUpperBound = UBound(vValueOrArray)
+            If lLowerBound > lUpperBound Then
                 lNumElements = 0
                 Erase alArray
             Else
-                lNumElements = lUBound - lLbound + 1
+                lNumElements = lUpperBound - lLowerBound + 1
                 ReDim alArray(1 To lNumElements)
                 For i = 1 To lNumElements
-                    alArray(i) = CLng(vValueOrArray(lLbound + i - 1))
+                    alArray(i) = CLng(vValueOrArray(lLowerBound + i - 1))
                 Next i
             End If
         Case Else
             Err.Raise 5, PROCEDURE_NAME, "Expected a single value, an uninitialized array, or a one-dimensional array."
     End Select
 End Sub
+
+Public Function GetIdentityPermutationArray(ByVal lNumElements As Long) As Long()
+    Dim i As Long
+    Dim alResult() As Long
+
+    If lNumElements < 1 Then
+        Exit Function
+    End If
+    ReDim alResult(1 To lNumElements)
+    For i = 1 To lNumElements
+        alResult(i) = i
+    Next i
+    GetIdentityPermutationArray = alResult
+End Function
+
+Public Function GetRandomPermutationArray(ByVal lNumElements As Long) As Long()
+    Dim i As Long
+    Dim j As Long
+    Dim alResult() As Long
+    
+    If lNumElements < 1 Then
+        Exit Function
+    End If
+    ReDim alResult(1 To lNumElements)
+    For i = 1 To lNumElements
+        j = Int(i * Rnd + 1)
+        alResult(i) = alResult(j)
+        alResult(j) = i
+    Next i
+    GetRandomPermutationArray = alResult
+End Function
 
 Public Function Union(ByVal oRangeA As Range, _
                       ByVal oRangeB As Range) As Range
@@ -359,15 +389,15 @@ Public Function Complement(ByVal oRangeA As Range, _
             End If
             lStartRowB = oAreaB.Row
             lStartColB = oAreaB.Column
-            lEndRowB = lStartRowB + oAreaB.Rows.Count - 1
-            lEndColB = lStartColB + oAreaB.Columns.Count - 1
+            lEndRowB = lStartRowB + oAreaB.Rows.count - 1
+            lEndColB = lStartColB + oAreaB.Columns.count - 1
             Set oResultCopy = oResult
             Set oResult = Nothing
             For Each oAreaA In oResultCopy.Areas
                 lStartRowA = oAreaA.Row
                 lStartColA = oAreaA.Column
-                lEndRowA = lStartRowA + oAreaA.Rows.Count - 1
-                lEndColA = lStartColA + oAreaA.Columns.Count - 1
+                lEndRowA = lStartRowA + oAreaA.Rows.count - 1
+                lEndColA = lStartColA + oAreaA.Columns.count - 1
                 lIntersectStartRow = MaxLng2(lStartRowA, lStartRowB)
                 lIntersectStartCol = MaxLng2(lStartColA, lStartColB)
                 lIntersectEndRow = MinLng2(lEndRowA, lEndRowB)
@@ -586,13 +616,13 @@ Public Function CreateWorkbook(ByVal sDirectory As String, _
             Kill sPath
         Else
             bIsWorkbookNew = False
-            Set CreateWorkbook = Workbooks.Open(FileName:=sPath, UpdateLinks:=False, IgnoreReadOnlyRecommended:=True, Notify:=False, Local:=True)
+            Set CreateWorkbook = Workbooks.Open(fileName:=sPath, UpdateLinks:=False, IgnoreReadOnlyRecommended:=True, Notify:=False, Local:=True)
             Exit Function
         End If
     End If
     Set oResult = Workbooks.Add
     oResult.Title = sName
-    oResult.SaveAs FileName:=sPath, FileFormat:=lFileFormat, Local:=True
+    oResult.SaveAs fileName:=sPath, FileFormat:=lFileFormat, Local:=True
     bIsWorkbookNew = True
     Set CreateWorkbook = oResult
 End Function
@@ -641,7 +671,7 @@ Public Function CreateWorksheet(ByVal oParent As Workbook, _
             Exit Function
         End If
     Else
-        Set oResult = oParent.Worksheets.Add(After:=oParent.Worksheets(oParent.Worksheets.Count))
+        Set oResult = oParent.Worksheets.Add(After:=oParent.Worksheets(oParent.Worksheets.count))
     End If
     oResult.Name = sName
     oResult.Activate
@@ -663,7 +693,7 @@ Public Function DumpWorksheet(ByVal oWorksheet As Worksheet, _
     oWorksheet.Copy Before:=oResult.Sheets(1)
     bDisplayAlertsSave = Application.DisplayAlerts
     Application.DisplayAlerts = False
-    For i = oResult.Worksheets.Count To 2 Step -1
+    For i = oResult.Worksheets.count To 2 Step -1
         oResult.Worksheets(i).Delete
     Next i
     Application.DisplayAlerts = bDisplayAlertsSave

@@ -9,74 +9,72 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
 
-Private m_oDataset As IDataset
+'Dependencies
+Private m_oDataset As TensorDataset
+
+'Configuration
 Private m_lBatchSize As Long
-Private m_lNumBatches As Long
-Private m_alItinerary() As Long
+
+'State
+Private m_alIndices() As Long
+Private m_lCursor As Long
 
 Public Property Get BatchSize() As Long
     BatchSize = m_lBatchSize
 End Property
 
-Public Property Get NumBatches() As Long
-    NumBatches = m_lNumBatches
+Public Property Get NumSamples() As Long
+    If m_oDataset Is Nothing Then
+        NumSamples = 0
+    Else
+        NumSamples = m_oDataset.NumSamples
+    End If
 End Property
 
-Public Sub Init(ByVal oDataset As IDataset, _
+Public Sub Init(ByVal oDataset As TensorDataset, _
                 ByVal lBatchSize As Long)
     Const PROCEDURE_NAME As String = "DataLoader.Init"
     
     If oDataset Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Dataset object is required."
+        Err.Raise 5, PROCEDURE_NAME, "Valid TensorDataset object is required."
     End If
     If lBatchSize < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Batch size must be greater than 0."
+        Err.Raise 5, PROCEDURE_NAME, "Batch size must be >= 1."
     End If
+    Clear
     Set m_oDataset = oDataset
     m_lBatchSize = lBatchSize
-    m_lNumBatches = -Int(-m_oDataset.NumSamples / m_lBatchSize)
-    InitItinerary
+    Me.Reset
 End Sub
 
-'https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
+Public Sub Reset()
+    m_alIndices = GetIdentityPermutationArray(Me.NumSamples)
+    m_lCursor = 1
+End Sub
+
 Public Sub Shuffle()
-    Dim i As Long
-    Dim j As Long
-    Dim lTemp As Long
-    
-    For i = m_oDataset.NumSamples To 2 Step -1
-        j = Int(Rnd() * i) + 1
-        lTemp = m_alItinerary(i)
-        m_alItinerary(i) = m_alItinerary(j)
-        m_alItinerary(j) = lTemp
-    Next i
+    m_alIndices = GetRandomPermutationArray(Me.NumSamples)
+    m_lCursor = 1
 End Sub
 
-Public Function GetBatch(ByVal lIndex As Long) As TensorDataset
-    Const PROCEDURE_NAME As String = "DataLoader.GetBatch"
-    Dim lStart As Long
+Public Function Fetch(ByRef oBatch As TensorDataset) As Boolean
     Dim lLength As Long
-    Dim alIndices() As Long
-    
-    If lIndex < 1 Or lIndex > m_lNumBatches Then
-        Err.Raise 9, PROCEDURE_NAME, "Batch index must be between 1 and the number of batches."
+    Dim alBatchIndices() As Long
+
+    lLength = MinLng2(m_lBatchSize, Me.NumSamples - m_lCursor + 1)
+    If lLength < 1 Then
+        Exit Function
     End If
-    lStart = (lIndex - 1) * m_lBatchSize + 1
-    lLength = MinLng2(m_lBatchSize, m_oDataset.NumSamples - lStart + 1)
-    ReDim alIndices(1 To lLength)
-    CopyMemory alIndices(1), m_alItinerary(lStart), lLength * SIZEOF_LONG
-    Set GetBatch = m_oDataset.Gather(alIndices)
+    ReDim alBatchIndices(1 To lLength)
+    CopyMemory alBatchIndices(1), m_alIndices(m_lCursor), lLength * SIZEOF_LONG
+    m_lCursor = m_lCursor + lLength
+    Set oBatch = m_oDataset.Subset(alBatchIndices)
+    Fetch = True
 End Function
 
-Private Sub InitItinerary()
-    Dim i As Long
-    
-    If m_oDataset.NumSamples < 1 Then
-        Erase m_alItinerary
-    Else
-        ReDim m_alItinerary(1 To m_oDataset.NumSamples)
-        For i = 1 To m_oDataset.NumSamples
-            m_alItinerary(i) = i
-        Next i
-    End If
+Private Sub Clear()
+    Set m_oDataset = Nothing
+    m_lBatchSize = 0
+    Erase m_alIndices
+    m_lCursor = 0
 End Sub

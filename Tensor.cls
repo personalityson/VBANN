@@ -13,6 +13,9 @@ Implements ISerializable
 
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
+Private Const WILDCARD As Long = -1
+Private Const ELLIPSIS As Long = -2
+
 Private Const S_OK As Long = 0
 Private Const SA_OFFSET_fFeatures As Long = 2
 Private Const SA_OFFSET_cbElements As Long = 4
@@ -39,13 +42,18 @@ Public Enum ReductionType
     rdcMean
 End Enum
 
+'Dimensions
 Private m_lNumDimensions As Long
 Private m_alShape() As Long
 Private m_alInnerStride() As Long
 Private m_alOuterStride() As Long
 Private m_lNumElements As Long
+
+'Storage
 Private m_oData As Storage
 Private m_pDescriptor As LongPtr
+
+'View cache
 Private m_oFlatView As Tensor
 
 Public Property Get NumDimensions() As Long
@@ -58,7 +66,7 @@ End Property
 
 Public Property Get Size(ByVal lDimension As Long) As Long
     Const PROCEDURE_NAME As String = "Tensor.Size"
-
+    
     If lDimension < 1 Or lDimension > m_lNumDimensions Then
         Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
     End If
@@ -75,7 +83,7 @@ End Property
 
 Public Sub Resize(ByVal vShape As Variant, _
                   Optional ByVal oData As Storage)
-    Reset
+    Clear
     SetShape vShape
     CalculateStrides
     If oData Is Nothing Then
@@ -99,6 +107,28 @@ Public Function Flatten() As Tensor
         Set m_oFlatView = Me.View(m_lNumElements)
     End If
     Set Flatten = m_oFlatView
+End Function
+
+Public Function Squeeze() As Tensor
+    Dim i As Long
+    Dim lNewNumDimensions As Long
+    Dim alNewShape() As Long
+    
+    If m_lNumDimensions < 2 Then
+        Set Squeeze = Me
+        Exit Function
+    End If
+    ReDim alNewShape(1 To m_lNumDimensions)
+    For i = 1 To m_lNumDimensions
+        If m_alShape(i) <> 1 Or (i = m_lNumDimensions And lNewNumDimensions = 0) Then
+            lNewNumDimensions = lNewNumDimensions + 1
+            alNewShape(lNewNumDimensions) = m_alShape(i)
+        End If
+    Next i
+    If lNewNumDimensions < m_lNumDimensions Then
+        ReDim Preserve alNewShape(1 To lNewNumDimensions)
+    End If
+    Set Squeeze = Me.View(alNewShape)
 End Function
 
 Public Function Gather(ByVal lDimension As Long, _
@@ -182,10 +212,10 @@ Public Sub FromArray(ByRef adblArray() As Double)
     Dim alShape() As Long
     Dim i As Long
     Dim oData As Storage
-
+    
     lNumDimensions = GetRank(adblArray)
     If lNumDimensions < 1 Then
-        Resize Array()
+        Me.Resize Array()
         Exit Sub
     End If
     ReDim alShape(1 To lNumDimensions)
@@ -194,7 +224,7 @@ Public Sub FromArray(ByRef adblArray() As Double)
     Next i
     Set oData = New Storage
     oData.FromArray adblArray
-    Resize alShape, oData
+    Me.Resize alShape, oData
 End Sub
 
 Public Function ToArray() As Double()
@@ -212,18 +242,18 @@ Public Sub FromRange(ByVal oRange As Range, _
     Dim oData As Storage
 
     If oRange Is Nothing Then
-        Resize Array()
+        Me.Resize Array()
         Exit Sub
     End If
     With oRange.Areas(1)
-        lNumRows = .Rows.Count
-        lNumCols = .Columns.Count
+        lNumRows = .Rows.count
+        lNumCols = .Columns.count
         Set oData = New Storage
         oData.FromRange .Cells, bTranspose
         If bTranspose Then
-            Resize Array(lNumCols, lNumRows), oData
+            Me.Resize Array(lNumCols, lNumRows), oData
         Else
-            Resize Array(lNumRows, lNumCols), oData
+            Me.Resize Array(lNumRows, lNumCols), oData
         End If
     End With
 End Sub
@@ -253,17 +283,45 @@ Public Function ShapeEquals(ByVal vShape As Variant) As Boolean
     Dim lOtherNumDimensions As Long
     Dim alOtherShape() As Long
     Dim i As Long
+    Dim lEllipsisIndex As Long
+    Dim lPrefix As Long
+    Dim lSuffix As Long
 
     ParseVariantToLongArray vShape, lOtherNumDimensions, alOtherShape
-    If lOtherNumDimensions <> m_lNumDimensions Then
-        Exit Function
-    End If
     For i = 1 To lOtherNumDimensions
-        '-1 is used as wildcard
-        If alOtherShape(i) >= 0 And alOtherShape(i) <> m_alShape(i) Then
-            Exit Function
+        If alOtherShape(i) = ELLIPSIS Then
+            If lEllipsisIndex > 0 Then
+                Err.Raise 5, "Tensor.ShapeEquals", "Shape can contain at most one ellipsis."
+            End If
+            lEllipsisIndex = i
         End If
     Next i
+    If lEllipsisIndex = 0 Then
+        If m_lNumDimensions <> lOtherNumDimensions Then
+            Exit Function
+        End If
+        For i = 1 To lOtherNumDimensions
+            If alOtherShape(i) <> WILDCARD And alOtherShape(i) <> m_alShape(i) Then
+                Exit Function
+            End If
+        Next i
+    Else
+        lPrefix = lEllipsisIndex - 1
+        lSuffix = lOtherNumDimensions - lEllipsisIndex
+        If lPrefix + lSuffix > m_lNumDimensions Then
+            Exit Function
+        End If
+        For i = 1 To lPrefix
+            If alOtherShape(i) <> WILDCARD And alOtherShape(i) <> m_alShape(i) Then
+                Exit Function
+            End If
+        Next i
+        For i = 1 To lSuffix
+            If alOtherShape(lEllipsisIndex + i) <> WILDCARD And alOtherShape(lEllipsisIndex + i) <> m_alShape(m_lNumDimensions - lSuffix + i) Then
+                Exit Function
+            End If
+        Next i
+    End If
     ShapeEquals = True
 End Function
 
@@ -277,10 +335,10 @@ Public Sub RemoveAlias(ByRef adblAlias() As Double)
 End Sub
 
 Private Sub Class_Terminate()
-    Reset
+    Clear
 End Sub
 
-Private Sub Reset()
+Private Sub Clear()
     DestroyDescriptor
     m_lNumDimensions = 0
     Erase m_alShape
@@ -298,7 +356,7 @@ Private Sub SetShape(ByVal vShape As Variant)
     ParseVariantToLongArray vShape, m_lNumDimensions, m_alShape
     For i = 1 To m_lNumDimensions
         If m_alShape(i) < 0 Then
-            Err.Raise 5, PROCEDURE_NAME, "Dimension size must be greater than or equal to 0."
+            Err.Raise 5, PROCEDURE_NAME, "Dimension size must be >= 0."
         End If
     Next i
 End Sub
@@ -397,7 +455,7 @@ Private Function GatherInternal(ByVal lDimension As Long, _
     Dim lOldSize As Long
     Dim lNewSize As Long
     Dim alNewShape() As Long
-    Dim lInnerStrideBytes As Long
+    Dim lInnerStrideBytes As LongPtr
     Dim lOuterStride As Long
     Dim i As Long
     Dim j As Long
@@ -466,11 +524,11 @@ Private Function SliceInternal(ByVal lDimension As Long, _
     Dim lOldSize As Long
     Dim lNewSize As Long
     Dim alNewShape() As Long
-    Dim lInnerStrideBytes As Long
+    Dim lInnerStrideBytes As LongPtr
     Dim lOuterStride As Long
     Dim i As Long
     Dim oResult As Tensor
-
+    
     lOldSize = m_alShape(lDimension)
     lNewSize = MaxLng2(0, lEnd - lStart + 1)
     alNewShape = m_alShape
@@ -492,7 +550,7 @@ Private Function TileInternal(ByVal lDimension As Long, _
     Dim lOldSize As Long
     Dim lNewSize As Long
     Dim alNewShape() As Long
-    Dim lInnerStrideBytes As Long
+    Dim lInnerStrideBytes As LongPtr
     Dim lOuterStride As Long
     Dim i As Long
     Dim oResult As Tensor
@@ -574,7 +632,7 @@ Private Sub TileMemory(ByVal pTarget As LongPtr, _
         Err.Raise 5, PROCEDURE_NAME, "Target memory address cannot be NULL."
     End If
     If pSourceLength < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Source memory length must be greater than 0."
+        Err.Raise 5, PROCEDURE_NAME, "Source memory length must be > 0."
     End If
     If pSource = NULL_PTR Then
         Err.Raise 5, PROCEDURE_NAME, "Source memory address cannot be NULL."
