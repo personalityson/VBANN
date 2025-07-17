@@ -14,13 +14,8 @@ This project is licensed under the [Creative Commons Zero v1.0 Universal](LICENS
 
 ### Examples
 ```vba
-Const MODEL_NAME As String = "MyModel"
+Option Explicit
 
-Public Sub SetupAndTrain()
-    Dim lBatchSize As Long
-    Dim lNumEpochs As Long
-    Dim oTrainingSet As DataLoader
-    Dim oTestSet As DataLoader
 Public Sub SetupAndTrain()
     Const MODEL_NAME As String = "MySequentialModel"
     Dim lBatchSize As Long
