@@ -29,6 +29,19 @@ Public Property Get Optimizer() As IOptimizer
     Set Optimizer = m_oOptimizer
 End Property
 
+'Public Property Get NumLayers() As Long
+'    NumLayers = m_lNumLayers
+'End Property
+'
+'Public Property Get Layer(ByVal lLayerIndex As Long) As ILayer
+'    Const PROCEDURE_NAME As String = "Sequential.Layer"
+'
+'    If lLayerIndex < 1 Or lLayerIndex > m_lNumLayers Then
+'        Err.Raise 9, PROCEDURE_NAME, "Layer index is out of range."
+'    End If
+'    Set Layer = m_aoLayers(lLayerIndex)
+'End Property
+
 Public Sub Init(ByVal oCriterion As ICriterion, _
                 ByVal oOptimizer As IOptimizer)
     Const PROCEDURE_NAME As String = "Sequential.Init"
@@ -73,7 +86,7 @@ Public Sub Fit(ByVal oTrainingLoader As DataLoader, _
     End If
     For i = 1 To lNumEpochs
         FitOne oTrainingLoader
-        dblLoss = Loss(oTestLoader)
+        dblLoss = Me.Loss(oTestLoader)
         LogToWorksheet "Log", "Time", GetUtcTime(), "Epoch", i, "Total number of epochs", lNumEpochs, "Learning rate", m_oOptimizer.LearningRate, "Loss", dblLoss
     Next i
 End Sub
@@ -101,11 +114,11 @@ Private Sub Backpropagate(ByVal X As Tensor, _
     Dim Y As Tensor
     Dim dLdY As Tensor
     
-    Set Y = Predict(X, True)
+    Set Y = Me.Predict(X, True)
     Set dLdY = m_oCriterion.Gradient(Y, T)
     For i = m_lNumLayers To 1 Step -1
         Set dLdY = m_aoLayers(i).Backward(dLdY)
-        UpdateParameters m_aoLayers(i).LearnableParameters
+        m_oOptimizer.Update m_aoLayers(i).LearnableParameters
     Next i
 End Sub
 
@@ -123,12 +136,12 @@ Public Function Loss(ByVal oTestLoader As DataLoader) As Double
     End If
     With oTestLoader
         .Reset
-        Do While .Fetch(oBatch)
-            Set X = oBatch.Item(1)
-            Set T = oBatch.Item(2)
+        Do While .NextBatch(oBatch)
+            Set X = oBatch.Tensor(1)
+            Set T = oBatch.Tensor(2)
             Set Y = Predict(X)
             dblLoss = dblLoss + m_oCriterion.Loss(Y, T).Sum
-            lNumSamples = lNumSamples + oBatch.NumSamples
+            lNumSamples = lNumSamples + X.Size(X.NumDimensions)
         Loop
     End With
     If lNumSamples > 0 Then
@@ -143,30 +156,12 @@ Private Sub FitOne(ByVal oTrainingLoader As DataLoader)
 
     With oTrainingLoader
         .Shuffle
-        Do While .Fetch(oBatch)
-            Set X = oBatch.Item(1)
-            Set T = oBatch.Item(2)
+        Do While .NextBatch(oBatch)
+            Set X = oBatch.Tensor(1)
+            Set T = oBatch.Tensor(2)
             Backpropagate X, T
         Loop
     End With
-End Sub
-
-Private Sub UpdateParameters(ByVal vLearnableParameters As Variant)
-    Const PROCEDURE_NAME As String = "Sequential.UpdateParameters"
-    Dim W As Variant
-
-    For Each W In vLearnableParameters
-        If Not IsObject(W) Then
-            Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
-        End If
-        If W Is Nothing Then
-            Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
-        End If
-        If Not TypeOf W Is Parameter Then
-            Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
-        End If
-        m_oOptimizer.Update W
-    Next W
 End Sub
 
 Private Sub Clear()

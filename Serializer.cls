@@ -283,11 +283,11 @@ End Function
 
 Private Sub ReadArray(ByRef vArray As Variant)
     Const PROCEDURE_NAME As String = "Serializer.ReadArray"
+    Dim i As Long
+    Dim j As Long
     Dim lNumDimensions As Long
     Dim lNumRows As Long
     Dim lNumCols As Long
-    Dim i As Long
-    Dim j As Long
     
     lNumDimensions = ReadLong()
     Select Case lNumDimensions

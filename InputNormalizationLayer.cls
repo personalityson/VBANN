@@ -108,10 +108,10 @@ Private Sub Adapt(ByVal oTrainingLoader As DataLoader)
 
     With oTrainingLoader
         .Reset
-        Do While .Fetch(oBatch)
-            Set X = oBatch.Item(1)
+        Do While .NextBatch(oBatch)
+            Set X = oBatch.Tensor(1)
             lBatchDimension = X.NumDimensions
-            lBatchSize = oBatch.NumSamples
+            lBatchSize = X.Size(lBatchDimension)
             Set oBatchMean = X.Reduce(lBatchDimension, rdcMean)
             Set oBatchM2 = VecPow2(VecSub(X, oBatchMean.Tile(lBatchDimension, lBatchSize))).Reduce(lBatchDimension, rdcSum)
             If lNumSamples = 0 Then

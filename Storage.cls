@@ -16,7 +16,7 @@ Implements ISerializable
 Private Const DATA_TYPE As Long = vbDouble
 Private Const ELEMENT_SIZE As Long = SIZEOF_DOUBLE
 
-#If Win64 Then
+#If WIN64 Then
     Private Const SA_OFFSET_pvData As Long = 16
 #Else
     Private Const SA_OFFSET_pvData As Long = 12
@@ -84,10 +84,10 @@ Public Function Clone() As Storage
 End Function
 
 Public Sub FromArray(ByRef adblArray() As Double)
+    Dim i As Long
     Dim lNumDimensions As Long
     Dim lNumRows As Long
     Dim lNumCols As Long
-    Dim i As Long
     Dim pDescriptor As LongPtr
     Dim pData As LongPtr
     
@@ -116,11 +116,11 @@ End Function
 
 Public Sub FromRange(ByVal oRange As Range, _
                      Optional bTranspose As Boolean)
-    Dim lNumRows As Long
-    Dim lNumCols As Long
     Dim i As Long
     Dim j As Long
-    
+    Dim lNumRows As Long
+    Dim lNumCols As Long
+
     Clear
     If oRange Is Nothing Then
         Exit Sub

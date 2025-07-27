@@ -71,19 +71,38 @@ Public Sub Init(Optional ByVal dblLearningRate As Double = 0.001, _
     m_dblWeightDecay = dblWeightDecay
 End Sub
 
-Public Sub Update(ByVal W As Parameter)
+Public Sub Update(ByVal vParameters As Variant)
     Const PROCEDURE_NAME As String = "Adam.Update"
+    Dim W As Variant
     
-    If W Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
-    End If
-    ApplyUpdates W
+    Select Case GetRank(vParameters)
+        Case -1
+            vParameters = Array(vParameters)
+        Case 0
+            Exit Sub
+        Case 1
+            'Continue
+        Case Else
+            Err.Raise 5, PROCEDURE_NAME, "Expected a single parameter, an uninitialized array, or a one-dimensional array of parameters."
+    End Select
+    For Each W In vParameters
+        If Not IsObject(W) Then
+            Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
+        End If
+        If W Is Nothing Then
+            Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
+        End If
+        If Not TypeOf W Is Parameter Then
+            Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
+        End If
+        ApplyGradients W
+    Next W
 End Sub
 
 'm = beta1 * m + (1 - beta1) * (dW / NumUpdates)
 'v = beta2 * v + (1 - beta2) * (dW / NumUpdates)^2
 'W = W - alpha * (m / (Sqr(v) + epsilon) + wd * W)
-Private Sub ApplyUpdates(ByVal W As Parameter)
+Private Sub ApplyGradients(ByVal W As Parameter)
     Dim lStep As Long
     Dim dblAlpha As Double
     Dim dblWeightDecay As Double
@@ -174,8 +193,8 @@ End Sub
 
 Private Sub Load(ByVal oWorksheet As Serializer)
     Const PROCEDURE_NAME As String = "Adam.Load"
-    Dim lNumStates As Long
     Dim i As Long
+    Dim lNumStates As Long
     Dim W As Parameter
     Dim lStep As Long
     Dim m As Tensor
@@ -210,9 +229,9 @@ End Sub
     Private Property Let IOptimizer_LearningRate(ByVal dblLearningRate As Double)
         Me.LearningRate = dblLearningRate
     End Property
-    
-    Private Sub IOptimizer_Update(ByVal W As Object)
-        Me.Update W
+
+    Private Sub IOptimizer_Update(ByVal vParameters As Variant)
+        Me.Update vParameters
     End Sub
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Object)

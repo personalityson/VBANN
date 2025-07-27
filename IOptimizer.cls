@@ -15,27 +15,24 @@ Option Explicit
     Public Property Get LearningRate() As Double
         '
     End Property
-    
+
     Public Property Let LearningRate(ByVal dblLearningRate As Double)
         '
     End Property
     
-    Public Sub Update(ByVal W As Object)
+    Public Sub Update(ByVal vParameters As Variant)
         '
     End Sub
 #Else
     Public Property Get LearningRate() As Double
         '
     End Property
-    
+
     Public Property Let LearningRate(ByVal dblLearningRate As Double)
         '
     End Property
-    
+
     Public Sub Update(ByVal W As Parameter)
         '
     End Sub
 #End If
-
-
-

@@ -29,7 +29,7 @@ Public Const SIZEOF_LONG As Long = 4
 Public Const SIZEOF_SINGLE As Long = 4
 Public Const SIZEOF_DOUBLE As Long = 8
 
-#If Win64 Then
+#If WIN64 Then
     Public Const NULL_PTR As LongPtr = 0^
     Public Const SIZEOF_LONGPTR As Long = 8
     Public Const SIZEOF_VARIANT As Long = 24
@@ -257,9 +257,9 @@ Public Sub ParseVariantToLongArray(ByVal vValueOrArray As Variant, _
                                    ByRef alArray() As Long)
     Const PROCEDURE_NAME As String = "Tensor.ParseVariantToLongArray"
     Dim iRank As Integer
-    Dim lLowerBound As Long
-    Dim lUpperBound As Long
     Dim i As Long
+    Dim lLBound As Long
+    Dim lUBound As Long
     
     iRank = GetRank(vValueOrArray)
     Select Case iRank
@@ -271,16 +271,16 @@ Public Sub ParseVariantToLongArray(ByVal vValueOrArray As Variant, _
             lNumElements = 0
             Erase alArray
         Case 1
-            lLowerBound = LBound(vValueOrArray)
-            lUpperBound = UBound(vValueOrArray)
-            If lLowerBound > lUpperBound Then
+            lLBound = LBound(vValueOrArray)
+            lUBound = UBound(vValueOrArray)
+            If lLBound > lUBound Then
                 lNumElements = 0
                 Erase alArray
             Else
-                lNumElements = lUpperBound - lLowerBound + 1
+                lNumElements = lUBound - lLBound + 1
                 ReDim alArray(1 To lNumElements)
                 For i = 1 To lNumElements
-                    alArray(i) = CLng(vValueOrArray(lLowerBound + i - 1))
+                    alArray(i) = CLng(vValueOrArray(lLBound + i - 1))
                 Next i
             End If
         Case Else
@@ -758,13 +758,13 @@ End Sub
 
 Public Sub LogToWorksheet(ByVal sName As String, _
                           ParamArray avArgs() As Variant)
-    Dim oLog As Worksheet
-    Dim bIsWorksheetNew As Boolean
-    Dim lLastRow As Long
     Dim i As Long
+    Dim lLastRow As Long
     Dim vHeader As Variant
     Dim vHeaderCol As Variant
     Dim vValue As Variant
+    Dim bIsWorksheetNew As Boolean
+    Dim oLog As Worksheet
     
     Set oLog = CreateWorksheet(ThisWorkbook, sName, False, bIsWorksheetNew)
     If bIsWorksheetNew Then

@@ -57,25 +57,37 @@ Public Sub Init(Optional ByVal dblLearningRate As Double = 0.001, _
     m_dblWeightDecay = dblWeightDecay
 End Sub
 
-Public Sub Update(ByVal W As Parameter)
-    Const PROCEDURE_NAME As String = "SGDM.Update"
+Public Sub Update(ByVal vParameters As Variant)
+    Const PROCEDURE_NAME As String = "Adam.Update"
+    Dim W As Variant
     
-    If W Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
-    End If
-    ApplyUpdates W
-End Sub
-
-Private Sub Clear()
-    m_dblLearningRate = 0
-    m_dblMomentum = 0
-    m_dblWeightDecay = 0
-    Set m_oStates = CreateObject("Scripting.Dictionary")
+    Select Case GetRank(vParameters)
+        Case -1
+            vParameters = Array(vParameters)
+        Case 0
+            Exit Sub
+        Case 1
+            'Continue
+        Case Else
+            Err.Raise 5, PROCEDURE_NAME, "Expected a single parameter, an uninitialized array, or a one-dimensional array of parameters."
+    End Select
+    For Each W In vParameters
+        If Not IsObject(W) Then
+            Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
+        End If
+        If W Is Nothing Then
+            Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
+        End If
+        If Not TypeOf W Is Parameter Then
+            Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
+        End If
+        ApplyGradients W
+    Next W
 End Sub
 
 'v = momentum * v + (1 - momentum) * (dW / NumUpdates)
 'W = W - lr * (v + wd * W)
-Private Sub ApplyUpdates(ByVal W As Parameter)
+Private Sub ApplyGradients(ByVal W As Parameter)
     Dim dblLearningRate As Double
     Dim dblWeightDecay As Double
     Dim v As Tensor
@@ -114,6 +126,13 @@ Private Sub PutStates(ByVal W As Parameter, _
             Set .Item(KEY_VELOCITY) = v
         End With
     End With
+End Sub
+
+Private Sub Clear()
+    m_dblLearningRate = 0
+    m_dblMomentum = 0
+    m_dblWeightDecay = 0
+    Set m_oStates = CreateObject("Scripting.Dictionary")
 End Sub
 
 Private Sub Save(ByVal oWorksheet As Serializer)
@@ -170,8 +189,8 @@ End Sub
         Me.LearningRate = dblLearningRate
     End Property
     
-    Private Sub IOptimizer_Update(ByVal W As Object)
-        Me.Update W
+    Private Sub IOptimizer_Update(ByVal vParameters As Variant)
+        Me.Update vParameters
     End Sub
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Object)

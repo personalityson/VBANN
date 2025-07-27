@@ -66,24 +66,30 @@ Public Sub Init(ByVal oCriterion As ICriterion, _
     m_dblMinChildWeight = dblMinChildWeight
 End Sub
 
-Public Sub Fit(ByVal oTrainingSet As TensorDataset, _
+Public Sub Fit(ByVal X As Tensor, _
+               ByVal T As Tensor, _
                ByVal lNumTrees As Long)
     Const PROCEDURE_NAME As String = "XGBoost.Fit"
     Dim i As Long
-    Dim X As Tensor
     Dim Y As Tensor
-    Dim T As Tensor
 
-    If oTrainingSet Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid TensorDataset object is required."
+    If X Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    Set X = oTrainingSet.Item(1)
-    Set T = oTrainingSet.Item(2)
+    If T Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
     If X.NumDimensions <> 2 Then
         Err.Raise 5, PROCEDURE_NAME, "Input tensor must have 2 dimensions."
     End If
     If T.NumDimensions <> 1 Then
         Err.Raise 5, PROCEDURE_NAME, "Target tensor must have 1 dimension."
+    End If
+    If X.Size(2) <> T.Size(1) Then
+        Err.Raise 5, PROCEDURE_NAME, "Number of samples in input and target tensors does not match."
+    End If
+    If lNumTrees < 1 Then
+        Err.Raise 5, PROCEDURE_NAME, "Number of trees must be >= 1."
     End If
     m_lNumFeatures = X.Size(1)
     m_dblBaseValue = T.Mean
@@ -97,24 +103,30 @@ Public Sub Fit(ByVal oTrainingSet As TensorDataset, _
     Next i
 End Sub
 
-Public Function Loss(ByVal oTestSet As TensorDataset) As Double
+Public Function Loss(ByVal X As Tensor, _
+                     ByVal T As Tensor) As Double
     Const PROCEDURE_NAME As String = "XGBoost.Loss"
-    Dim X As Tensor
     Dim Y As Tensor
-    Dim T As Tensor
-
-    If oTestSet Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid TensorDataset object is required."
+    
+    If X Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    Set X = oTestSet.Item(1)
-    Set T = oTestSet.Item(2)
+    If T Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
     If X.NumDimensions <> 2 Then
         Err.Raise 5, PROCEDURE_NAME, "Input tensor must have 2 dimensions."
     End If
     If T.NumDimensions <> 1 Then
         Err.Raise 5, PROCEDURE_NAME, "Target tensor must have 1 dimension."
     End If
-    Set Y = Predict(X)
+    If X.Size(1) <> m_lNumFeatures Then
+        Err.Raise 5, PROCEDURE_NAME, "Input tensor is not compatible with the trained model."
+    End If
+    If X.Size(2) <> T.Size(1) Then
+        Err.Raise 5, PROCEDURE_NAME, "Number of samples in input and target tensors does not match."
+    End If
+    Set Y = Me.Predict(X)
     Loss = m_oCriterion.Loss(Y, T).Mean
 End Function
 

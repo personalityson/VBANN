@@ -18,10 +18,11 @@ Public Function CCELoss() As CCELoss
     Set CCELoss = New CCELoss
 End Function
 
-Public Function DataLoader(ByVal oDataset As TensorDataset, _
-                           ByVal lBatchSize As Long) As DataLoader
+Public Function DataLoader(ByVal oDataset As IDataset, _
+                           ByVal lBatchSize As Long, _
+                           Optional ByVal bDropRemainder As Boolean) As DataLoader
     Set DataLoader = New DataLoader
-    DataLoader.Init oDataset, lBatchSize
+    DataLoader.Init oDataset, lBatchSize, bDropRemainder
 End Function
 
 Public Function DropoutLayer(Optional ByVal dblDropoutRate As Double = 0.5) As DropoutLayer
@@ -81,14 +82,19 @@ Public Function SoftmaxLayer() As SoftmaxLayer
     Set SoftmaxLayer = New SoftmaxLayer
 End Function
 
+Public Function SubsetDataset(ByVal oDataset As IDataset, _
+                              ByVal vIndices As Variant) As SubsetDataset
+    Set SubsetDataset = New SubsetDataset
+    SubsetDataset.Init oDataset, vIndices
+End Function
+
 Public Function TanhLayer() As TanhLayer
     Set TanhLayer = New TanhLayer
 End Function
 
-Public Function TensorDataset(ByVal vTensors As Variant, _
-                              Optional ByVal vSampleIndices As Variant) As TensorDataset
+Public Function TensorDataset(ByVal vTensors As Variant) As TensorDataset
     Set TensorDataset = New TensorDataset
-    TensorDataset.Init vTensors, vSampleIndices
+    TensorDataset.Init vTensors
 End Function
 
 Public Function XGBoost(ByVal oCriterion As ICriterion, _
@@ -117,13 +123,13 @@ Public Function Unserialize(ByVal sName As String) As ISerializable
 End Function
 
 Public Function ImportDatasetFromWorksheet(ByVal sName As String, _
-                                           ByVal vGroupWidths As Variant, _
-                                           Optional ByVal bSqueeze As Boolean, _
-                                           Optional ByVal bHasHeaders As Boolean) As TensorDataset
+                                           ByVal vSegmentSizes As Variant, _
+                                           Optional ByVal bHasHeaders As Boolean, _
+                                           Optional ByVal bSqueeze As Boolean) As TensorDataset
     Const PROCEDURE_NAME As String = "FactoryFunctions.ImportDatasetFromWorksheet"
     Dim i As Long
-    Dim lNumGroups As Long
-    Dim alGroupWidths() As Long
+    Dim lNumSegments As Long
+    Dim alSegmentSizes() As Long
     Dim lFirstRow As Long
     Dim lFirstCol As Long
     Dim lNumSamples As Long
@@ -135,29 +141,29 @@ Public Function ImportDatasetFromWorksheet(ByVal sName As String, _
     If Not WorksheetExists(ThisWorkbook, sName) Then
         Err.Raise 9, PROCEDURE_NAME, "Specified worksheet does not exist."
     End If
-    ParseVariantToLongArray vGroupWidths, lNumGroups, alGroupWidths
-    For i = 1 To lNumGroups
-        If alGroupWidths(i) < 1 Then
-            Err.Raise 5, PROCEDURE_NAME, "Group width must be >= 1."
+    ParseVariantToLongArray vSegmentSizes, lNumSegments, alSegmentSizes
+    For i = 1 To lNumSegments
+        If alSegmentSizes(i) < 1 Then
+            Err.Raise 5, PROCEDURE_NAME, "Segment size must be >= 1."
         End If
     Next i
     Set oSource = ThisWorkbook.Sheets(sName)
     lFirstRow = GetFirstRow(oSource) + IIf(bHasHeaders, 1, 0)
     lFirstCol = GetFirstColumn(oSource)
     lNumSamples = GetLastRow(oSource) - lFirstRow + 1
-    ReDim alTensors(1 To lNumGroups)
+    ReDim alTensors(1 To lNumSegments)
     Set oResult = New TensorDataset
-    For i = 1 To lNumGroups
+    For i = 1 To lNumSegments
         If lNumSamples > 0 Then
-            Set X = TensorFromRange(oSource.Cells(lFirstRow, lFirstCol).Resize(lNumSamples, alGroupWidths(i)), True)
+            Set X = TensorFromRange(oSource.Cells(lFirstRow, lFirstCol).Resize(lNumSamples, alSegmentSizes(i)), True)
         Else
-            Set X = Zeros(Array(alGroupWidths(i), 0))
+            Set X = Zeros(Array(alSegmentSizes(i), 0))
         End If
         If bSqueeze Then
             Set X = X.Squeeze
         End If
         Set alTensors(i) = X
-        lFirstCol = lFirstCol + alGroupWidths(i)
+        lFirstCol = lFirstCol + alSegmentSizes(i)
     Next i
     oResult.Init alTensors
     Set ImportDatasetFromWorksheet = oResult
@@ -165,8 +171,8 @@ End Function
 
 Public Sub RandomSplit(ByVal oDataset As IDataset, _
                        ByVal dblAt As Double, _
-                       ByRef A As IDataset, _
-                       ByRef B As IDataset)
+                       ByRef A As SubsetDataset, _
+                       ByRef B As SubsetDataset)
     Const PROCEDURE_NAME As String = "FactoryFunctions.RandomSplit"
     Dim lSizeA As Long
     Dim lSizeB As Long
@@ -175,7 +181,7 @@ Public Sub RandomSplit(ByVal oDataset As IDataset, _
     Dim alIndicesB() As Long
 
     If oDataset Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid IDataset object is required."
+        Err.Raise 5, PROCEDURE_NAME, "Valid TensorDataset object is required."
     End If
     If dblAt < 0 Or dblAt > 1 Then
         Err.Raise 5, PROCEDURE_NAME, "Fraction must be >= 0 and <= 1."

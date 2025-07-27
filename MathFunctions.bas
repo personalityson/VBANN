@@ -1027,12 +1027,12 @@ Private Sub MatMulNaive_I(ByVal C As Tensor, _
                           ByVal B As Tensor, _
                           ByVal bTransposeA As Boolean, _
                           ByVal bTransposeB As Boolean)
-    Dim m As Long
-    Dim n As Long
-    Dim k As Long
     Dim i As Long
     Dim j As Long
     Dim p As Long
+    Dim m As Long
+    Dim n As Long
+    Dim k As Long
     Dim dblSum As Double
     Dim A_() As Double
     Dim B_() As Double

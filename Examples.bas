@@ -1,16 +1,16 @@
 Attribute VB_Name = "Examples"
 Option Explicit
 
-Public Sub SetupAndTrain()
+Public Sub SetupAndTrainSequential()
     Const MODEL_NAME As String = "MySequentialModel"
     Dim lBatchSize As Long
     Dim lNumEpochs As Long
     Dim lInputSize As Long
     Dim lLabelSize As Long
     Dim oFullSet As TensorDataset
-    Dim oTrainingSet As TensorDataset
+    Dim oTrainingSet As SubsetDataset
     Dim oTrainingLoader As DataLoader
-    Dim oTestSet As TensorDataset
+    Dim oTestSet As SubsetDataset
     Dim oTestLoader As DataLoader
     Dim oModel As Sequential
 
@@ -20,7 +20,7 @@ Public Sub SetupAndTrain()
     lNumEpochs = 40
 
     'Prepare training data
-    Set oFullSet = ImportDatasetFromWorksheet("Concrete", Array(lInputSize, lLabelSize), False, True)
+    Set oFullSet = ImportDatasetFromWorksheet("Concrete", Array(lInputSize, lLabelSize), True, False)
     RandomSplit oFullSet, 0.8, oTrainingSet, oTestSet
     Set oTrainingLoader = DataLoader(oTrainingSet, lBatchSize)
     Set oTestLoader = DataLoader(oTestSet, lBatchSize)
@@ -42,10 +42,10 @@ Public Sub SetupAndTrain()
 
     'Save to worksheet
     Serialize MODEL_NAME, oModel
-    
+
     'Load from worksheet
     Set oModel = Unserialize(MODEL_NAME)
-    
+
     'Compute test loss again with unserialized model
     MsgBox oModel.Loss(oTestLoader)
 
@@ -59,9 +59,11 @@ Public Sub SetupAndTrainXGBoost()
     Dim lNumRounds As Long
     Dim lMaxDepth As Long
     Dim dblLearningRate As Double
+    Dim X As Tensor
+    Dim T As Tensor
     Dim oFullSet As TensorDataset
-    Dim oTrainingSet As TensorDataset
-    Dim oTestSet As TensorDataset
+    Dim oTrainingSet As SubsetDataset
+    Dim oTestSet As SubsetDataset
     Dim oModel As XGBoost
 
     lInputSize = 8
@@ -73,22 +75,26 @@ Public Sub SetupAndTrainXGBoost()
     'Prepare training data
     Set oFullSet = ImportDatasetFromWorksheet("Concrete", Array(lInputSize, lLabelSize), True, True)
     RandomSplit oFullSet, 0.8, oTrainingSet, oTestSet
+    Set X = oTrainingSet.Cache.Tensor(1)
+    Set T = oTrainingSet.Cache.Tensor(2)
 
     'Setup and train
     Set oModel = XGBoost(L2Loss(), dblLearningRate, lMaxDepth)
-    oModel.Fit oTrainingSet, lNumRounds
-    
+    oModel.Fit X, T, lNumRounds
+
     'Compute test loss
-    MsgBox oModel.Loss(oTestSet)
+    Set X = oTestSet.Cache.Tensor(1)
+    Set T = oTestSet.Cache.Tensor(2)
+    MsgBox oModel.Loss(X, T)
 
     'Save to worksheet
     Serialize MODEL_NAME, oModel
-    
+
     'Load from worksheet
     Set oModel = Unserialize(MODEL_NAME)
-    
+
     'Compute test loss again with unserialized model
-    MsgBox oModel.Loss(oTestSet)
+    MsgBox oModel.Loss(X, T)
 
     Beep
 End Sub
