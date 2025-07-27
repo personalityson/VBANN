@@ -181,7 +181,7 @@ Public Sub RandomSplit(ByVal oDataset As IDataset, _
     Dim alIndicesB() As Long
 
     If oDataset Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid TensorDataset object is required."
+        Err.Raise 5, PROCEDURE_NAME, "Valid IDataset object is required."
     End If
     If dblAt < 0 Or dblAt > 1 Then
         Err.Raise 5, PROCEDURE_NAME, "Fraction must be >= 0 and <= 1."
