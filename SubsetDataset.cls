@@ -20,6 +20,9 @@ Private m_oDataset As IDataset
 Private m_lNumSamples As Long
 Private m_alIndices() As Long
 
+'Gather cache
+Private m_oGatherCache As TensorDataset
+
 Public Property Get NumSamples() As Long
     NumSamples = m_lNumSamples
 End Property
@@ -47,7 +50,10 @@ Public Sub Init(ByVal oDataset As IDataset, _
 End Sub
 
 Public Function Cache() As TensorDataset
-    Set Cache = m_oDataset.Gather(m_alIndices)
+    If m_oGatherCache Is Nothing Then
+        Set m_oGatherCache = m_oDataset.Gather(m_alIndices)
+    End If
+    Set Cache = m_oGatherCache
 End Function
 
 Public Function Gather(ByVal vIndices As Variant) As TensorDataset
