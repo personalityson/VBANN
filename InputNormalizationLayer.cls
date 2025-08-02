@@ -114,7 +114,7 @@ Private Sub Adapt(ByVal oTrainingLoader As DataLoader)
             Set oBatchM2 = VecPow2(VecSub(X, oBatchMean.Tile(lBatchDimension, lBatchSize))).Reduce(lBatchDimension, rdcSum)
             If lNumSamples = 0 Then
                 m_alInputShape = X.Shape
-                m_alInputShape(X.NumDimensions) = -1
+                m_alInputShape(lBatchDimension) = -1
                 Set oMean = oBatchMean
                 Set oM2 = oBatchM2
                 lNumSamples = lBatchSize
@@ -134,51 +134,6 @@ Private Sub Adapt(ByVal oTrainingLoader As DataLoader)
         Set m_oVariance = VecDivC(oM2, lNumSamples)
     End If
 End Sub
-
-'Private Sub Adapt(ByVal oTrainingLoader As DataLoader)
-'    Dim i As Long
-'    Dim lBatchDimension As Long
-'    Dim lBatchSize As Long
-'    Dim lNumSamples As Long
-'    Dim X As Tensor
-'    Dim oMean As Tensor
-'    Dim oM2 As Tensor
-'    Dim oDelta As Tensor
-'    Dim oBatchMean As Tensor
-'    Dim oBatchM2 As Tensor
-'    Dim oBatch As TensorDataset
-'
-'    With oTrainingLoader
-'        .Reset
-'        For i = 1 To .NumBatches
-'            Set oBatch = .Batch(i)
-'            Set X = oBatch.Tensor(1)
-'            lBatchDimension = X.NumDimensions
-'            lBatchSize = X.Size(lBatchDimension)
-'            Set oBatchMean = X.Reduce(lBatchDimension, rdcMean)
-'            Set oBatchM2 = VecPow2(VecSub(X, oBatchMean.Tile(lBatchDimension, lBatchSize))).Reduce(lBatchDimension, rdcSum)
-'            If lNumSamples = 0 Then
-'                m_alInputShape = X.Shape
-'                m_alInputShape(X.NumDimensions) = -1
-'                Set oMean = oBatchMean
-'                Set oM2 = oBatchM2
-'                lNumSamples = lBatchSize
-'            Else
-'                Set oDelta = VecSub(oBatchMean, oMean)
-'                VecLinComb_I 1, oMean, lBatchSize / (lNumSamples + lBatchSize), oDelta
-'                VecLinComb_I 1, oM2, 1, oBatchM2
-'                VecLinComb_I 1, oM2, lNumSamples * lBatchSize / (lNumSamples + lBatchSize), VecPow2(oDelta)
-'                lNumSamples = lNumSamples + lBatchSize
-'            End If
-'            Application.StatusBar = "Adapt progress: " & Format(i / .NumBatches, "0.0%")
-'            DoEvents
-'        Next i
-'    End With
-'    If lNumSamples > 0 Then
-'        Set m_oMean = oMean
-'        Set m_oVariance = VecDivC(oM2, lNumSamples)
-'    End If
-'End Sub
 
 Private Sub Clear()
     Erase m_alInputShape
