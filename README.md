@@ -33,7 +33,7 @@ Public Sub SetupAndTrainSequential()
     lNumEpochs = 40
 
     'Prepare training data
-    Set oFullSet = ImportDatasetFromWorksheet("Concrete", Array(lInputSize, lLabelSize), True, False)
+    Set oFullSet = ImportDatasetFromWorksheet(ThisWorkbook, "Concrete", Array(lInputSize, lLabelSize), True, False)
     RandomSplit oFullSet, 0.8, oTrainingSet, oTestSet
     Set oTrainingLoader = DataLoader(oTrainingSet, lBatchSize)
     Set oTestLoader = DataLoader(oTestSet, lBatchSize)
@@ -41,13 +41,13 @@ Public Sub SetupAndTrainSequential()
     'Setup and train
     Set oModel = Sequential(L2Loss(), SGDM())
     oModel.Add InputNormalizationLayer(oTrainingLoader)
-    oModel.Add FullyConnectedLayer(lInputSize, 200)
+    oModel.Add FullyConnectedLayer(lInputSize, 32)
     oModel.Add LeakyReLULayer()
-    oModel.Add FullyConnectedLayer(200, 100)
+    oModel.Add FullyConnectedLayer(32, 16)
     oModel.Add LeakyReLULayer()
-    oModel.Add FullyConnectedLayer(100, 50)
+    oModel.Add FullyConnectedLayer(16, 8)
     oModel.Add LeakyReLULayer()
-    oModel.Add FullyConnectedLayer(50, lLabelSize)
+    oModel.Add FullyConnectedLayer(8, lLabelSize)
     oModel.Fit oTrainingLoader, oTestLoader, lNumEpochs
 
     'Compute test loss
@@ -86,7 +86,7 @@ Public Sub SetupAndTrainXGBoost()
     lNumRounds = 100
 
     'Prepare training data
-    Set oFullSet = ImportDatasetFromWorksheet("Concrete", Array(lInputSize, lLabelSize), True, True)
+    Set oFullSet = ImportDatasetFromWorksheet(ThisWorkbook, "Concrete", Array(lInputSize, lLabelSize), True, True)
     RandomSplit oFullSet, 0.8, oTrainingSet, oTestSet
     Set X = oTrainingSet.Cache.Tensor(1)
     Set T = oTrainingSet.Cache.Tensor(2)
