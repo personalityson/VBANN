@@ -13,8 +13,6 @@ Implements ISerializable
 
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
-Private Const EPSILON As Double = 0.00000001
-
 'Dependencies
 Private m_oCriterion As ICriterion
 
@@ -98,7 +96,7 @@ Public Sub Fit(ByVal X As Tensor, _
     Set Y = Full(T.Shape, m_dblBaseValue)
     For i = 1 To m_lNumTrees
         Set m_aoTrees(i) = FitOne(X, Y, T)
-        Application.StatusBar = "Fit progress: " & Round(100 * (i / m_lNumTrees), 1) & "%"
+        Application.StatusBar = "Fit progress: " & Format(i / lNumTrees, "0.0%")
         DoEvents
     Next i
 End Sub
@@ -151,7 +149,7 @@ Public Function Predict(ByVal X As Tensor) As Tensor
     For i = 1 To m_lNumTrees
         Set Y_hat = PredictOne(m_aoTrees(i), X)
         VecLinComb_I 1, Y, m_dblLearningRate, Y_hat
-        Application.StatusBar = "Predict progress: " & Round(100 * (i / m_lNumTrees), 1) & "%"
+        Application.StatusBar = "Predict progress: " & Format(i / m_lNumTrees, "0.0%")
         DoEvents
     Next i
     Set Predict = Y
@@ -203,7 +201,7 @@ Private Function BuildNode(ByRef X_() As Double, _
         dblSumGT = dblSumGT + G_(alSampleIndices(j))
         dblSumHT = dblSumHT + H_(alSampleIndices(j))
     Next j
-    If Abs(dblSumHT + m_dblLambda) < EPSILON Then
+    If Abs(dblSumHT + m_dblLambda) < DOUBLE_EPSILON Then
         dblWeight = 0
     Else
         dblWeight = -dblSumGT / (dblSumHT + m_dblLambda)

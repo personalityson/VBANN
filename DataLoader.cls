@@ -20,16 +20,12 @@ Private m_bDropRemainder As Boolean
 Private m_alIndices() As Long
 Private m_lCursor As Long
 
-Public Property Get BatchSize() As Long
-    BatchSize = m_lBatchSize
+Public Property Get NumSamples() As Long
+    NumSamples = m_oDataset.NumSamples
 End Property
 
-Public Property Get NumSamples() As Long
-    If m_oDataset Is Nothing Then
-        NumSamples = 0
-    Else
-        NumSamples = m_oDataset.NumSamples
-    End If
+Public Property Get BatchSize() As Long
+    BatchSize = m_lBatchSize
 End Property
 
 Public Sub Init(ByVal oDataset As IDataset, _
@@ -51,12 +47,12 @@ Public Sub Init(ByVal oDataset As IDataset, _
 End Sub
 
 Public Sub Reset()
-    m_alIndices = GetIdentityPermutationArray(Me.NumSamples)
+    m_alIndices = GetIdentityPermutationArray(m_oDataset.NumSamples)
     m_lCursor = 1
 End Sub
 
 Public Sub Shuffle()
-    m_alIndices = GetRandomPermutationArray(Me.NumSamples)
+    m_alIndices = GetRandomPermutationArray(m_oDataset.NumSamples)
     m_lCursor = 1
 End Sub
 
@@ -64,7 +60,7 @@ Public Function NextBatch(ByRef oBatch As TensorDataset) As Boolean
     Dim lLength As Long
     Dim alBatchIndices() As Long
 
-    lLength = MinLng2(m_lBatchSize, Me.NumSamples - m_lCursor + 1)
+    lLength = MinLng2(m_lBatchSize, m_oDataset.NumSamples - m_lCursor + 1)
     If lLength < IIf(m_bDropRemainder, m_lBatchSize, 1) Then
         Exit Function
     End If

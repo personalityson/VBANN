@@ -23,6 +23,7 @@ Public Const DOUBLE_MIN_ABS As Double = 4.94065645841247E-324
 Public Const DOUBLE_MAX_ABS As Double = 1.79769313486231E+308
 Public Const DOUBLE_MIN_LOG As Double = -744.440071921381
 Public Const DOUBLE_MAX_LOG As Double = 709.782712893384
+Public Const DOUBLE_EPSILON As Double = 2.22044604925031E-16
 
 Public Const SIZEOF_INTEGER As Long = 2
 Public Const SIZEOF_LONG As Long = 4
@@ -389,15 +390,15 @@ Public Function Complement(ByVal oRangeA As Range, _
             End If
             lStartRowB = oAreaB.Row
             lStartColB = oAreaB.Column
-            lEndRowB = lStartRowB + oAreaB.Rows.count - 1
-            lEndColB = lStartColB + oAreaB.Columns.count - 1
+            lEndRowB = lStartRowB + oAreaB.Rows.Count - 1
+            lEndColB = lStartColB + oAreaB.Columns.Count - 1
             Set oResultCopy = oResult
             Set oResult = Nothing
             For Each oAreaA In oResultCopy.Areas
                 lStartRowA = oAreaA.Row
                 lStartColA = oAreaA.Column
-                lEndRowA = lStartRowA + oAreaA.Rows.count - 1
-                lEndColA = lStartColA + oAreaA.Columns.count - 1
+                lEndRowA = lStartRowA + oAreaA.Rows.Count - 1
+                lEndColA = lStartColA + oAreaA.Columns.Count - 1
                 lIntersectStartRow = MaxLng2(lStartRowA, lStartRowB)
                 lIntersectStartCol = MaxLng2(lStartColA, lStartColB)
                 lIntersectEndRow = MinLng2(lEndRowA, lEndRowB)
@@ -644,34 +645,43 @@ Public Function SanitizeWorksheetName(ByVal sName As String) As String
     SanitizeWorksheetName = Left$(sName, MAX_LENGTH)
 End Function
 
-Public Function WorksheetExists(ByVal oParent As Workbook, _
+Public Function WorksheetExists(ByVal oWorkbook As Workbook, _
                                 ByVal sName As String) As Boolean
+    Const PROCEDURE_NAME As String = "UtilityFunctions.WorksheetExists"
+    
+    If oWorkbook Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Workbook object is required."
+    End If
     On Error Resume Next
-    WorksheetExists = Not oParent.Worksheets(sName) Is Nothing
+    WorksheetExists = Not oWorkbook.Worksheets(sName) Is Nothing
 End Function
 
-Public Function CreateWorksheet(ByVal oParent As Workbook, _
+Public Function CreateWorksheet(ByVal oWorkbook As Workbook, _
                                 ByVal sName As String, _
                                 Optional ByVal bOverwrite As Boolean, _
                                 Optional ByRef bIsWorksheetNew As Boolean) As Worksheet
+    Const PROCEDURE_NAME As String = "UtilityFunctions.CreateWorksheet"
     Dim bDisplayAlertsSave As Boolean
     Dim oResult As Worksheet
     
+    If oWorkbook Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Workbook object is required."
+    End If
     bDisplayAlertsSave = Application.DisplayAlerts
     sName = SanitizeWorksheetName(sName)
-    If WorksheetExists(oParent, sName) Then
+    If WorksheetExists(oWorkbook, sName) Then
         If bOverwrite Then
-            Set oResult = oParent.Worksheets.Add(After:=oParent.Worksheets(sName))
+            Set oResult = oWorkbook.Worksheets.Add(After:=oWorkbook.Worksheets(sName))
             Application.DisplayAlerts = False
-            oParent.Worksheets(sName).Delete
+            oWorkbook.Worksheets(sName).Delete
             Application.DisplayAlerts = bDisplayAlertsSave
         Else
             bIsWorksheetNew = False
-            Set CreateWorksheet = oParent.Worksheets(sName)
+            Set CreateWorksheet = oWorkbook.Worksheets(sName)
             Exit Function
         End If
     Else
-        Set oResult = oParent.Worksheets.Add(After:=oParent.Worksheets(oParent.Worksheets.count))
+        Set oResult = oWorkbook.Worksheets.Add(After:=oWorkbook.Worksheets(oWorkbook.Worksheets.Count))
     End If
     oResult.Name = sName
     oResult.Activate
@@ -685,21 +695,25 @@ Public Function DumpWorksheet(ByVal oWorksheet As Worksheet, _
                               ByVal sName As String, _
                               Optional ByVal lFileFormat As XlFileFormat = xlWorkbookDefault, _
                               Optional ByVal bOverwrite As Boolean) As Workbook
+    Const PROCEDURE_NAME As String = "UtilityFunctions.DumpWorksheet"
     Dim bDisplayAlertsSave As Boolean
     Dim i As Long
     Dim oResult As Workbook
     
+    If oWorksheet Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Worksheer object is required."
+    End If
     Set oResult = CreateWorkbook(sDirectory, sName, lFileFormat, bOverwrite)
     oWorksheet.Copy Before:=oResult.Sheets(1)
     bDisplayAlertsSave = Application.DisplayAlerts
     Application.DisplayAlerts = False
-    For i = oResult.Worksheets.count To 2 Step -1
+    For i = oResult.Worksheets.Count To 2 Step -1
         oResult.Worksheets(i).Delete
     Next i
     Application.DisplayAlerts = bDisplayAlertsSave
     oResult.Sheets(1).Name = oWorksheet.Name
     oResult.Save
-    'oResult.Close SaveChanges:=True
+    oResult.Close SaveChanges:=True
     Set DumpWorksheet = oResult
 End Function
 

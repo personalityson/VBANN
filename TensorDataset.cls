@@ -18,6 +18,14 @@ Private m_lNumTensors As Long
 Private m_aoTensors() As Tensor
 Private m_lNumSamples As Long
 
+Public Property Get NumSamples() As Long
+    NumSamples = m_lNumSamples
+End Property
+
+Public Property Get Cache() As TensorDataset
+    Set Cache = Me
+End Property
+
 Public Property Get NumTensors() As Long
     NumTensors = m_lNumTensors
 End Property
@@ -29,10 +37,6 @@ Public Property Get Tensor(ByVal lTensorIndex As Long) As Tensor
         Err.Raise 9, PROCEDURE_NAME, "Tensor index is out of range."
     End If
     Set Tensor = m_aoTensors(lTensorIndex)
-End Property
-
-Public Property Get NumSamples() As Long
-    NumSamples = m_lNumSamples
 End Property
 
 Public Sub Init(ByVal vTensors As Variant)
@@ -86,11 +90,7 @@ Public Sub Init(ByVal vTensors As Variant)
     m_lNumSamples = lNumSamples
 End Sub
 
-Public Function Cache() As TensorDataset
-    Set Cache = Me
-End Function
-
-Public Function Gather(ByVal vIndices As Variant) As TensorDataset
+Public Function Gather(ByVal vSampleIndices As Variant) As TensorDataset
     Dim i As Long
     Dim aoGatheredTensors() As Tensor
     Dim oResult As TensorDataset
@@ -98,7 +98,7 @@ Public Function Gather(ByVal vIndices As Variant) As TensorDataset
     If m_lNumTensors > 0 Then
         ReDim aoGatheredTensors(1 To m_lNumTensors)
         For i = 1 To m_lNumTensors
-            Set aoGatheredTensors(i) = m_aoTensors(i).Gather(m_aoTensors(i).NumDimensions, vIndices)
+            Set aoGatheredTensors(i) = m_aoTensors(i).Gather(m_aoTensors(i).NumDimensions, vSampleIndices)
         Next i
     End If
     Set oResult = New TensorDataset
@@ -106,11 +106,11 @@ Public Function Gather(ByVal vIndices As Variant) As TensorDataset
     Set Gather = oResult
 End Function
 
-Public Function Subset(ByVal vIndices As Variant) As SubsetDataset
+Public Function Subset(ByVal vSampleIndices As Variant) As SubsetDataset
     Dim oResult As SubsetDataset
 
     Set oResult = New SubsetDataset
-    oResult.Init Me, vIndices
+    oResult.Init Me, vSampleIndices
     Set Subset = oResult
 End Function
 
@@ -125,31 +125,31 @@ End Sub
         IDataset_NumSamples = Me.NumSamples
     End Property
     
-    Private Function IDataset_Cache() As Object
+    Private Property Get IDataset_Cache() As Object
         Set IDataset_Cache = Me.Cache()
+    End Property
+    
+    Private Function IDataset_Gather(ByVal vSampleIndices As Variant) As Object
+        Set IDataset_Gather = Me.Gather(vSampleIndices)
     End Function
     
-    Private Function IDataset_Gather(ByVal vIndices As Variant) As Object
-        Set IDataset_Gather = Me.Gather(vIndices)
-    End Function
-    
-    Private Function IDataset_Subset(ByVal vIndices As Variant) As Object
-        Set IDataset_Subset = Me.Subset(vIndices)
+    Private Function IDataset_Subset(ByVal vSampleIndices As Variant) As Object
+        Set IDataset_Subset = Me.Subset(vSampleIndices)
     End Function
 #Else
     Private Property Get IDataset_NumSamples() As Long
         IDataset_NumSamples = Me.NumSamples
     End Property
     
-    Private Function IDataset_Cache() As Object
+    Private Property Get IDataset_Cache() As TensorDataset
         Set IDataset_Cache = Me.Cache()
+    End Property
+    
+    Private Function IDataset_Gather(ByVal vSampleIndices As Variant) As TensorDataset
+        Set IDataset_Gather = Me.Gather(vSampleIndices)
     End Function
     
-    Private Function IDataset_Gather(ByVal vIndices As Variant) As TensorDataset
-        Set IDataset_Gather = Me.Gather(vIndices)
-    End Function
-    
-    Private Function IDataset_Subset(ByVal vIndices As Variant) As SubsetDataset
-        Set IDataset_Subset = Me.Subset(vIndices)
+    Private Function IDataset_Subset(ByVal vSampleIndices As Variant) As SubsetDataset
+        Set IDataset_Subset = Me.Subset(vSampleIndices)
     End Function
 #End If

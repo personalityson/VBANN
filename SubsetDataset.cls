@@ -27,6 +27,13 @@ Public Property Get NumSamples() As Long
     NumSamples = m_lNumSamples
 End Property
 
+Public Property Get Cache() As TensorDataset
+    If m_oGatherCache Is Nothing Then
+        Set m_oGatherCache = m_oDataset.Gather(m_alIndices)
+    End If
+    Set Cache = m_oGatherCache
+End Property
+
 Public Sub Init(ByVal oDataset As IDataset, _
                 ByVal vIndices As Variant)
     Const PROCEDURE_NAME As String = "SubsetDataset.Init"
@@ -48,13 +55,6 @@ Public Sub Init(ByVal oDataset As IDataset, _
     m_lNumSamples = lNumIndices
     m_alIndices = alIndices
 End Sub
-
-Public Function Cache() As TensorDataset
-    If m_oGatherCache Is Nothing Then
-        Set m_oGatherCache = m_oDataset.Gather(m_alIndices)
-    End If
-    Set Cache = m_oGatherCache
-End Function
 
 Public Function Gather(ByVal vIndices As Variant) As TensorDataset
     Dim alIndices() As Long
@@ -97,9 +97,9 @@ End Sub
         IDataset_NumSamples = Me.NumSamples
     End Property
     
-    Private Function IDataset_Cache() As Object
+    Private Property Get IDataset_Cache() As Object
         Set IDataset_Cache = Me.Cache()
-    End Function
+    End Property
     
     Private Function IDataset_Gather(ByVal vIndices As Variant) As Object
         Set IDataset_Gather = Me.Gather(vIndices)
@@ -113,9 +113,9 @@ End Sub
         IDataset_NumSamples = Me.NumSamples
     End Property
     
-    Private Function IDataset_Cache() As TensorDataset
+    Private Property Get IDataset_Cache() As TensorDataset
         Set IDataset_Cache = Me.Cache()
-    End Function
+    End Property
     
     Private Function IDataset_Gather(ByVal vIndices As Variant) As TensorDataset
         Set IDataset_Gather = Me.Gather(vIndices)

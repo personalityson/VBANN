@@ -80,7 +80,7 @@ Private Function CalculateLoss(ByVal Y As Tensor, _
     T.Flatten.CreateAlias T_
     L.Flatten.CreateAlias L_
     For i = 1 To Y.NumElements
-        L_(i) = -T_(i) * Log(Y_(i) + DOUBLE_MIN_ABS)
+        L_(i) = -T_(i) * Log(Y_(i) + DOUBLE_EPSILON)
     Next i
     Y.Flatten.RemoveAlias Y_
     T.Flatten.RemoveAlias T_
@@ -102,7 +102,7 @@ Private Function CalculateGradient(ByVal Y As Tensor, _
     T.Flatten.CreateAlias T_
     dLdY.Flatten.CreateAlias dLdY_
     For i = 1 To Y.NumElements
-        dLdY_(i) = -T_(i) / (Y_(i) + DOUBLE_MIN_ABS)
+        dLdY_(i) = -T_(i) / (Y_(i) + DOUBLE_EPSILON)
     Next i
     Y.Flatten.RemoveAlias Y_
     T.Flatten.RemoveAlias T_
@@ -124,7 +124,7 @@ Private Function CalculateHessian(ByVal Y As Tensor, _
     T.Flatten.CreateAlias T_
     d2LdY2.Flatten.CreateAlias d2LdY2_
     For i = 1 To Y.NumElements
-        d2LdY2_(i) = T_(i) / ((Y_(i) + DOUBLE_MIN_ABS) ^ 2)
+        d2LdY2_(i) = T_(i) / ((Y_(i) + DOUBLE_EPSILON) ^ 2)
     Next i
     Y.Flatten.RemoveAlias Y_
     T.Flatten.RemoveAlias T_

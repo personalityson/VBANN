@@ -88,7 +88,6 @@ Private Sub Save(ByVal oWorksheet As Serializer)
     End If
     With oWorksheet
         .WriteDouble m_dblDropoutRate
-        .WriteObject m_oMask
     End With
 End Sub
 
@@ -101,7 +100,6 @@ Private Sub Load(ByVal oWorksheet As Serializer)
     Clear
     With oWorksheet
         m_dblDropoutRate = .ReadDouble()
-        Set m_oMask = .ReadObject()
     End With
 End Sub
 

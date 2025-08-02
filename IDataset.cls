@@ -16,9 +16,9 @@ Option Explicit
         '
     End Property
     
-    Public Function Cache() As Object
+    Public Property Get Cache() As Object
         '
-    End Function
+    End Property
     
     Public Function Gather(ByVal vIndices As Variant) As Object
         '
@@ -32,9 +32,9 @@ Option Explicit
         '
     End Property
     
-    Public Function Cache() As TensorDataset
+    Public Property Get Cache() As TensorDataset
         '
-    End Function
+    End Property
     
     Public Function Gather(ByVal vIndices As Variant) As TensorDataset
         '

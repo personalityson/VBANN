@@ -180,7 +180,7 @@ Private Sub Save(ByVal oWorksheet As Serializer)
         .WriteDouble m_dblBeta2
         .WriteDouble m_dblEpsilon
         .WriteDouble m_dblWeightDecay
-        .WriteLong m_oStates.count
+        .WriteLong m_oStates.Count
         For Each W In m_oStates.Keys
             GetStates W, lStep, m, v
             .WriteObject W

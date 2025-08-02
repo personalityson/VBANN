@@ -126,14 +126,18 @@ Public Sub FromRange(ByVal oRange As Range, _
         Exit Sub
     End If
     With oRange.Areas(1)
-        lNumRows = .Rows.count
-        lNumCols = .Columns.count
+        lNumRows = .Rows.Count
+        lNumCols = .Columns.Count
         If bTranspose Then
             Resize lNumCols, lNumRows
             For i = 1 To lNumRows
                 For j = 1 To lNumCols
                     m_adblBuffer(j, i) = .Cells(i, j)
                 Next j
+                If i Mod 1000 = 0 Then
+                    Application.StatusBar = "FromRange progress: " & Format(i / lNumRows, "0.0%")
+                    DoEvents
+                End If
             Next i
         Else
             Resize lNumRows, lNumCols
@@ -141,6 +145,10 @@ Public Sub FromRange(ByVal oRange As Range, _
                 For j = 1 To lNumCols
                     m_adblBuffer(i, j) = .Cells(i, j)
                 Next j
+                If i Mod 1000 = 0 Then
+                    Application.StatusBar = "FromRange progress: " & Format(i / lNumRows, "0.0%")
+                    DoEvents
+                End If
             Next i
         End If
     End With

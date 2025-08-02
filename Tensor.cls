@@ -275,8 +275,8 @@ Public Sub FromRange(ByVal oRange As Range, _
         Exit Sub
     End If
     With oRange.Areas(1)
-        lNumRows = .Rows.count
-        lNumCols = .Columns.count
+        lNumRows = .Rows.Count
+        lNumCols = .Columns.Count
         Set oData = New Storage
         oData.FromRange .Cells, bTranspose
         If bTranspose Then
@@ -549,7 +549,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
                 For k = 1 To lOuterStride
                     dblAcc = A_(i, 1, k)
                     For j = 2 To lOldSize
-                        If A_(i, j, k) < dblAcc Then dblAcc = A_(i, j, k)
+                        dblAcc = MinDbl2(dblAcc, A_(i, j, k))
                     Next j
                     R_(i, 1, k) = dblAcc
                 Next k
@@ -559,7 +559,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
                 For k = 1 To lOuterStride
                     dblAcc = A_(i, 1, k)
                     For j = 2 To lOldSize
-                        If A_(i, j, k) > dblAcc Then dblAcc = A_(i, j, k)
+                        dblAcc = MaxDbl2(dblAcc, A_(i, j, k))
                     Next j
                     R_(i, 1, k) = dblAcc
                 Next k

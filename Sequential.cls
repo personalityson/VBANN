@@ -141,7 +141,9 @@ Public Function Loss(ByVal oTestLoader As DataLoader) As Double
             Set T = oBatch.Tensor(2)
             Set Y = Predict(X)
             dblLoss = dblLoss + m_oCriterion.Loss(Y, T).Sum
-            lNumSamples = lNumSamples + X.Size(X.NumDimensions)
+            lNumSamples = lNumSamples + oBatch.NumSamples
+            Application.StatusBar = "Loss progress: " & Format(lNumSamples / .NumSamples, "0.0%")
+            DoEvents
         Loop
     End With
     If lNumSamples > 0 Then
@@ -150,6 +152,7 @@ Public Function Loss(ByVal oTestLoader As DataLoader) As Double
 End Function
 
 Private Sub FitOne(ByVal oTrainingLoader As DataLoader)
+    Dim lNumSamples As Long
     Dim X As Tensor
     Dim T As Tensor
     Dim oBatch As TensorDataset
@@ -160,6 +163,9 @@ Private Sub FitOne(ByVal oTrainingLoader As DataLoader)
             Set X = oBatch.Tensor(1)
             Set T = oBatch.Tensor(2)
             Backpropagate X, T
+            lNumSamples = lNumSamples + oBatch.NumSamples
+            Application.StatusBar = "Loss progress: " & Format(lNumSamples / .NumSamples, "0.0%")
+            DoEvents
         Loop
     End With
 End Sub
