@@ -125,8 +125,10 @@ Private Sub Adapt(ByVal oTrainingLoader As DataLoader)
                 VecLinComb_I 1, oM2, lNumSamples * lBatchSize / (lNumSamples + lBatchSize), VecPow2(oDelta)
                 lNumSamples = lNumSamples + lBatchSize
             End If
-            Application.StatusBar = "Adapt progress: " & Format(lNumSamples / .NumSamples, "0.0%")
-            DoEvents
+            If lNumSamples Mod 1000 = 0 Then
+                Application.StatusBar = "Adapt progress: " & Format(lNumSamples / .NumSamples, "0.0%")
+                DoEvents
+            End If
         Loop
     End With
     If lNumSamples > 0 Then
