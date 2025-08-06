@@ -41,7 +41,9 @@ Public Sub SetupAndTrainSequential()
     'Setup and train
     Set oModel = Sequential(L2Loss(), SGDM())
     oModel.Add InputNormalizationLayer(oTrainingLoader)
-    oModel.Add FullyConnectedLayer(lInputSize, 32)
+    oModel.Add FullyConnectedLayer(lInputSize, 64)
+    oModel.Add LeakyReLULayer()
+    oModel.Add FullyConnectedLayer(64, 32)
     oModel.Add LeakyReLULayer()
     oModel.Add FullyConnectedLayer(32, 16)
     oModel.Add LeakyReLULayer()
@@ -64,6 +66,20 @@ Public Sub SetupAndTrainSequential()
 
     Beep
 End Sub
+
+Public Function PredictInWorksheet(ByVal oInput As Range) As Variant
+    Const MODEL_NAME As String = "MySequentialModel"
+    Static s_oModel As Sequential
+    Dim X As Tensor
+    Dim Y As Tensor
+    
+    If s_oModel Is Nothing Then
+        Set s_oModel = Unserialize(MODEL_NAME)
+    End If
+    Set X = TensorFromRange(oInput, True)
+    Set Y = s_oModel.Predict(X)
+    PredictInWorksheet = WorksheetFunction.Transpose(Y.ToArray)
+End Function
 
 Public Sub SetupAndTrainXGBoost()
     Const MODEL_NAME As String = "MyXGBoostModel"
@@ -111,20 +127,6 @@ Public Sub SetupAndTrainXGBoost()
 
     Beep
 End Sub
-
-Public Function PredictInWorksheet(ByVal oInput As Range) As Double()
-    Const MODEL_NAME As String = "MySequentialModel"
-    Static s_oModel As Sequential
-    Dim X As Tensor
-    Dim Y As Tensor
-    
-    If s_oModel Is Nothing Then
-        Set s_oModel = Unserialize(MODEL_NAME)
-    End If
-    Set X = TensorFromRange(oInput, True)
-    Set Y = s_oModel.Predict(X)
-    PredictInWorksheet = Y.ToArray
-End Function
 
 Public Sub WorkingWithTensors()
     Dim A As Tensor
