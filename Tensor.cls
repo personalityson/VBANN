@@ -20,7 +20,7 @@ Private Const S_OK As Long = 0
 Private Const SA_OFFSET_fFeatures As Long = 2
 Private Const SA_OFFSET_cbElements As Long = 4
 
-#If WIN64 Then
+#If Win64 Then
     Private Const SA_OFFSET_pvData As Long = 16
     Private Const SA_OFFSET_rgsabound As Long = 24
 #Else
@@ -66,7 +66,7 @@ End Property
 
 Public Property Get Size(ByVal lDimension As Long) As Long
     Const PROCEDURE_NAME As String = "Tensor.Size"
-    
+
     If lDimension < 1 Or lDimension > m_lNumDimensions Then
         Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
     End If
@@ -136,7 +136,7 @@ Public Function Squeeze() As Tensor
     Dim i As Long
     Dim lNewNumDimensions As Long
     Dim alNewShape() As Long
-    
+
     If m_lNumDimensions < 2 Then
         Set Squeeze = Me
         Exit Function
@@ -241,7 +241,7 @@ Public Sub FromArray(ByRef adblArray() As Double)
     Dim lNumDimensions As Long
     Dim alShape() As Long
     Dim oData As Storage
-    
+
     lNumDimensions = GetRank(adblArray)
     If lNumDimensions < 1 Then
         Me.Resize Array()
@@ -590,7 +590,7 @@ Private Function SliceInternal(ByVal lDimension As Long, _
     Dim lInnerStrideBytes As Long
     Dim lOuterStride As Long
     Dim oResult As Tensor
-    
+
     lOldSize = m_alShape(lDimension)
     lNewSize = MaxLng2(0, lEnd - lStart + 1)
     alNewShape = m_alShape

@@ -189,12 +189,12 @@ Private Sub Save(ByVal oWorksheet As Serializer)
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
     With oWorksheet
-        .WriteObject m_oCriterion
-        .WriteObject m_oOptimizer
         .WriteLong m_lNumLayers
         For i = 1 To m_lNumLayers
             .WriteObject m_aoLayers(i)
         Next i
+        .WriteObject m_oCriterion
+        .WriteObject m_oOptimizer
     End With
 End Sub
 
@@ -207,8 +207,6 @@ Private Sub Load(ByVal oWorksheet As Serializer)
     End If
     Clear
     With oWorksheet
-        Set m_oCriterion = .ReadObject()
-        Set m_oOptimizer = .ReadObject()
         m_lNumLayers = .ReadLong()
         If m_lNumLayers > 0 Then
             ReDim m_aoLayers(1 To m_lNumLayers)
@@ -216,6 +214,8 @@ Private Sub Load(ByVal oWorksheet As Serializer)
                 Set m_aoLayers(i) = .ReadObject()
             Next i
         End If
+        Set m_oCriterion = .ReadObject()
+        Set m_oOptimizer = .ReadObject()
     End With
 End Sub
 

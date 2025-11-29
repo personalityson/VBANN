@@ -30,7 +30,7 @@ Public Const SIZEOF_LONG As Long = 4
 Public Const SIZEOF_SINGLE As Long = 4
 Public Const SIZEOF_DOUBLE As Long = 8
 
-#If WIN64 Then
+#If Win64 Then
     Public Const NULL_PTR As LongPtr = 0^
     Public Const SIZEOF_LONGPTR As Long = 8
     Public Const SIZEOF_VARIANT As Long = 24
@@ -259,7 +259,7 @@ Public Sub ParseVariantToLongArray(ByVal vValueOrArray As Variant, _
     Const PROCEDURE_NAME As String = "Tensor.ParseVariantToLongArray"
     Dim iRank As Integer
     Dim i As Long
-    Dim lLBound As Long
+    Dim lLbound As Long
     Dim lUBound As Long
     
     iRank = GetRank(vValueOrArray)
@@ -272,16 +272,16 @@ Public Sub ParseVariantToLongArray(ByVal vValueOrArray As Variant, _
             lNumElements = 0
             Erase alArray
         Case 1
-            lLBound = LBound(vValueOrArray)
+            lLbound = LBound(vValueOrArray)
             lUBound = UBound(vValueOrArray)
-            If lLBound > lUBound Then
+            If lLbound > lUBound Then
                 lNumElements = 0
                 Erase alArray
             Else
-                lNumElements = lUBound - lLBound + 1
+                lNumElements = lUBound - lLbound + 1
                 ReDim alArray(1 To lNumElements)
                 For i = 1 To lNumElements
-                    alArray(i) = CLng(vValueOrArray(lLBound + i - 1))
+                    alArray(i) = CLng(vValueOrArray(lLbound + i - 1))
                 Next i
             End If
         Case Else
@@ -742,33 +742,6 @@ End Function
 Public Function ConvertTimestampToDate(ByVal lTimestamp As Long) As Date
     ConvertTimestampToDate = DateAdd("s", lTimestamp, DateSerial(1970, 1, 1))
 End Function
-
-Public Sub LogError(ByVal sSource As String, _
-                    ByVal lErrorNumber As Long, _
-                    ByVal sErrorDescription As String)
-    Dim oErrors As Worksheet
-    Dim bIsWorksheetNew As Boolean
-    Dim lLastRow As Long
-    
-    Set oErrors = CreateWorksheet(ThisWorkbook, "Errors", False, bIsWorksheetNew)
-    With oErrors
-        If bIsWorksheetNew Then
-            .Cells(1, 1) = "Time"
-            .Cells(1, 2) = "Source"
-            .Cells(1, 3) = "Error Number"
-            .Cells(1, 4) = "Error Description"
-            lLastRow = 1
-        Else
-            lLastRow = GetLastRow(oErrors)
-        End If
-        .Cells(lLastRow + 1, 1) = GetUtcTime()
-        .Cells(lLastRow + 1, 2) = sSource
-        .Cells(lLastRow + 1, 3) = lErrorNumber
-        .Cells(lLastRow + 1, 4) = sErrorDescription
-        .Cells(lLastRow + 1, 1).Resize(1, 4).WrapText = False
-        Application.GoTo .Cells(lLastRow + 1, 1)
-    End With
-End Sub
 
 Public Sub LogToWorksheet(ByVal sName As String, _
                           ParamArray avArgs() As Variant)

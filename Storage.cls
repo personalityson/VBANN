@@ -16,7 +16,7 @@ Implements ISerializable
 Private Const DATA_TYPE As Long = vbDouble
 Private Const ELEMENT_SIZE As Long = SIZEOF_DOUBLE
 
-#If WIN64 Then
+#If Win64 Then
     Private Const SA_OFFSET_pvData As Long = 16
 #Else
     Private Const SA_OFFSET_pvData As Long = 12

@@ -101,7 +101,7 @@ End Sub
 
 'm = beta1 * m + (1 - beta1) * (dW / NumUpdates)
 'v = beta2 * v + (1 - beta2) * (dW / NumUpdates)^2
-'W = W - alpha * (m / (Sqr(v) + epsilon) + wd * W)
+'W = W - alpha * (m / Sqr(v + epsilon) + wd * W)
 Private Sub ApplyGradients(ByVal W As Parameter)
     Dim lStep As Long
     Dim dblAlpha As Double

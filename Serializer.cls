@@ -19,6 +19,7 @@ Private m_oWorksheet As Worksheet
 Private m_lNumSerializedObjects As Long
 Private m_aoSerializedObjects() As ISerializable
 Private m_lCursor As Long
+Private m_lIndent As Long
 
 Public Property Get Worksheet() As Worksheet
     Set Worksheet = m_oWorksheet
@@ -28,18 +29,11 @@ Public Sub Init(ByVal sName As String, _
                 ByVal bOverwrite As Boolean)
     Clear
     Set m_oWorksheet = CreateWorksheet(ThisWorkbook, sName, bOverwrite)
-    m_lNumSerializedObjects = 0
-    Erase m_aoSerializedObjects
-    Me.Reset
-End Sub
-
-Public Sub Reset()
-    m_lCursor = 1
 End Sub
 
 Public Sub WriteObject(ByVal oObject As ISerializable)
     Dim lMemoIndex As Long
-
+    
     If oObject Is Nothing Then
         WriteNothing
     Else
@@ -151,7 +145,7 @@ Private Function IndexOf(ByVal oObject As ISerializable) As Long
 End Function
 
 Private Function GetCell() As Range
-    Set GetCell = m_oWorksheet.Cells(m_lCursor, 1)
+    Set GetCell = m_oWorksheet.Cells(m_lCursor, m_lIndent)
     m_lCursor = m_lCursor + 1
 End Function
 
@@ -165,7 +159,7 @@ Private Function GetRange(ByVal lNumRows As Long, _
     If lNumCols < 1 Then
         Err.Raise 5, PROCEDURE_NAME, "Number of columns must be >= 1."
     End If
-    Set GetRange = m_oWorksheet.Cells(m_lCursor, 1).Resize(lNumRows, lNumCols)
+    Set GetRange = m_oWorksheet.Cells(m_lCursor, m_lIndent).Resize(lNumRows, lNumCols)
     m_lCursor = m_lCursor + lNumRows
 End Function
 
@@ -181,7 +175,9 @@ End Sub
 Private Sub WriteSerializable(ByVal oObject As ISerializable)
     WriteString TypeName(oObject)
     Memoize oObject
+    m_lIndent = m_lIndent + 1
     oObject.Save Me
+    m_lIndent = m_lIndent - 1
 End Sub
 
 Private Sub WriteArray(ByVal vArray As Variant)
@@ -231,7 +227,9 @@ End Function
 Private Function ReadSerializable(ByVal sTypeName As String) As ISerializable
     Set ReadSerializable = CreateInstance(sTypeName)
     Memoize ReadSerializable
+    m_lIndent = m_lIndent + 1
     ReadSerializable.Load Me
+    m_lIndent = m_lIndent - 1
 End Function
 
 Private Function CreateInstance(ByVal sTypeName As String) As ISerializable
@@ -272,10 +270,6 @@ Private Function CreateInstance(ByVal sTypeName As String) As ISerializable
             Set CreateInstance = New TanhLayer
         Case "Tensor"
             Set CreateInstance = New Tensor
-        Case "XGBoost"
-            Set CreateInstance = New XGBoost
-        Case "XGBoostNode"
-            Set CreateInstance = New XGBoostNode
         Case Else
             Err.Raise 5, PROCEDURE_NAME, "Unsupported serializable type."
     End Select
@@ -322,5 +316,6 @@ Private Sub Clear()
     Set m_oWorksheet = Nothing
     m_lNumSerializedObjects = 0
     Erase m_aoSerializedObjects()
-    m_lCursor = 0
+    m_lCursor = 1
+    m_lIndent = 1
 End Sub
