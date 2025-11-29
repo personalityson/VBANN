@@ -14,7 +14,7 @@ This project is licensed under the [Creative Commons Zero v1.0 Universal](LICENS
 
 ### Examples
 ```vba
-Public Sub SetupAndTrainSequential()
+Public Sub SetupAndTrain()
     Const MODEL_NAME As String = "MySequentialModel"
     Dim lBatchSize As Long
     Dim lNumEpochs As Long
@@ -30,7 +30,7 @@ Public Sub SetupAndTrainSequential()
     lInputSize = 8
     lLabelSize = 1
     lBatchSize = 16
-    lNumEpochs = 40
+    lNumEpochs = 50
 
     'Prepare training data
     Set oFullSet = ImportDatasetFromWorksheet(ThisWorkbook, "Concrete", Array(lInputSize, lLabelSize), True, False)
@@ -43,13 +43,11 @@ Public Sub SetupAndTrainSequential()
     oModel.Add InputNormalizationLayer(oTrainingLoader)
     oModel.Add FullyConnectedLayer(lInputSize, 64)
     oModel.Add LeakyReLULayer()
-    oModel.Add FullyConnectedLayer(64, 32)
+    oModel.Add FullyConnectedLayer(64, 16)
     oModel.Add LeakyReLULayer()
-    oModel.Add FullyConnectedLayer(32, 16)
+    oModel.Add FullyConnectedLayer(16, 4)
     oModel.Add LeakyReLULayer()
-    oModel.Add FullyConnectedLayer(16, 8)
-    oModel.Add LeakyReLULayer()
-    oModel.Add FullyConnectedLayer(8, lLabelSize)
+    oModel.Add FullyConnectedLayer(4, lLabelSize)
     oModel.Fit oTrainingLoader, oTestLoader, lNumEpochs
 
     'Compute test loss
@@ -80,53 +78,6 @@ Public Function PredictInWorksheet(ByVal oInput As Range) As Variant
     Set Y = s_oModel.Predict(X)
     PredictInWorksheet = WorksheetFunction.Transpose(Y.ToArray)
 End Function
-
-Public Sub SetupAndTrainXGBoost()
-    Const MODEL_NAME As String = "MyXGBoostModel"
-    Dim lInputSize As Long
-    Dim lLabelSize As Long
-    Dim lNumRounds As Long
-    Dim lMaxDepth As Long
-    Dim dblLearningRate As Double
-    Dim X As Tensor
-    Dim T As Tensor
-    Dim oFullSet As TensorDataset
-    Dim oTrainingSet As SubsetDataset
-    Dim oTestSet As SubsetDataset
-    Dim oModel As XGBoost
-
-    lInputSize = 8
-    lLabelSize = 1
-    dblLearningRate = 0.1
-    lMaxDepth = 6
-    lNumRounds = 100
-
-    'Prepare training data
-    Set oFullSet = ImportDatasetFromWorksheet(ThisWorkbook, "Concrete", Array(lInputSize, lLabelSize), True, True)
-    RandomSplit oFullSet, 0.8, oTrainingSet, oTestSet
-    Set X = oTrainingSet.Cache.Tensor(1)
-    Set T = oTrainingSet.Cache.Tensor(2)
-
-    'Setup and train
-    Set oModel = XGBoost(L2Loss(), dblLearningRate, lMaxDepth)
-    oModel.Fit X, T, lNumRounds
-
-    'Compute test loss
-    Set X = oTestSet.Cache.Tensor(1)
-    Set T = oTestSet.Cache.Tensor(2)
-    MsgBox oModel.Loss(X, T)
-
-    'Save to worksheet
-    Serialize MODEL_NAME, oModel
-
-    'Load from worksheet
-    Set oModel = Unserialize(MODEL_NAME)
-
-    'Compute test loss again with unserialized model
-    MsgBox oModel.Loss(X, T)
-
-    Beep
-End Sub
 
 Public Sub WorkingWithTensors()
     Dim A As Tensor
