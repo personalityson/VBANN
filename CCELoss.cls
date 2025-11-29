@@ -18,41 +18,9 @@ Public Sub Init()
     'Do nothing
 End Sub
 
-Public Function Loss(ByVal Y As Tensor, _
-                     ByVal T As Tensor) As Tensor
-    Const PROCEDURE_NAME As String = "CCELoss.Loss"
-    
-    If Y Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
-    End If
-    If T Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
-    End If
-    If Not Y.ShapeEquals(T.Shape) Then
-        Err.Raise 5, PROCEDURE_NAME, "Output and target tensors must have the same shape."
-    End If
-    Set Loss = CalculateLoss(Y, T)
-End Function
-
-Public Function Gradient(ByVal Y As Tensor, _
-                         ByVal T As Tensor) As Tensor
-    Const PROCEDURE_NAME As String = "CCELoss.Gradient"
-    
-    If Y Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
-    End If
-    If T Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
-    End If
-    If Not Y.ShapeEquals(T.Shape) Then
-        Err.Raise 5, PROCEDURE_NAME, "Output and target tensors must have the same shape."
-    End If
-    Set Gradient = CalculateGradient(Y, T)
-End Function
-
-Public Function Hessian(ByVal Y As Tensor, _
+Public Function Forward(ByVal Y As Tensor, _
                         ByVal T As Tensor) As Tensor
-    Const PROCEDURE_NAME As String = "CCELoss.Hessian"
+    Const PROCEDURE_NAME As String = "CCELoss.Forward"
     
     If Y Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
@@ -63,7 +31,23 @@ Public Function Hessian(ByVal Y As Tensor, _
     If Not Y.ShapeEquals(T.Shape) Then
         Err.Raise 5, PROCEDURE_NAME, "Output and target tensors must have the same shape."
     End If
-    Set Hessian = CalculateHessian(Y, T)
+    Set Forward = CalculateLoss(Y, T)
+End Function
+
+Public Function Backward(ByVal Y As Tensor, _
+                         ByVal T As Tensor) As Tensor
+    Const PROCEDURE_NAME As String = "CCELoss.Backward"
+    
+    If Y Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If T Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If Not Y.ShapeEquals(T.Shape) Then
+        Err.Raise 5, PROCEDURE_NAME, "Output and target tensors must have the same shape."
+    End If
+    Set Backward = CalculateGradient(Y, T)
 End Function
 
 'L = -T * Log(Y)
@@ -110,28 +94,6 @@ Private Function CalculateGradient(ByVal Y As Tensor, _
     Set CalculateGradient = dLdY
 End Function
 
-'d^2L/dY^2 = T / Y^2
-Private Function CalculateHessian(ByVal Y As Tensor, _
-                                  ByVal T As Tensor) As Tensor
-    Dim i As Long
-    Dim Y_() As Double
-    Dim T_() As Double
-    Dim d2LdY2_() As Double
-    Dim d2LdY2 As Tensor
-    
-    Set d2LdY2 = Zeros(Y.Shape)
-    Y.Flatten.CreateAlias Y_
-    T.Flatten.CreateAlias T_
-    d2LdY2.Flatten.CreateAlias d2LdY2_
-    For i = 1 To Y.NumElements
-        d2LdY2_(i) = T_(i) / ((Y_(i) + DOUBLE_EPSILON) ^ 2)
-    Next i
-    Y.Flatten.RemoveAlias Y_
-    T.Flatten.RemoveAlias T_
-    d2LdY2.Flatten.RemoveAlias d2LdY2_
-    Set CalculateHessian = d2LdY2
-End Function
-
 Private Sub Save(ByVal oWorksheet As Serializer)
     'Do nothing
 End Sub
@@ -141,19 +103,14 @@ Private Sub Load(ByVal oWorksheet As Serializer)
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
-    Private Function ICriterion_Loss(ByVal Y As Object, _
+    Private Function ICriterion_Forward(ByVal Y As Object, _
                                         ByVal T As Object) As Object
-        Set ICriterion_Loss = Loss(Y, T)
+        Set ICriterion_Forward = Forward(Y, T)
     End Function
     
-    Private Function ICriterion_Gradient(ByVal Y As Object, _
+    Private Function ICriterion_Backward(ByVal Y As Object, _
                                          ByVal T As Object) As Object
-        Set ICriterion_Gradient = Gradient(Y, T)
-    End Function
-    
-    Private Function ICriterion_Hessian(ByVal Y As Object, _
-                                        ByVal T As Object) As Object
-        Set ICriterion_Hessian = Hessian(Y, T)
+        Set ICriterion_Backward = Backward(Y, T)
     End Function
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Object)
@@ -164,19 +121,14 @@ End Sub
         Load oWorksheet
     End Sub
 #Else
-    Private Function ICriterion_Loss(ByVal Y As Tensor, _
+    Private Function ICriterion_Forward(ByVal Y As Tensor, _
                                         ByVal T As Tensor) As Tensor
-        Set ICriterion_Loss = Loss(Y, T)
+        Set ICriterion_Forward = Forward(Y, T)
     End Function
     
-    Private Function ICriterion_Gradient(ByVal Y As Tensor, _
+    Private Function ICriterion_Backward(ByVal Y As Tensor, _
                                          ByVal T As Tensor) As Tensor
-        Set ICriterion_Gradient = Gradient(Y, T)
-    End Function
-    
-    Private Function ICriterion_Hessian(ByVal Y As Tensor, _
-                                        ByVal T As Tensor) As Tensor
-        Set ICriterion_Hessian = Hessian(Y, T)
+        Set ICriterion_Backward = Backward(Y, T)
     End Function
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)

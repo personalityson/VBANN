@@ -115,7 +115,7 @@ Private Sub Backpropagate(ByVal X As Tensor, _
     Dim dLdY As Tensor
     
     Set Y = Me.Predict(X, True)
-    Set dLdY = m_oCriterion.Gradient(Y, T)
+    Set dLdY = m_oCriterion.Backward(Y, T)
     For i = m_lNumLayers To 1 Step -1
         Set dLdY = m_aoLayers(i).Backward(dLdY)
         m_oOptimizer.Update m_aoLayers(i).LearnableParameters
@@ -140,7 +140,7 @@ Public Function Loss(ByVal oTestLoader As DataLoader) As Double
             Set X = oBatch.Tensor(1)
             Set T = oBatch.Tensor(2)
             Set Y = Predict(X)
-            dblLoss = dblLoss + m_oCriterion.Loss(Y, T).Sum
+            dblLoss = dblLoss + m_oCriterion.Forward(Y, T).Sum
             lNumSamples = lNumSamples + oBatch.NumSamples
             If lNumSamples Mod 1000 = 0 Then
                 Application.StatusBar = "Loss progress: " & Format(lNumSamples / .NumSamples, "0.0%")

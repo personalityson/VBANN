@@ -12,33 +12,23 @@ Option Explicit
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
-    Public Function Loss(ByVal Y As Object, _
-                         ByVal T As Object) As Object
-        '
-    End Function
-    
-    Public Function Gradient(ByVal Y As Object, _
-                             ByVal T As Object) As Object
-        '
-    End Function
-    
-    Public Function Hessian(ByVal Y As Object, _
+    Public Function Forward(ByVal Y As Object, _
                             ByVal T As Object) As Object
         '
     End Function
+    
+    Public Function Backward(ByVal Y As Object, _
+                             ByVal T As Object) As Object
+        '
+    End Function
 #Else
-    Public Function Loss(ByVal Y As Tensor, _
+    Public Function Forward(ByVal Y As Tensor, _
                          ByVal T As Tensor) As Tensor
         '
     End Function
     
-    Public Function Gradient(ByVal Y As Tensor, _
+    Public Function Backward(ByVal Y As Tensor, _
                              ByVal T As Tensor) As Tensor
-        '
-    End Function
-    
-    Public Function Hessian(ByVal Y As Tensor, _
-                            ByVal T As Tensor) As Tensor
         '
     End Function
 #End If
