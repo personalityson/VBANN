@@ -6,9 +6,6 @@ VBANN is designed to store everything in the same file. Your training data, your
 VBANN is modular and extensible. You can add your own layer classes.<br/>
 You can speed it up 6-10x by downloading and linking to [a prebuilt OpenBLAS dll](https://github.com/OpenMathLib/OpenBLAS/releases) inside the [MathFunctions](MathFunctions.bas) module.
 
-### Contributing
-Feel free to open issues or submit custom layers to enhance the functionality of VBANN.
-
 ### License
 This project is licensed under the [Creative Commons Zero v1.0 Universal](LICENSE.txt).
 
