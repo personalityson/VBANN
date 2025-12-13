@@ -58,7 +58,7 @@ Public Sub Init(Optional ByVal dblLearningRate As Double = 0.001, _
 End Sub
 
 Public Sub Update(ByVal vParameters As Variant)
-    Const PROCEDURE_NAME As String = "Adam.Update"
+    Const PROCEDURE_NAME As String = "SGDM.Update"
     Dim W As Variant
     
     Select Case GetRank(vParameters)

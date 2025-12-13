@@ -472,7 +472,7 @@ Private Function GatherInternal(ByVal lDimension As Long, _
     Dim oResult As Tensor
 
     lOldSize = m_alShape(lDimension)
-    lNewSize = MinLng2(lOldSize, lNumIndices)
+    lNewSize = lNumIndices
     alNewShape = m_alShape
     alNewShape(lDimension) = lNewSize
     Set oResult = New Tensor

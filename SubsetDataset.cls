@@ -90,6 +90,7 @@ Private Sub Clear()
     Set m_oDataset = Nothing
     m_lNumSamples = 0
     Erase m_alIndices
+    Set m_oGatherCache = Nothing
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then

@@ -141,7 +141,7 @@ Public Function ImportDatasetFromWorksheet(ByVal oWorkbook As Workbook, _
             Err.Raise 5, PROCEDURE_NAME, "Segment size must be >= 1."
         End If
     Next i
-    Set oSource = ThisWorkbook.Sheets(sName)
+    Set oSource = oWorkbook.Sheets(sName)
     lFirstRow = GetFirstRow(oSource) + IIf(bHasHeaders, 1, 0)
     lFirstCol = GetFirstColumn(oSource)
     lNumSamples = GetLastRow(oSource) - lFirstRow + 1
