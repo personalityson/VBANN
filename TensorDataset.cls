@@ -47,17 +47,7 @@ Public Sub Init(ByVal vTensors As Variant)
     Dim X As Variant
     Dim aoTensors() As Tensor
     
-    Select Case GetRank(vTensors)
-        Case -1
-            vTensors = Array(vTensors)
-        Case 0
-            Clear
-            Exit Sub
-        Case 1
-            'Continue
-        Case Else
-            Err.Raise 5, PROCEDURE_NAME, "Expected a single tensor, an uninitialized array, or a one-dimensional array of tensors."
-    End Select
+    vTensors = EnsureArray(vTensors)
     lNumTensors = UBound(vTensors) - LBound(vTensors) + 1
     If lNumTensors > 0 Then
         ReDim aoTensors(1 To lNumTensors)

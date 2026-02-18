@@ -13,26 +13,33 @@ Implements ISerializable
 
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
+Private Const MAX_DIMENSIONS As Long = 60
 Private Const WILDCARD As Long = -1
 Private Const ELLIPSIS As Long = -2
 
-Private Const S_OK As Long = 0
-Private Const SA_OFFSET_fFeatures As Long = 2
-Private Const SA_OFFSET_cbElements As Long = 4
+Private Type SAFEARRAYBOUND
+    cElements As Long
+    lLBound As Long
+End Type
 
-#If Win64 Then
-    Private Const SA_OFFSET_pvData As Long = 16
-    Private Const SA_OFFSET_rgsabound As Long = 24
-#Else
-    Private Const SA_OFFSET_pvData As Long = 12
-    Private Const SA_OFFSET_rgsabound As Long = 16
-#End If
+Private Type SAFEARRAY
+    cDims As Integer
+    fFeatures As Integer
+    cbElements As Long
+    cLocks As Long
+    pvData As LongPtr
+    rgsabound(1 To MAX_DIMENSIONS) As SAFEARRAYBOUND
+End Type
 
-Private Declare PtrSafe Function SafeArrayAllocDescriptorEx Lib "oleaut32.dll" (ByVal vt As Integer, _
-                                                                                ByVal cDims As Long, _
-                                                                                ByRef ppsaOut As LongPtr) As Long
+Private Type SafeArrayDescriptorHeader
+    Reserved(1 To 12) As Byte
+    DataType As Long
+End Type
 
-Private Declare PtrSafe Function SafeArrayDestroyDescriptor Lib "oleaut32.dll" (ByVal psa As LongPtr) As Long
+Private Type SafeArrayDescriptor
+    Header As SafeArrayDescriptorHeader
+    sa As SAFEARRAY
+End Type
 
 Public Enum ReductionType
     rdcSum
@@ -50,8 +57,8 @@ Private m_alOuterStrides() As Long
 Private m_lNumElements As Long
 
 'Storage
+Private m_uDescriptor As SafeArrayDescriptor
 Private m_oData As Storage
-Private m_pDescriptor As LongPtr
 
 'View cache
 Private m_oFlatView As Tensor
@@ -98,6 +105,9 @@ Public Sub Resize(ByVal vShape As Variant, _
         End If
     Next i
     CalculateStrides lNumDimensions, alShape, alInnerStrides, alOuterStrides, lNumElements
+    If lNumDimensions > MAX_DIMENSIONS Then
+        Err.Raise 5, PROCEDURE_NAME, "Number of dimensions exceeds the maximum allowed (" & MAX_DIMENSIONS & ")."
+    End If
     If Not oData Is Nothing Then
         If oData.NumElements <> lNumElements Then
             Err.Raise 5, PROCEDURE_NAME, "Number of elements in the data does not match the tensor's number of elements."
@@ -114,6 +124,7 @@ Public Sub Resize(ByVal vShape As Variant, _
     Else
         Set m_oData = oData
     End If
+    AllocateDescriptor
 End Sub
 
 Public Sub Reshape(ByVal vShape As Variant)
@@ -355,8 +366,7 @@ Public Function ShapeEquals(ByVal vShape As Variant) As Boolean
 End Function
 
 Public Sub CreateAlias(ByRef adblAlias() As Double)
-    AllocateDescriptorLazily
-    CopyMemory ByVal VarPtrArray(adblAlias), m_pDescriptor, SIZEOF_LONGPTR
+    CopyMemory ByVal VarPtrArray(adblAlias), VarPtr(m_uDescriptor.sa), SIZEOF_LONGPTR
 End Sub
 
 Public Sub RemoveAlias(ByRef adblAlias() As Double)
@@ -368,12 +378,14 @@ Private Sub Class_Terminate()
 End Sub
 
 Private Sub Clear()
-    DestroyDescriptor
+    Dim uEmpty As SafeArrayDescriptor
+    
     m_lNumDimensions = 0
     Erase m_alShape
     Erase m_alInnerStrides
     Erase m_alOuterStrides
     m_lNumElements = 0
+    m_uDescriptor = uEmpty
     Set m_oData = Nothing
     Set m_oFlatView = Nothing
 End Sub
@@ -423,39 +435,18 @@ Private Sub AllocateDescriptor()
     Const FADF_STATIC As Integer = &H2
     Const FADF_HAVEVARTYPE As Integer = &H80
     Dim i As Long
-    Dim lErrorCode As Long
 
-    If m_lNumDimensions < 1 Then
-        Exit Sub
-    End If
-    lErrorCode = SafeArrayAllocDescriptorEx(m_oData.DataType, m_lNumDimensions, m_pDescriptor)
-    If lErrorCode <> S_OK Then
-        Err.Raise lErrorCode, PROCEDURE_NAME, "Failed to allocate descriptor."
-    End If
-    CopyMemory ByVal m_pDescriptor + SA_OFFSET_fFeatures, FADF_STATIC Or FADF_HAVEVARTYPE, SIZEOF_INTEGER
-    CopyMemory ByVal m_pDescriptor + SA_OFFSET_cbElements, m_oData.ElementSize, SIZEOF_LONG
-    CopyMemory ByVal m_pDescriptor + SA_OFFSET_pvData, m_oData.Address, SIZEOF_LONGPTR
-    For i = 1 To m_lNumDimensions
-        CopyMemory ByVal m_pDescriptor + SA_OFFSET_rgsabound + (m_lNumDimensions - i) * 2 * SIZEOF_LONG, m_alShape(i), SIZEOF_LONG
-        CopyMemory ByVal m_pDescriptor + SA_OFFSET_rgsabound + (m_lNumDimensions - i) * 2 * SIZEOF_LONG + SIZEOF_LONG, 1&, SIZEOF_LONG
-    Next i
-End Sub
-
-Private Sub DestroyDescriptor()
-    Const PROCEDURE_NAME As String = "Tensor.DestroyDescriptor"
-    Dim lErrorCode As Long
-
-    lErrorCode = SafeArrayDestroyDescriptor(m_pDescriptor)
-    If lErrorCode <> S_OK Then
-        Err.Raise lErrorCode, PROCEDURE_NAME, "Failed to destroy descriptor."
-    End If
-    m_pDescriptor = NULL_PTR
-End Sub
-
-Private Sub AllocateDescriptorLazily()
-    If m_lNumDimensions > 0 And m_pDescriptor = NULL_PTR Then
-        AllocateDescriptor
-    End If
+    With m_uDescriptor
+        .Header.DataType = m_oData.DataType
+        .sa.cDims = m_lNumDimensions
+        .sa.fFeatures = FADF_STATIC Or FADF_HAVEVARTYPE
+        .sa.cbElements = m_oData.ElementSize
+        .sa.pvData = m_oData.Address
+        For i = 1 To m_lNumDimensions
+            .sa.rgsabound(i).cElements = m_alShape(m_lNumDimensions - i + 1)
+            .sa.rgsabound(i).lLBound = 1
+        Next i
+    End With
 End Sub
 
 Private Function GatherInternal(ByVal lDimension As Long, _
@@ -507,7 +498,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
     Dim dblAcc As Double
     Dim A_() As Double
     Dim R_() As Double
-    Dim A As Tensor
+    Dim a As Tensor
     Dim R As Tensor
     Dim oResult As Tensor
 
@@ -519,9 +510,9 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
     oResult.Resize alNewShape
     lInnerStride = m_alInnerStrides(lDimension)
     lOuterStride = m_alOuterStrides(lDimension)
-    Set A = Me.View(Array(lInnerStride, lOldSize, lOuterStride))
+    Set a = Me.View(Array(lInnerStride, lOldSize, lOuterStride))
     Set R = oResult.View(Array(lInnerStride, lNewSize, lOuterStride))
-    A.CreateAlias A_
+    a.CreateAlias A_
     R.CreateAlias R_
     Select Case eReduction
         Case rdcSum
@@ -575,7 +566,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
                 Next k
             Next i
     End Select
-    A.RemoveAlias A_
+    a.RemoveAlias A_
     R.RemoveAlias R_
     Set ReduceInternal = oResult
 End Function
@@ -712,3 +703,4 @@ End Sub
         Load oWorksheet
     End Sub
 #End If
+

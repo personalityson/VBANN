@@ -32,7 +32,7 @@ Option Explicit
         '
     End Property
 
-    Public Sub Update(ByVal W As Parameter)
+    Public Sub Update(ByVal vParameters As Variant)
         '
     End Sub
 #End If

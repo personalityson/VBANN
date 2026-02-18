@@ -41,11 +41,11 @@ Public Const SIZEOF_DOUBLE As Long = 8
 #End If
 
 Public Enum RoundingType
-    rndNearest
-    rndDown
-    rndUp
-    rndTowardsZero
-    rndTowardsInfinity
+    rtNearest
+    rtDown
+    rtUp
+    rtTowardsZero
+    rtTowardsInfinity
 End Enum
 
 Private Type SYSTEMTIME
@@ -70,128 +70,130 @@ Public Declare PtrSafe Function VarPtrArray Lib "VBE7.dll" Alias "VarPtr" (ByRef
 
 Public Declare PtrSafe Function GetTickCount Lib "kernel32.dll" () As Long
 
+Public Declare PtrSafe Sub Sleep Lib "kernel32.dll" (ByVal dwMilliseconds As Long)
+
 Private Declare PtrSafe Sub GetSystemTime Lib "kernel32.dll" (ByRef lpSystemTime As SYSTEMTIME)
 
-Public Function MinLng2(ByVal A As Long, _
-                        ByVal B As Long) As Long
-    If A < B Then
-        MinLng2 = A
+Public Function MinLng2(ByVal a As Long, _
+                        ByVal b As Long) As Long
+    If a < b Then
+        MinLng2 = a
     Else
-        MinLng2 = B
+        MinLng2 = b
     End If
 End Function
 
-Public Function MaxLng2(ByVal A As Long, _
-                        ByVal B As Long) As Long
-    If A > B Then
-        MaxLng2 = A
+Public Function MaxLng2(ByVal a As Long, _
+                        ByVal b As Long) As Long
+    If a > b Then
+        MaxLng2 = a
     Else
-        MaxLng2 = B
+        MaxLng2 = b
     End If
 End Function
 
-Public Function MinPtr2(ByVal A As LongPtr, _
-                        ByVal B As LongPtr) As LongPtr
-    If A < B Then
-        MinPtr2 = A
+Public Function MinPtr2(ByVal a As LongPtr, _
+                        ByVal b As LongPtr) As LongPtr
+    If a < b Then
+        MinPtr2 = a
     Else
-        MinPtr2 = B
+        MinPtr2 = b
     End If
 End Function
 
-Public Function MaxPtr2(ByVal A As LongPtr, _
-                        ByVal B As LongPtr) As LongPtr
-    If A > B Then
-        MaxPtr2 = A
+Public Function MaxPtr2(ByVal a As LongPtr, _
+                        ByVal b As LongPtr) As LongPtr
+    If a > b Then
+        MaxPtr2 = a
     Else
-        MaxPtr2 = B
+        MaxPtr2 = b
     End If
 End Function
 
-Public Function MinDbl2(ByVal A As Double, _
-                        ByVal B As Double) As Double
-    If A < B Then
-        MinDbl2 = A
+Public Function MinDbl2(ByVal a As Double, _
+                        ByVal b As Double) As Double
+    If a < b Then
+        MinDbl2 = a
     Else
-        MinDbl2 = B
+        MinDbl2 = b
     End If
 End Function
 
-Public Function MaxDbl2(ByVal A As Double, _
-                        ByVal B As Double) As Double
-    If A > B Then
-        MaxDbl2 = A
+Public Function MaxDbl2(ByVal a As Double, _
+                        ByVal b As Double) As Double
+    If a > b Then
+        MaxDbl2 = a
     Else
-        MaxDbl2 = B
+        MaxDbl2 = b
     End If
 End Function
 
-Public Function MinLng3(ByVal A As Long, _
-                        ByVal B As Long, _
+Public Function MinLng3(ByVal a As Long, _
+                        ByVal b As Long, _
                         ByVal C As Long) As Long
-    MinLng3 = A
-    If MinLng3 > B Then
-        MinLng3 = B
+    MinLng3 = a
+    If MinLng3 > b Then
+        MinLng3 = b
     End If
     If MinLng3 > C Then
         MinLng3 = C
     End If
 End Function
 
-Public Function MaxLng3(ByVal A As Long, _
-                        ByVal B As Long, _
+Public Function MaxLng3(ByVal a As Long, _
+                        ByVal b As Long, _
                         ByVal C As Long) As Long
-    MaxLng3 = A
-    If MaxLng3 < B Then
-        MaxLng3 = B
+    MaxLng3 = a
+    If MaxLng3 < b Then
+        MaxLng3 = b
     End If
     If MaxLng3 < C Then
         MaxLng3 = C
     End If
 End Function
 
-Public Function MinPtr3(ByVal A As LongPtr, _
-                        ByVal B As LongPtr, _
+Public Function MinPtr3(ByVal a As LongPtr, _
+                        ByVal b As LongPtr, _
                         ByVal C As LongPtr) As LongPtr
-    MinPtr3 = A
-    If MinPtr3 > B Then
-        MinPtr3 = B
+    MinPtr3 = a
+    If MinPtr3 > b Then
+        MinPtr3 = b
     End If
     If MinPtr3 > C Then
         MinPtr3 = C
     End If
 End Function
 
-Public Function MaxPtr3(ByVal A As LongPtr, _
-                        ByVal B As LongPtr, _
+Public Function MaxPtr3(ByVal a As LongPtr, _
+                        ByVal b As LongPtr, _
                         ByVal C As LongPtr) As LongPtr
-    MaxPtr3 = A
-    If MaxPtr3 < B Then
-        MaxPtr3 = B
+    MaxPtr3 = a
+    If MaxPtr3 < b Then
+        MaxPtr3 = b
     End If
     If MaxPtr3 < C Then
         MaxPtr3 = C
     End If
 End Function
 
-Public Function MinDbl3(ByVal A As Double, _
-                        ByVal B As Double, _
+Public Function MinDbl3(ByVal a As Double, _
+                        ByVal b As Double, _
                         ByVal C As Double) As Double
-    MinDbl3 = A
-    If MinDbl3 > B Then
-        MinDbl3 = B
+    MinDbl3 = a
+    If MinDbl3 > b Then
+        MinDbl3 = b
     End If
     If MinDbl3 > C Then
         MinDbl3 = C
     End If
 End Function
 
-Public Function MaxDbl3(ByVal A As Double, _
-                        ByVal B As Double, _
+Public Function MaxDbl3(ByVal a As Double, _
+                        ByVal b As Double, _
                         ByVal C As Double) As Double
-    MaxDbl3 = A
-    If MaxDbl3 < B Then
-        MaxDbl3 = B
+    MaxDbl3 = a
+    If MaxDbl3 < b Then
+        MaxDbl3 = b
     End If
     If MaxDbl3 < C Then
         MaxDbl3 = C
@@ -207,15 +209,15 @@ Public Function RoundToMultiple(ByVal dblValue As Double, _
     End If
     dblMultiple = Abs(dblMultiple)
     Select Case eRoundingType
-        Case rndNearest
+        Case rtNearest
             RoundToMultiple = Round(dblValue / dblMultiple) * dblMultiple
-        Case rndDown
+        Case rtDown
             RoundToMultiple = Int(dblValue / dblMultiple) * dblMultiple
-        Case rndUp
+        Case rtUp
             RoundToMultiple = -Int(-dblValue / dblMultiple) * dblMultiple
-        Case rndTowardsZero
+        Case rtTowardsZero
             RoundToMultiple = Sgn(dblValue) * Int(Abs(dblValue) / dblMultiple) * dblMultiple
-        Case rndTowardsInfinity
+        Case rtTowardsInfinity
             RoundToMultiple = Sgn(dblValue) * -Int(-Abs(dblValue) / dblMultiple) * dblMultiple
     End Select
 End Function
@@ -242,51 +244,96 @@ Public Function GetRank(ByVal vArray As Variant) As Integer
 
     CopyMemory iVarType, vArray, SIZEOF_INTEGER
     If (iVarType And vbArray) = 0 Then
-        GetRank = -1
+        GetRank = -1 'A scalar
         Exit Function
     End If
     CopyMemory pSafeArray, ByVal VarPtr(vArray) + VARIANT_OFFSET_parray, SIZEOF_LONGPTR
     If pSafeArray = NULL_PTR Then
-        GetRank = 0
+        GetRank = 0 'Uninitialized
         Exit Function
     End If
     CopyMemory GetRank, ByVal pSafeArray, SIZEOF_INTEGER
 End Function
 
+Public Function EnsureArray(ByVal vValueOrArray As Variant) As Variant
+    Const PROCEDURE_NAME As String = "EnsureArray"
+    
+    Select Case GetRank(vValueOrArray)
+        Case -1
+            EnsureArray = Array(vValueOrArray)
+        Case 0
+            EnsureArray = Array()
+        Case 1
+            EnsureArray = vValueOrArray
+        Case Else
+            Err.Raise 5, PROCEDURE_NAME, "Expecting a acalar, an uninitialized array, or a one-dimensional array."
+    End Select
+End Function
+
 Public Sub ParseVariantToLongArray(ByVal vValueOrArray As Variant, _
                                    ByRef lNumElements As Long, _
                                    ByRef alArray() As Long)
-    Const PROCEDURE_NAME As String = "Tensor.ParseVariantToLongArray"
-    Dim iRank As Integer
+    Const PROCEDURE_NAME As String = "UtilityFunctions.ParseVariantToLongArray"
     Dim i As Long
-    Dim lLbound As Long
+    Dim lLBound As Long
     Dim lUBound As Long
-    
-    iRank = GetRank(vValueOrArray)
-    Select Case iRank
+    Dim vArray As Variant
+
+    Select Case GetRank(vValueOrArray)
         Case -1
-            lNumElements = 1
-            ReDim alArray(1 To lNumElements)
-            alArray(1) = CLng(vValueOrArray)
+            vArray = Array(vValueOrArray)
         Case 0
-            lNumElements = 0
-            Erase alArray
+            vArray = Array()
         Case 1
-            lLbound = LBound(vValueOrArray)
-            lUBound = UBound(vValueOrArray)
-            If lLbound > lUBound Then
-                lNumElements = 0
-                Erase alArray
-            Else
-                lNumElements = lUBound - lLbound + 1
-                ReDim alArray(1 To lNumElements)
-                For i = 1 To lNumElements
-                    alArray(i) = CLng(vValueOrArray(lLbound + i - 1))
-                Next i
-            End If
+            vArray = vValueOrArray
         Case Else
             Err.Raise 5, PROCEDURE_NAME, "Expected a single value, an uninitialized array, or a one-dimensional array."
     End Select
+    lLBound = LBound(vArray)
+    lUBound = UBound(vArray)
+    If lLBound > lUBound Then
+        lNumElements = 0
+        Erase alArray
+    Else
+        lNumElements = lUBound - lLBound + 1
+        ReDim alArray(1 To lNumElements)
+        For i = 1 To lNumElements
+            alArray(i) = CLng(vArray(lLBound + i - 1))
+        Next i
+    End If
+End Sub
+
+Public Sub ParseVariantToDoubleArray(ByVal vValueOrArray As Variant, _
+                                     ByRef lNumElements As Long, _
+                                     ByRef adblArray() As Double)
+    Const PROCEDURE_NAME As String = "UtilityFunctions.ParseVariantToLongArray"
+    Dim i As Long
+    Dim lLBound As Long
+    Dim lUBound As Long
+    Dim vArray As Variant
+
+    Select Case GetRank(vValueOrArray)
+        Case -1
+            vArray = Array(vValueOrArray)
+        Case 0
+            vArray = Array()
+        Case 1
+            vArray = vValueOrArray
+        Case Else
+            Err.Raise 5, PROCEDURE_NAME, "Expected a single value, an uninitialized array, or a one-dimensional array."
+    End Select
+    lLBound = LBound(vArray)
+    lUBound = UBound(vArray)
+    If lLBound > lUBound Then
+        lNumElements = 0
+        Erase adblArray
+    Else
+        lNumElements = lUBound - lLBound + 1
+        ReDim adblArray(1 To lNumElements)
+        For i = 1 To lNumElements
+            adblArray(i) = CDbl(vArray(lLBound + i - 1))
+        Next i
+    End If
 End Sub
 
 Public Function GetIdentityPermutationArray(ByVal lNumElements As Long) As Long()
@@ -537,65 +584,65 @@ Public Function SanitizeFileName(ByVal sName As String) As String
     End If
 End Function
 
-Public Function FileFormatToExtension(ByVal lFileFormat As XlFileFormat) As String
+Public Function FormatExtension(ByVal lFileFormat As XlFileFormat) As String
     Select Case lFileFormat
-        Case xlAddIn: FileFormatToExtension = "xla"
-        Case xlAddIn8: FileFormatToExtension = "xla"
-        Case xlCSV: FileFormatToExtension = "csv"
-        Case xlCSVMac: FileFormatToExtension = "csv"
-        Case xlCSVMSDOS: FileFormatToExtension = "csv"
-        Case xlCSVUTF8: FileFormatToExtension = "csv"
-        Case xlCSVWindows: FileFormatToExtension = "csv"
-        Case xlCurrentPlatformText: FileFormatToExtension = "txt"
-        Case xlDBF2: FileFormatToExtension = "dbf"
-        Case xlDBF3: FileFormatToExtension = "dbf"
-        Case xlDBF4: FileFormatToExtension = "dbf"
-        Case xlDIF: FileFormatToExtension = "dif"
-        Case xlExcel12: FileFormatToExtension = "xlsb"
-        Case xlExcel2: FileFormatToExtension = "xls"
-        Case xlExcel2FarEast: FileFormatToExtension = "xls"
-        Case xlExcel3: FileFormatToExtension = "xls"
-        Case xlExcel4: FileFormatToExtension = "xls"
-        Case xlExcel4Workbook: FileFormatToExtension = "xlw"
-        Case xlExcel5: FileFormatToExtension = "xls"
-        Case xlExcel7: FileFormatToExtension = "xls"
-        Case xlExcel8: FileFormatToExtension = "xls"
-        Case xlExcel9795: FileFormatToExtension = "xls"
-        Case xlHtml: FileFormatToExtension = "html"
-        Case xlIntlAddIn: FileFormatToExtension = ""
-        Case xlIntlMacro: FileFormatToExtension = ""
-        Case xlOpenDocumentSpreadsheet: FileFormatToExtension = "ods"
-        Case xlOpenXMLAddIn: FileFormatToExtension = "xlam"
-        Case xlOpenXMLStrictWorkbook: FileFormatToExtension = "xlsx"
-        Case xlOpenXMLTemplate: FileFormatToExtension = "xltx"
-        Case xlOpenXMLTemplateMacroEnabled: FileFormatToExtension = "xltm"
-        Case xlOpenXMLWorkbook: FileFormatToExtension = "xlsx"
-        Case xlOpenXMLWorkbookMacroEnabled: FileFormatToExtension = "xlsm"
-        Case xlSYLK: FileFormatToExtension = "slk"
-        Case xlTemplate: FileFormatToExtension = "xlt"
-        Case xlTemplate8: FileFormatToExtension = "xlt"
-        Case xlTextMac: FileFormatToExtension = "txt"
-        Case xlTextMSDOS: FileFormatToExtension = "txt"
-        Case xlTextPrinter: FileFormatToExtension = "prn"
-        Case xlTextWindows: FileFormatToExtension = "txt"
-        Case xlUnicodeText: FileFormatToExtension = "txt"
-        Case xlWebArchive: FileFormatToExtension = "mhtml"
-        Case xlWJ2WD1: FileFormatToExtension = "wj2"
-        Case xlWJ3: FileFormatToExtension = "wj3"
-        Case xlWJ3FJ3: FileFormatToExtension = "wj3"
-        Case xlWK1: FileFormatToExtension = "wk1"
-        Case xlWK1ALL: FileFormatToExtension = "wk1"
-        Case xlWK1FMT: FileFormatToExtension = "wk1"
-        Case xlWK3: FileFormatToExtension = "wk3"
-        Case xlWK3FM3: FileFormatToExtension = "wk3"
-        Case xlWK4: FileFormatToExtension = "wk4"
-        Case xlWKS: FileFormatToExtension = "wks"
-        Case xlWorkbookDefault: FileFormatToExtension = "xlsx"
-        Case xlWorkbookNormal: FileFormatToExtension = "xls"
-        Case xlWorks2FarEast: FileFormatToExtension = "wks"
-        Case xlWQ1: FileFormatToExtension = "wq1"
-        Case xlXMLSpreadsheet: FileFormatToExtension = "xml"
-        Case Else: FileFormatToExtension = "xlsx"
+        Case xlAddIn: FormatExtension = "xla"
+        Case xlAddIn8: FormatExtension = "xla"
+        Case xlCSV: FormatExtension = "csv"
+        Case xlCSVMac: FormatExtension = "csv"
+        Case xlCSVMSDOS: FormatExtension = "csv"
+        'Case xlCSVUTF8: FormatExtension = "csv"
+        Case xlCSVWindows: FormatExtension = "csv"
+        Case xlCurrentPlatformText: FormatExtension = "txt"
+        Case xlDBF2: FormatExtension = "dbf"
+        Case xlDBF3: FormatExtension = "dbf"
+        Case xlDBF4: FormatExtension = "dbf"
+        Case xlDIF: FormatExtension = "dif"
+        Case xlExcel12: FormatExtension = "xlsb"
+        Case xlExcel2: FormatExtension = "xls"
+        Case xlExcel2FarEast: FormatExtension = "xls"
+        Case xlExcel3: FormatExtension = "xls"
+        Case xlExcel4: FormatExtension = "xls"
+        Case xlExcel4Workbook: FormatExtension = "xlw"
+        Case xlExcel5: FormatExtension = "xls"
+        Case xlExcel7: FormatExtension = "xls"
+        Case xlExcel8: FormatExtension = "xls"
+        Case xlExcel9795: FormatExtension = "xls"
+        Case xlHtml: FormatExtension = "html"
+        Case xlIntlAddIn: FormatExtension = ""
+        Case xlIntlMacro: FormatExtension = ""
+        Case xlOpenDocumentSpreadsheet: FormatExtension = "ods"
+        Case xlOpenXMLAddIn: FormatExtension = "xlam"
+        'Case xlOpenXMLStrictWorkbook: FormatExtension = "xlsx"
+        Case xlOpenXMLTemplate: FormatExtension = "xltx"
+        Case xlOpenXMLTemplateMacroEnabled: FormatExtension = "xltm"
+        Case xlOpenXMLWorkbook: FormatExtension = "xlsx"
+        Case xlOpenXMLWorkbookMacroEnabled: FormatExtension = "xlsm"
+        Case xlSYLK: FormatExtension = "slk"
+        Case xlTemplate: FormatExtension = "xlt"
+        Case xlTemplate8: FormatExtension = "xlt"
+        Case xlTextMac: FormatExtension = "txt"
+        Case xlTextMSDOS: FormatExtension = "txt"
+        Case xlTextPrinter: FormatExtension = "prn"
+        Case xlTextWindows: FormatExtension = "txt"
+        Case xlUnicodeText: FormatExtension = "txt"
+        Case xlWebArchive: FormatExtension = "mhtml"
+        Case xlWJ2WD1: FormatExtension = "wj2"
+        Case xlWJ3: FormatExtension = "wj3"
+        Case xlWJ3FJ3: FormatExtension = "wj3"
+        Case xlWK1: FormatExtension = "wk1"
+        Case xlWK1ALL: FormatExtension = "wk1"
+        Case xlWK1FMT: FormatExtension = "wk1"
+        Case xlWK3: FormatExtension = "wk3"
+        Case xlWK3FM3: FormatExtension = "wk3"
+        Case xlWK4: FormatExtension = "wk4"
+        Case xlWKS: FormatExtension = "wks"
+        Case xlWorkbookDefault: FormatExtension = "xlsx"
+        Case xlWorkbookNormal: FormatExtension = "xls"
+        Case xlWorks2FarEast: FormatExtension = "wks"
+        Case xlWQ1: FormatExtension = "wq1"
+        Case xlXMLSpreadsheet: FormatExtension = "xml"
+        Case Else: FormatExtension = "xlsx"
     End Select
 End Function
 
@@ -604,26 +651,31 @@ Public Function CreateWorkbook(ByVal sDirectory As String, _
                                Optional ByVal lFileFormat As XlFileFormat = xlWorkbookDefault, _
                                Optional ByVal bOverwrite As Boolean, _
                                Optional ByRef bIsWorkbookNew As Boolean) As Workbook
+    Const PROCEDURE_NAME As String = "UtilityFunctions.CreateWorkbook"
     Dim sExtension As String
-    Dim sFileName As String
+    Dim sFilename As String
     Dim sPath As String
     Dim oResult As Workbook
     
-    sExtension = FileFormatToExtension(lFileFormat)
-    sFileName = SanitizeFileName(sName & IIf(sExtension = "", "", "." & sExtension))
-    sPath = Fso.BuildPath(sDirectory, sFileName)
+    If Not Fso.FolderExists(sDirectory) Then
+        Err.Raise 9, PROCEDURE_NAME, "Directory does not exist."
+    End If
+    sExtension = FormatExtension(lFileFormat)
+    sFilename = SanitizeFileName(sName & IIf(sExtension = "", "", "." & sExtension))
+    sPath = Fso.BuildPath(sDirectory, sFilename)
     If Fso.FileExists(sPath) Then
         If bOverwrite Then
             Kill sPath
         Else
+            Set oResult = Workbooks.Open(Filename:=sPath, UpdateLinks:=False, IgnoreReadOnlyRecommended:=True, Notify:=False, Local:=True)
             bIsWorkbookNew = False
-            Set CreateWorkbook = Workbooks.Open(fileName:=sPath, UpdateLinks:=False, IgnoreReadOnlyRecommended:=True, Notify:=False, Local:=True)
+            Set CreateWorkbook = oResult
             Exit Function
         End If
     End If
     Set oResult = Workbooks.Add
     oResult.Title = sName
-    oResult.SaveAs fileName:=sPath, FileFormat:=lFileFormat, Local:=True
+    oResult.SaveAs Filename:=sPath, FileFormat:=lFileFormat, Local:=True
     bIsWorkbookNew = True
     Set CreateWorkbook = oResult
 End Function
@@ -667,54 +719,28 @@ Public Function CreateWorksheet(ByVal oWorkbook As Workbook, _
     If oWorkbook Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Workbook object is required."
     End If
-    bDisplayAlertsSave = Application.DisplayAlerts
     sName = SanitizeWorksheetName(sName)
     If WorksheetExists(oWorkbook, sName) Then
         If bOverwrite Then
             Set oResult = oWorkbook.Worksheets.Add(After:=oWorkbook.Worksheets(sName))
+            bDisplayAlertsSave = Application.DisplayAlerts
             Application.DisplayAlerts = False
             oWorkbook.Worksheets(sName).Delete
             Application.DisplayAlerts = bDisplayAlertsSave
+            oResult.Name = sName
+            bIsWorksheetNew = True
         Else
+            Set oResult = oWorkbook.Worksheets(sName)
             bIsWorksheetNew = False
-            Set CreateWorksheet = oWorkbook.Worksheets(sName)
-            Exit Function
         End If
     Else
         Set oResult = oWorkbook.Worksheets.Add(After:=oWorkbook.Worksheets(oWorkbook.Worksheets.Count))
+        oResult.Name = sName
+        bIsWorksheetNew = True
     End If
-    oResult.Name = sName
     oResult.Activate
     ActiveWindow.Zoom = 80
-    bIsWorksheetNew = True
     Set CreateWorksheet = oResult
-End Function
-
-Public Function DumpWorksheet(ByVal oWorksheet As Worksheet, _
-                              ByVal sDirectory As String, _
-                              ByVal sName As String, _
-                              Optional ByVal lFileFormat As XlFileFormat = xlWorkbookDefault, _
-                              Optional ByVal bOverwrite As Boolean) As Workbook
-    Const PROCEDURE_NAME As String = "UtilityFunctions.DumpWorksheet"
-    Dim bDisplayAlertsSave As Boolean
-    Dim i As Long
-    Dim oResult As Workbook
-    
-    If oWorksheet Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Worksheer object is required."
-    End If
-    Set oResult = CreateWorkbook(sDirectory, sName, lFileFormat, bOverwrite)
-    oWorksheet.Copy Before:=oResult.Sheets(1)
-    bDisplayAlertsSave = Application.DisplayAlerts
-    Application.DisplayAlerts = False
-    For i = oResult.Worksheets.Count To 2 Step -1
-        oResult.Worksheets(i).Delete
-    Next i
-    Application.DisplayAlerts = bDisplayAlertsSave
-    oResult.Sheets(1).Name = oWorksheet.Name
-    oResult.Save
-    oResult.Close SaveChanges:=True
-    Set DumpWorksheet = oResult
 End Function
 
 Public Function GetUtcTime() As Date
@@ -726,12 +752,12 @@ Public Function GetUtcTime() As Date
     End With
 End Function
 
-Public Function GetUtcTimestamp() As Long
+Public Function GetUtcTimestamp() As String
     Dim uNow As SYSTEMTIME
     
     GetSystemTime uNow
     With uNow
-        GetUtcTimestamp = DateDiff("s", DateSerial(1970, 1, 1), DateSerial(.wYear, .wMonth, .wDay) + TimeSerial(.wHour, .wMinute, .wSecond))
+        GetUtcTimestamp = Format$(DateDiff("s", DateSerial(1970, 1, 1), DateSerial(.wYear, .wMonth, .wDay) + TimeSerial(.wHour, .wMinute, .wSecond)), "0000000000") & Format$(.wMillisecond, "000")
     End With
 End Function
 
@@ -749,27 +775,21 @@ Public Sub LogToWorksheet(ByVal sName As String, _
     Dim lLastRow As Long
     Dim vHeader As Variant
     Dim vHeaderCol As Variant
-    Dim vValue As Variant
     Dim bIsWorksheetNew As Boolean
     Dim oLog As Worksheet
     
     Set oLog = CreateWorksheet(ThisWorkbook, sName, False, bIsWorksheetNew)
-    If bIsWorksheetNew Then
-        lLastRow = 1
-    Else
-        lLastRow = GetLastRow(oLog)
-    End If
+    lLastRow = MaxLng2(1, GetLastRow(oLog))
     With oLog
         On Error Resume Next
         For i = 0 To UBound(avArgs) - 1 Step 2
             vHeader = avArgs(i)
             vHeaderCol = Application.Match(vHeader, .Rows(1), 0)
-            vValue = avArgs(i + 1)
             If IsError(vHeaderCol) Then
                 vHeaderCol = GetLastColumn(oLog) + 1
                 .Cells(1, vHeaderCol) = vHeader
             End If
-            .Cells(lLastRow + 1, vHeaderCol) = vValue
+            .Cells(lLastRow + 1, vHeaderCol) = avArgs(i + 1)
             Application.GoTo .Cells(lLastRow + 1, vHeaderCol)
             DoEvents
         Next i

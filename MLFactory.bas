@@ -12,10 +12,12 @@ End Function
 
 Public Function BCELoss() As BCELoss
     Set BCELoss = New BCELoss
+    BCELoss.Init
 End Function
 
 Public Function CCELoss() As CCELoss
     Set CCELoss = New CCELoss
+    CCELoss.Init
 End Function
 
 Public Function DataLoader(ByVal oDataset As IDataset, _
@@ -43,10 +45,12 @@ End Function
 
 Public Function L1Loss() As L1Loss
     Set L1Loss = New L1Loss
+    L1Loss.Init
 End Function
 
 Public Function L2Loss() As L2Loss
     Set L2Loss = New L2Loss
+    L2Loss.Init
 End Function
 
 Public Function LeakyReLULayer(Optional ByVal dblNegativeSlope As Double = 0.01) As LeakyReLULayer
@@ -76,10 +80,12 @@ End Function
 
 Public Function SigmoidLayer() As SigmoidLayer
     Set SigmoidLayer = New SigmoidLayer
+    SigmoidLayer.Init
 End Function
 
 Public Function SoftmaxLayer() As SoftmaxLayer
     Set SoftmaxLayer = New SoftmaxLayer
+    SoftmaxLayer.Init
 End Function
 
 Public Function SubsetDataset(ByVal oDataset As IDataset, _
@@ -90,6 +96,7 @@ End Function
 
 Public Function TanhLayer() As TanhLayer
     Set TanhLayer = New TanhLayer
+    TanhLayer.Init
 End Function
 
 Public Function TensorDataset(ByVal vTensors As Variant) As TensorDataset
@@ -165,8 +172,8 @@ End Function
 
 Public Sub RandomSplit(ByVal oDataset As IDataset, _
                        ByVal dblAt As Double, _
-                       ByRef A As SubsetDataset, _
-                       ByRef B As SubsetDataset)
+                       ByRef a As SubsetDataset, _
+                       ByRef b As SubsetDataset)
     Const PROCEDURE_NAME As String = "MLFactory.RandomSplit"
     Dim lSizeA As Long
     Dim lSizeB As Long
@@ -191,6 +198,6 @@ Public Sub RandomSplit(ByVal oDataset As IDataset, _
         ReDim alIndicesB(1 To lSizeB)
         CopyMemory alIndicesB(1), alFullIndices(lSizeA + 1), lSizeB * SIZEOF_LONG
     End If
-    Set A = oDataset.Subset(alIndicesA)
-    Set B = oDataset.Subset(alIndicesB)
+    Set a = oDataset.Subset(alIndicesA)
+    Set b = oDataset.Subset(alIndicesB)
 End Sub

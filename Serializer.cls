@@ -169,7 +169,9 @@ End Sub
 
 Private Sub WriteMemo(ByVal lMemoIndex As Long)
     WriteString SERIALIZABLE_TYPE_MEMO
+    m_lIndent = m_lIndent + 1
     WriteLong lMemoIndex
+    m_lIndent = m_lIndent - 1
 End Sub
 
 Private Sub WriteSerializable(ByVal oObject As ISerializable)
@@ -220,7 +222,9 @@ End Function
 Private Function ReadMemo() As ISerializable
     Dim lMemoIndex As Long
     
+    m_lIndent = m_lIndent + 1
     lMemoIndex = ReadLong()
+    m_lIndent = m_lIndent - 1
     Set ReadMemo = m_aoSerializedObjects(lMemoIndex)
 End Function
 

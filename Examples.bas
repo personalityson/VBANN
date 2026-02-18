@@ -17,7 +17,7 @@ Public Sub SetupAndTrain()
     lInputSize = 8
     lLabelSize = 1
     lBatchSize = 16
-    lNumEpochs = 50
+    lNumEpochs = 40
 
     'Prepare training data
     Set oFullSet = ImportDatasetFromWorksheet(ThisWorkbook, "Concrete", Array(lInputSize, lLabelSize), True, False)
@@ -67,53 +67,53 @@ Public Function PredictInWorksheet(ByVal oInput As Range) As Variant
 End Function
 
 Public Sub WorkingWithTensors()
-    Dim A As Tensor
-    Dim B As Tensor
+    Dim a As Tensor
+    Dim b As Tensor
     Dim A_() As Double
     Dim B_() As Double
     Dim adblArray() As Double
 
     'Create an empty tensor A filled with zeros, with shape (2, 3, 4).
-    Set A = Zeros(Array(2, 3, 4))
+    Set a = Zeros(Array(2, 3, 4))
 
     'Basic properties of A.
-    MsgBox A.NumDimensions
-    MsgBox A.Size(1)
-    MsgBox A.Size(2)
-    MsgBox A.Size(3)
-    MsgBox A.NumElements
-    MsgBox A.Address 'Pointer to the first element
+    MsgBox a.NumDimensions
+    MsgBox a.Size(1)
+    MsgBox a.Size(2)
+    MsgBox a.Size(3)
+    MsgBox a.NumElements
+    MsgBox a.Address 'Pointer to the first element
 
     'Create a tensor A filled with constant values.
-    Set A = Ones(Array(2, 3, 4))
-    Set A = Full(Array(2, 3, 4), 777)
+    Set a = Ones(Array(2, 3, 4))
+    Set a = Full(Array(2, 3, 4), 777)
 
     'Create a tensor A filled with random values.
-    Set A = Uniform(Array(2, 3, 4), 0, 1)
-    Set A = Normal(Array(2, 3, 4), 0, 1)
-    Set A = Bernoulli(Array(2, 3, 4), 0.5)
+    Set a = Uniform(Array(2, 3, 4), 0, 1)
+    Set a = Normal(Array(2, 3, 4), 0, 1)
+    Set a = Bernoulli(Array(2, 3, 4), 0.5)
 
     'Fill tensor A with a constant value.
-    A.Fill 777
+    a.Fill 777
 
     'Copy tensor A into a new tensor B. (B must be resized to match A's shape.)
-    Set B = New Tensor
-    B.Resize A.Shape
-    B.Copy A
+    Set b = New Tensor
+    b.Resize a.Shape
+    b.Copy a
 
     'Clone tensor A into a new tensor B.
-    Set B = A.Clone
+    Set b = a.Clone
 
     'Use ShapeEquals to check if A's shape matches (2, 3, 4).
-    MsgBox A.ShapeEquals(Array(2, 3, 4))
+    MsgBox a.ShapeEquals(Array(2, 3, 4))
 
     'Create a different view of A with a new shape (6, 4).
     'This view shares the same underlying data, but has a different layout.
-    Set B = A.View(Array(6, 4))
+    Set b = a.View(Array(6, 4))
 
     'Create alias arrays for direct memory access.
-    A.CreateAlias A_
-    B.CreateAlias B_
+    a.CreateAlias A_
+    b.CreateAlias B_
 
     ' Modify an element via the alias from A's perspective.
     A_(1, 1, 1) = 777
@@ -130,45 +130,45 @@ Public Sub WorkingWithTensors()
     MsgBox B_(1, 1)
 
     'Remove the aliases to avoid memory deallocation.
-    A.RemoveAlias A_
-    B.RemoveAlias B_
+    a.RemoveAlias A_
+    b.RemoveAlias B_
 
     'Create a flattened view of A with shared underlying data. The new shape is (24).
-    Set A = A.Flatten
+    Set a = a.Flatten
 
     'Add singleton dimensions on both sides. The new shape is (1, 24, 1).
-    Set A = A.View(Array(1, 24, 1))
+    Set a = a.View(Array(1, 24, 1))
 
     'Reshape A to a 2D tensor (4, 6). Number of elements must remain the same.
-    A.Reshape Array(4, 6)
+    a.Reshape Array(4, 6)
 
     'Reduce A along dimension 2 using mean reduction. The new shape is (4, 1).
-    Set A = A.Reduce(2, rdcMean)
+    Set a = a.Reduce(2, rdcMean)
 
     'Slice A along dimension 1 from index 3 to 4. The new shape is (2, 1).
-    Set A = A.Slice(1, 3, 4)
+    Set a = a.Slice(1, 3, 4)
 
     'Tile A along dimension 2, repeating it 3 times. The new shape is (2, 3).
-    Set A = A.Tile(2, 3)
+    Set a = a.Tile(2, 3)
 
     'Create tensor A from a native VBA array.
-    A.FromArray adblArray
+    a.FromArray adblArray
 
     'Copy tensor A to a native VBA array.
-    adblArray = A.ToArray
+    adblArray = a.ToArray
 
     'Create tensor A from an Excel range.
-    A.FromRange ActiveSheet.Range("A1:B3")
+    a.FromRange ActiveSheet.Range("A1:B3")
 End Sub
 
 Public Sub Test()
-    Dim A As Tensor
+    Dim a As Tensor
     Static A_() As Double
     
-    Set A = New Tensor
-    A.Resize Array()
-    A.CreateAlias A_
+    Set a = New Tensor
+    a.Resize Array()
+    a.CreateAlias A_
     
-    A.RemoveAlias A_
+    a.RemoveAlias A_
 End Sub
 

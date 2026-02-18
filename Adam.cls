@@ -75,17 +75,7 @@ Public Sub Update(ByVal vParameters As Variant)
     Const PROCEDURE_NAME As String = "Adam.Update"
     Dim W As Variant
     
-    Select Case GetRank(vParameters)
-        Case -1
-            vParameters = Array(vParameters)
-        Case 0
-            Exit Sub
-        Case 1
-            'Continue
-        Case Else
-            Err.Raise 5, PROCEDURE_NAME, "Expected a single parameter, an uninitialized array, or a one-dimensional array of parameters."
-    End Select
-    For Each W In vParameters
+    For Each W In EnsureArray(vParameters)
         If Not IsObject(W) Then
             Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
         End If

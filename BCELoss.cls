@@ -34,7 +34,7 @@ Public Function Forward(ByVal Y As Tensor, _
     Set Forward = CalculateLoss(Y, T)
 End Function
 
-Public Function Gradient(ByVal Y As Tensor, _
+Public Function Backward(ByVal Y As Tensor, _
                          ByVal T As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "BCELoss.Backward"
     
@@ -47,7 +47,7 @@ Public Function Gradient(ByVal Y As Tensor, _
     If Not Y.ShapeEquals(T.Shape) Then
         Err.Raise 5, PROCEDURE_NAME, "Output and target tensors must have the same shape."
     End If
-    Set Gradient = CalculateGradient(Y, T)
+    Set Backward = CalculateGradient(Y, T)
 End Function
 
 'L = -T * Log(Y) - (1 - T) * Log(1 - Y)
@@ -110,7 +110,7 @@ End Sub
     
     Private Function ICriterion_Backward(ByVal Y As Object, _
                                          ByVal T As Object) As Object
-        Set ICriterion_Backward = Gradient(Y, T)
+        Set ICriterion_Backward = Backward(Y, T)
     End Function
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Object)
