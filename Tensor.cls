@@ -379,7 +379,7 @@ End Sub
 
 Private Sub Clear()
     Dim uEmpty As SafeArrayDescriptor
-    
+
     m_lNumDimensions = 0
     Erase m_alShape
     Erase m_alInnerStrides
@@ -498,7 +498,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
     Dim dblAcc As Double
     Dim A_() As Double
     Dim R_() As Double
-    Dim a As Tensor
+    Dim A As Tensor
     Dim R As Tensor
     Dim oResult As Tensor
 
@@ -510,9 +510,9 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
     oResult.Resize alNewShape
     lInnerStride = m_alInnerStrides(lDimension)
     lOuterStride = m_alOuterStrides(lDimension)
-    Set a = Me.View(Array(lInnerStride, lOldSize, lOuterStride))
+    Set A = Me.View(Array(lInnerStride, lOldSize, lOuterStride))
     Set R = oResult.View(Array(lInnerStride, lNewSize, lOuterStride))
-    a.CreateAlias A_
+    A.CreateAlias A_
     R.CreateAlias R_
     Select Case eReduction
         Case rdcSum
@@ -566,7 +566,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
                 Next k
             Next i
     End Select
-    a.RemoveAlias A_
+    A.RemoveAlias A_
     R.RemoveAlias R_
     Set ReduceInternal = oResult
 End Function

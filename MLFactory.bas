@@ -172,8 +172,8 @@ End Function
 
 Public Sub RandomSplit(ByVal oDataset As IDataset, _
                        ByVal dblAt As Double, _
-                       ByRef a As SubsetDataset, _
-                       ByRef b As SubsetDataset)
+                       ByRef A As SubsetDataset, _
+                       ByRef B As SubsetDataset)
     Const PROCEDURE_NAME As String = "MLFactory.RandomSplit"
     Dim lSizeA As Long
     Dim lSizeB As Long
@@ -198,6 +198,6 @@ Public Sub RandomSplit(ByVal oDataset As IDataset, _
         ReDim alIndicesB(1 To lSizeB)
         CopyMemory alIndicesB(1), alFullIndices(lSizeA + 1), lSizeB * SIZEOF_LONG
     End If
-    Set a = oDataset.Subset(alIndicesA)
-    Set b = oDataset.Subset(alIndicesB)
+    Set A = oDataset.Subset(alIndicesA)
+    Set B = oDataset.Subset(alIndicesB)
 End Sub

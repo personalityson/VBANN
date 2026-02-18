@@ -74,126 +74,126 @@ Public Declare PtrSafe Sub Sleep Lib "kernel32.dll" (ByVal dwMilliseconds As Lon
 
 Private Declare PtrSafe Sub GetSystemTime Lib "kernel32.dll" (ByRef lpSystemTime As SYSTEMTIME)
 
-Public Function MinLng2(ByVal a As Long, _
-                        ByVal b As Long) As Long
-    If a < b Then
-        MinLng2 = a
+Public Function MinLng2(ByVal A As Long, _
+                        ByVal B As Long) As Long
+    If A < B Then
+        MinLng2 = A
     Else
-        MinLng2 = b
+        MinLng2 = B
     End If
 End Function
 
-Public Function MaxLng2(ByVal a As Long, _
-                        ByVal b As Long) As Long
-    If a > b Then
-        MaxLng2 = a
+Public Function MaxLng2(ByVal A As Long, _
+                        ByVal B As Long) As Long
+    If A > B Then
+        MaxLng2 = A
     Else
-        MaxLng2 = b
+        MaxLng2 = B
     End If
 End Function
 
-Public Function MinPtr2(ByVal a As LongPtr, _
-                        ByVal b As LongPtr) As LongPtr
-    If a < b Then
-        MinPtr2 = a
+Public Function MinPtr2(ByVal A As LongPtr, _
+                        ByVal B As LongPtr) As LongPtr
+    If A < B Then
+        MinPtr2 = A
     Else
-        MinPtr2 = b
+        MinPtr2 = B
     End If
 End Function
 
-Public Function MaxPtr2(ByVal a As LongPtr, _
-                        ByVal b As LongPtr) As LongPtr
-    If a > b Then
-        MaxPtr2 = a
+Public Function MaxPtr2(ByVal A As LongPtr, _
+                        ByVal B As LongPtr) As LongPtr
+    If A > B Then
+        MaxPtr2 = A
     Else
-        MaxPtr2 = b
+        MaxPtr2 = B
     End If
 End Function
 
-Public Function MinDbl2(ByVal a As Double, _
-                        ByVal b As Double) As Double
-    If a < b Then
-        MinDbl2 = a
+Public Function MinDbl2(ByVal A As Double, _
+                        ByVal B As Double) As Double
+    If A < B Then
+        MinDbl2 = A
     Else
-        MinDbl2 = b
+        MinDbl2 = B
     End If
 End Function
 
-Public Function MaxDbl2(ByVal a As Double, _
-                        ByVal b As Double) As Double
-    If a > b Then
-        MaxDbl2 = a
+Public Function MaxDbl2(ByVal A As Double, _
+                        ByVal B As Double) As Double
+    If A > B Then
+        MaxDbl2 = A
     Else
-        MaxDbl2 = b
+        MaxDbl2 = B
     End If
 End Function
 
-Public Function MinLng3(ByVal a As Long, _
-                        ByVal b As Long, _
+Public Function MinLng3(ByVal A As Long, _
+                        ByVal B As Long, _
                         ByVal C As Long) As Long
-    MinLng3 = a
-    If MinLng3 > b Then
-        MinLng3 = b
+    MinLng3 = A
+    If MinLng3 > B Then
+        MinLng3 = B
     End If
     If MinLng3 > C Then
         MinLng3 = C
     End If
 End Function
 
-Public Function MaxLng3(ByVal a As Long, _
-                        ByVal b As Long, _
+Public Function MaxLng3(ByVal A As Long, _
+                        ByVal B As Long, _
                         ByVal C As Long) As Long
-    MaxLng3 = a
-    If MaxLng3 < b Then
-        MaxLng3 = b
+    MaxLng3 = A
+    If MaxLng3 < B Then
+        MaxLng3 = B
     End If
     If MaxLng3 < C Then
         MaxLng3 = C
     End If
 End Function
 
-Public Function MinPtr3(ByVal a As LongPtr, _
-                        ByVal b As LongPtr, _
+Public Function MinPtr3(ByVal A As LongPtr, _
+                        ByVal B As LongPtr, _
                         ByVal C As LongPtr) As LongPtr
-    MinPtr3 = a
-    If MinPtr3 > b Then
-        MinPtr3 = b
+    MinPtr3 = A
+    If MinPtr3 > B Then
+        MinPtr3 = B
     End If
     If MinPtr3 > C Then
         MinPtr3 = C
     End If
 End Function
 
-Public Function MaxPtr3(ByVal a As LongPtr, _
-                        ByVal b As LongPtr, _
+Public Function MaxPtr3(ByVal A As LongPtr, _
+                        ByVal B As LongPtr, _
                         ByVal C As LongPtr) As LongPtr
-    MaxPtr3 = a
-    If MaxPtr3 < b Then
-        MaxPtr3 = b
+    MaxPtr3 = A
+    If MaxPtr3 < B Then
+        MaxPtr3 = B
     End If
     If MaxPtr3 < C Then
         MaxPtr3 = C
     End If
 End Function
 
-Public Function MinDbl3(ByVal a As Double, _
-                        ByVal b As Double, _
+Public Function MinDbl3(ByVal A As Double, _
+                        ByVal B As Double, _
                         ByVal C As Double) As Double
-    MinDbl3 = a
-    If MinDbl3 > b Then
-        MinDbl3 = b
+    MinDbl3 = A
+    If MinDbl3 > B Then
+        MinDbl3 = B
     End If
     If MinDbl3 > C Then
         MinDbl3 = C
     End If
 End Function
 
-Public Function MaxDbl3(ByVal a As Double, _
-                        ByVal b As Double, _
+Public Function MaxDbl3(ByVal A As Double, _
+                        ByVal B As Double, _
                         ByVal C As Double) As Double
-    MaxDbl3 = a
-    If MaxDbl3 < b Then
-        MaxDbl3 = b
+    MaxDbl3 = A
+    If MaxDbl3 < B Then
+        MaxDbl3 = B
     End If
     If MaxDbl3 < C Then
         MaxDbl3 = C
