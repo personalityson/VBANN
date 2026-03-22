@@ -41,11 +41,11 @@ Public Const SIZEOF_DOUBLE As Long = 8
 #End If
 
 Public Enum RoundingType
-    rtNearest
-    rtDown
-    rtUp
-    rtTowardsZero
-    rtTowardsInfinity
+    rndNearest
+    rndDown
+    rndUp
+    rndTowardsZero
+    rndTowardsInfinity
 End Enum
 
 Private Type SYSTEMTIME
@@ -209,15 +209,15 @@ Public Function RoundToMultiple(ByVal dblValue As Double, _
     End If
     dblMultiple = Abs(dblMultiple)
     Select Case eRoundingType
-        Case rtNearest
+        Case rndNearest
             RoundToMultiple = Round(dblValue / dblMultiple) * dblMultiple
-        Case rtDown
+        Case rndDown
             RoundToMultiple = Int(dblValue / dblMultiple) * dblMultiple
-        Case rtUp
+        Case rndUp
             RoundToMultiple = -Int(-dblValue / dblMultiple) * dblMultiple
-        Case rtTowardsZero
+        Case rndTowardsZero
             RoundToMultiple = Sgn(dblValue) * Int(Abs(dblValue) / dblMultiple) * dblMultiple
-        Case rtTowardsInfinity
+        Case rndTowardsInfinity
             RoundToMultiple = Sgn(dblValue) * -Int(-Abs(dblValue) / dblMultiple) * dblMultiple
     End Select
 End Function
@@ -769,8 +769,8 @@ Public Function ConvertTimestampToDate(ByVal lTimestamp As Long) As Date
     ConvertTimestampToDate = DateAdd("s", lTimestamp, DateSerial(1970, 1, 1))
 End Function
 
-Public Sub LogToWorksheet(ByVal sName As String, _
-                          ParamArray avArgs() As Variant)
+Public Sub WriteLog(ByVal sName As String, _
+                    ParamArray avArgs() As Variant)
     Dim i As Long
     Dim lLastRow As Long
     Dim vHeader As Variant
@@ -790,7 +790,7 @@ Public Sub LogToWorksheet(ByVal sName As String, _
                 .Cells(1, vHeaderCol) = vHeader
             End If
             .Cells(lLastRow + 1, vHeaderCol) = avArgs(i + 1)
-            Application.GoTo .Cells(lLastRow + 1, vHeaderCol)
+            'Application.GoTo .Cells(lLastRow + 1, vHeaderCol)
             DoEvents
         Next i
         On Error GoTo 0

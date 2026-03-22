@@ -7,10 +7,20 @@ Private m_vIsBlasAvailable As Variant
 
 Private Declare PtrSafe Function SetDllDirectory Lib "kernel32" Alias "SetDllDirectoryA" (ByVal lpPathName As String) As Long
 
+Private Declare PtrSafe Function ddot Lib "libopenblas.dll" (ByRef n As Long, _
+                                                             ByVal X As LongPtr, _
+                                                             ByRef incX As Long, _
+                                                             ByVal Y As LongPtr, _
+                                                             ByRef incY As Long) As Double
+
 Private Declare PtrSafe Sub dscal Lib "libopenblas.dll" (ByRef n As Long, _
                                                          ByRef alpha As Double, _
                                                          ByVal X As LongPtr, _
                                                          ByRef incX As Long)
+
+Private Declare PtrSafe Function dnrm2 Lib "libopenblas.dll" (ByRef n As Long, _
+                                                              ByVal X As LongPtr, _
+                                                              ByRef incX As Long) As Double
 
 Private Declare PtrSafe Sub daxpby Lib "libopenblas.dll" (ByRef n As Long, _
                                                           ByRef alpha As Double, _
@@ -45,6 +55,8 @@ Public Function IsBlasAvailable() As Boolean
     IsBlasAvailable = m_vIsBlasAvailable
 End Function
 
+'VecDot                 Y = Sum(A * B)
+'VecNorm2               Y = ||A||_2
 'VecAdd                 Y = A + B
 'VecAdd_I               A = A + B (In-place)
 'VecAddC                Y = A + scalar
@@ -53,6 +65,7 @@ End Function
 'VecSubCRev             Y = scalar - A
 'VecMul                 Y = A * B
 'VecMulC                Y = A * scalar
+'VecMulC_I              A = A * scalar
 'VecDiv                 Y = A / B
 'VecDivC                Y = A / scalar
 'VecDivCRev             Y = scalar / A
@@ -73,6 +86,41 @@ End Function
 'VecLinComb_I           A = alpha * A + beta * B (In-place)
 'MatMul                 Y = A * B
 'MatMul_I               C = C + A * B (In-place)
+
+'Y = Sum(A * B)
+Public Function VecDot(ByVal A As Tensor, _
+                       ByVal B As Tensor) As Double
+    Const PROCEDURE_NAME As String = "TensorOps.VecDot"
+    
+    If A Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If B Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If A.NumElements <> B.NumElements Then
+        Err.Raise 5, PROCEDURE_NAME, "Tensors A and B must have the same number of elements."
+    End If
+    If IsBlasAvailable() Then
+        VecDot = VecDotBlas(A, B)
+    Else
+        VecDot = VecDotNaive(A, B)
+    End If
+End Function
+
+'Y = ||A||_2
+Public Function VecNorm2(ByVal A As Tensor) As Double
+    Const PROCEDURE_NAME As String = "TensorOps.VecNorm2"
+    
+    If A Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If IsBlasAvailable() Then
+        VecNorm2 = VecNorm2Blas(A)
+    Else
+        VecNorm2 = VecNorm2Naive(A)
+    End If
+End Function
 
 'Y = A + B
 Public Function VecAdd(ByVal A As Tensor, _
@@ -213,6 +261,21 @@ Public Function VecMulC(ByVal A As Tensor, _
         Set VecMulC = VecMulCNaive(A, dblScalar)
     End If
 End Function
+
+'A = A * scalar
+Public Sub VecMulC_I(ByVal A As Tensor, _
+                     ByVal dblScalar As Double)
+    Const PROCEDURE_NAME As String = "TensorOps.VecMulC_I"
+    
+    If A Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If IsBlasAvailable() Then
+        VecMulCBlas_I A, dblScalar
+    Else
+        VecMulCNaive_I A, dblScalar
+    End If
+End Sub
 
 'Y = A / B
 Public Function VecDiv(ByVal A As Tensor, _
@@ -547,6 +610,45 @@ Private Function SafeTanh(ByVal dblValue As Double) As Double
         dblExp = Exp(dblValue)
         SafeTanh = (dblExp - 1) / (dblExp + 1)
     End If
+End Function
+
+Private Function VecDotNaive(ByVal A As Tensor, _
+                             ByVal B As Tensor) As Double
+    Dim i As Long
+    Dim A_() As Double
+    Dim B_() As Double
+    Dim dblSum As Double
+    
+    A.Flatten.CreateAlias A_
+    B.Flatten.CreateAlias B_
+    For i = 1 To A.NumElements
+        dblSum = VecDotNaive + A_(i) * B_(i)
+    Next i
+    A.Flatten.RemoveAlias A_
+    B.Flatten.RemoveAlias B_
+    VecDotNaive = dblSum
+End Function
+
+Private Function VecDotBlas(ByVal A As Tensor, _
+                            ByVal B As Tensor) As Double
+    VecDotBlas = ddot(A.NumElements, A.Address, 1&, B.Address, 1&)
+End Function
+
+Private Function VecNorm2Naive(ByVal A As Tensor) As Double
+    Dim i As Long
+    Dim dblSum As Double
+    Dim A_() As Double
+    
+    A.Flatten.CreateAlias A_
+    For i = 1 To A.NumElements
+        dblSum = dblSum + A_(i) * A_(i)
+    Next i
+    A.Flatten.RemoveAlias A_
+    VecNorm2Naive = Sqr(dblSum)
+End Function
+
+Private Function VecNorm2Blas(ByVal A As Tensor) As Double
+    VecNorm2Blas = dnrm2(A.NumElements, A.Address, 1&)
 End Function
 
 Private Function VecAddNaive(ByVal A As Tensor, _

@@ -20,6 +20,7 @@ Private Const KEY_VELOCITY As String = "Velocity"
 Private m_dblLearningRate As Double
 Private m_dblMomentum As Double
 Private m_dblWeightDecay As Double
+Private m_dblGradientThreshold As Double
 
 'State
 Private m_oStates As Object
@@ -39,7 +40,8 @@ End Property
 
 Public Sub Init(Optional ByVal dblLearningRate As Double = 0.001, _
                 Optional ByVal dblMomentum As Double = 0.9, _
-                Optional ByVal dblWeightDecay As Double = 0.01)
+                Optional ByVal dblWeightDecay As Double = 0.01, _
+                Optional ByVal dblGradientThreshold As Double = DOUBLE_MAX_ABS)
     Const PROCEDURE_NAME As String = "SGDM.Init"
     
     If dblLearningRate <= 0 Then
@@ -51,10 +53,14 @@ Public Sub Init(Optional ByVal dblLearningRate As Double = 0.001, _
     If dblWeightDecay < 0 Then
         Err.Raise 5, PROCEDURE_NAME, "Weight decay must be >= 0."
     End If
+    If dblGradientThreshold <= 0 Then
+        Err.Raise 5, PROCEDURE_NAME, "Gradient threshold must be > 0."
+    End If
     Clear
     m_dblLearningRate = dblLearningRate
     m_dblMomentum = dblMomentum
     m_dblWeightDecay = dblWeightDecay
+    m_dblGradientThreshold = dblGradientThreshold
 End Sub
 
 Public Sub Update(ByVal vParameters As Variant)
@@ -75,21 +81,27 @@ Public Sub Update(ByVal vParameters As Variant)
     Next W
 End Sub
 
-'v = momentum * v + (1 - momentum) * (dW / NumUpdates)
+'v = momentum * v + (1 - momentum) * (dW / NumAccumulatedSamples)
 'W = W - lr * (v + wd * W)
 Private Sub ApplyGradients(ByVal W As Parameter)
     Dim dblLearningRate As Double
     Dim dblWeightDecay As Double
+    Dim dblGradientScale As Double
     Dim v As Tensor
     
-    If W.NumUpdates < 1 Then
+    If W.NumAccumulatedSamples < 1 Then
         Exit Sub
     End If
     GetStates W, v
     dblLearningRate = W.LearningRateScale * m_dblLearningRate
-    dblWeightDecay = W.WeightDecayScale * m_dblWeightDecay
-    VecLinComb_I m_dblMomentum, v, (1 - m_dblMomentum) / W.NumUpdates, W.Gradient
-    VecLinComb_I 1 - dblLearningRate * dblWeightDecay, W.Variable, -dblLearningRate, v
+    dblWeightDecay = W.DecayScale * m_dblWeightDecay
+    If W.UseGradientClipping Then
+        dblGradientScale = m_dblGradientThreshold / MaxDbl2(m_dblGradientThreshold, VecNorm2(W.Gradient) / W.NumAccumulatedSamples)
+    Else
+        dblGradientScale = 1
+    End If
+    VecLinComb_I m_dblMomentum, v, (1 - m_dblMomentum) * dblGradientScale / W.NumAccumulatedSamples, W.Gradient
+    VecLinComb_I 1 - dblLearningRate * dblWeightDecay, W.Tensor, -dblLearningRate, v
     W.ResetGradient
     'PutStates W, v
 End Sub
@@ -98,7 +110,7 @@ Private Sub GetStates(ByVal W As Parameter, _
                       ByRef v As Tensor)
     With m_oStates
         If Not .Exists(W) Then
-            PutStates W, Zeros(W.Variable.Shape)
+            PutStates W, Zeros(W.Tensor.Shape)
         End If
         With .Item(W)
             Set v = .Item(KEY_VELOCITY)
@@ -122,6 +134,7 @@ Private Sub Clear()
     m_dblLearningRate = 0
     m_dblMomentum = 0
     m_dblWeightDecay = 0
+    m_dblGradientThreshold = 0
     Set m_oStates = CreateObject("Scripting.Dictionary")
 End Sub
 
@@ -137,6 +150,7 @@ Private Sub Save(ByVal oWorksheet As Serializer)
         .WriteDouble m_dblLearningRate
         .WriteDouble m_dblMomentum
         .WriteDouble m_dblWeightDecay
+        .WriteDouble m_dblGradientThreshold
         .WriteLong m_oStates.Count
         For Each W In m_oStates.Keys
             GetStates W, v
@@ -161,6 +175,7 @@ Private Sub Load(ByVal oWorksheet As Serializer)
         m_dblLearningRate = .ReadDouble()
         m_dblMomentum = .ReadDouble()
         m_dblWeightDecay = .ReadDouble()
+        m_dblGradientThreshold = .ReadDouble()
         lNumStates = .ReadLong()
         For i = 1 To lNumStates
             Set W = .ReadObject()
@@ -199,7 +214,7 @@ End Sub
         Me.LearningRate = dblLearningRate
     End Property
     
-    Private Sub IOptimizer_Update(ByVal W As Parameter)
+    Private Sub IOptimizer_Update(ByVal vParameters As Variant)
         Me.Update W
     End Sub
     

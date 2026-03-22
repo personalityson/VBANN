@@ -51,8 +51,8 @@ Public Sub Init(ByVal lInputSize As Long, _
     Clear
     m_lInputSize = lInputSize
     m_lOutputSize = lOutputSize
-    Set m_oWeights = Parameter(GlorotUniform(Array(m_lOutputSize, m_lInputSize), m_lInputSize, m_lOutputSize, 1), 1, 1)
-    Set m_oBias = Parameter(Zeros(Array(m_lOutputSize)), 1, 0)
+    Set m_oWeights = Parameter(GlorotUniform(Array(m_lOutputSize, m_lInputSize), m_lInputSize, m_lOutputSize, 1), 1, 1, True)
+    Set m_oBias = Parameter(Zeros(Array(m_lOutputSize)), 1, 0, False)
 End Sub
 
 Public Function Forward(ByVal X As Tensor, _
@@ -102,14 +102,14 @@ Private Function CalculateOutput(ByVal X As Tensor) As Tensor
 
     lBatchSize = X.Size(2)
     Set Y = Zeros(Array(m_lOutputSize, lBatchSize))
-    MatMul_I Y, m_oWeights.Variable, X
-    MatMul_I Y, m_oBias.Variable, Ones(lBatchSize), True, True
+    MatMul_I Y, m_oWeights.Tensor, X
+    MatMul_I Y, m_oBias.Tensor, Ones(lBatchSize), True, True
     Set CalculateOutput = Y
 End Function
 
 'dLdX = W' * dLdY
 Private Function CalculateInputError(ByVal dLdY As Tensor) As Tensor
-    Set CalculateInputError = MatMul(m_oWeights.Variable, dLdY, True)
+    Set CalculateInputError = MatMul(m_oWeights.Tensor, dLdY, True)
 End Function
 
 'dLdW = dLdW + dLdY * X'
@@ -121,8 +121,8 @@ Private Sub UpdateGradients(ByVal X As Tensor, _
     lBatchSize = X.Size(2)
     MatMul_I m_oWeights.Gradient, dLdY, X, , True
     MatMul_I m_oBias.Gradient, dLdY, Ones(lBatchSize)
-    m_oWeights.NumUpdates = m_oWeights.NumUpdates + lBatchSize
-    m_oBias.NumUpdates = m_oBias.NumUpdates + lBatchSize
+    m_oWeights.NumAccumulatedSamples = m_oWeights.NumAccumulatedSamples + lBatchSize
+    m_oBias.NumAccumulatedSamples = m_oBias.NumAccumulatedSamples + lBatchSize
 End Sub
 
 Private Sub Clear()

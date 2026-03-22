@@ -24,6 +24,7 @@ Private m_dblBeta1 As Double
 Private m_dblBeta2 As Double
 Private m_dblEpsilon As Double
 Private m_dblWeightDecay As Double
+Private m_dblGradientThreshold As Double
 
 'State
 Private m_oStates As Object
@@ -45,7 +46,8 @@ Public Sub Init(Optional ByVal dblLearningRate As Double = 0.001, _
                 Optional ByVal dblBeta1 As Double = 0.9, _
                 Optional ByVal dblBeta2 As Double = 0.999, _
                 Optional ByVal dblEpsilon As Double = 0.00000001, _
-                Optional ByVal dblWeightDecay As Double = 0.01)
+                Optional ByVal dblWeightDecay As Double = 0.01, _
+                Optional ByVal dblGradientThreshold As Double = DOUBLE_MAX_ABS)
     Const PROCEDURE_NAME As String = "Adam.Init"
     
     If dblLearningRate <= 0 Then
@@ -63,12 +65,16 @@ Public Sub Init(Optional ByVal dblLearningRate As Double = 0.001, _
     If dblWeightDecay < 0 Then
         Err.Raise 5, PROCEDURE_NAME, "Weight decay must be >= 0."
     End If
+    If dblGradientThreshold <= 0 Then
+        Err.Raise 5, PROCEDURE_NAME, "Gradient threshold must be > 0."
+    End If
     Clear
     m_dblLearningRate = dblLearningRate
     m_dblBeta1 = dblBeta1
     m_dblBeta2 = dblBeta2
     m_dblEpsilon = dblEpsilon
     m_dblWeightDecay = dblWeightDecay
+    m_dblGradientThreshold = dblGradientThreshold
 End Sub
 
 Public Sub Update(ByVal vParameters As Variant)
@@ -89,26 +95,32 @@ Public Sub Update(ByVal vParameters As Variant)
     Next W
 End Sub
 
-'m = beta1 * m + (1 - beta1) * (dW / NumUpdates)
-'v = beta2 * v + (1 - beta2) * (dW / NumUpdates)^2
+'m = beta1 * m + (1 - beta1) * (dW / NumAccumulatedSamples)
+'v = beta2 * v + (1 - beta2) * (dW / NumAccumulatedSamples)^2
 'W = W - alpha * (m / Sqr(v + epsilon) + wd * W)
 Private Sub ApplyGradients(ByVal W As Parameter)
     Dim lStep As Long
     Dim dblAlpha As Double
     Dim dblWeightDecay As Double
+    Dim dblGradientScale As Double
     Dim m As Tensor
     Dim v As Tensor
     
-    If W.NumUpdates < 1 Then
+    If W.NumAccumulatedSamples < 1 Then
         Exit Sub
     End If
     GetStates W, lStep, m, v
     lStep = lStep + 1
     dblAlpha = W.LearningRateScale * m_dblLearningRate * Sqr(1 - m_dblBeta2 ^ lStep) / (1 - m_dblBeta1 ^ lStep)
-    dblWeightDecay = W.WeightDecayScale * m_dblWeightDecay
-    VecLinComb_I m_dblBeta1, m, (1 - m_dblBeta1) / (W.NumUpdates), W.Gradient
-    VecLinComb_I m_dblBeta2, v, (1 - m_dblBeta2) / (W.NumUpdates * W.NumUpdates), VecPow2(W.Gradient)
-    VecLinComb_I 1 - dblAlpha * dblWeightDecay, W.Variable, -dblAlpha, VecDivSqrtAddC(m, v, m_dblEpsilon)
+    dblWeightDecay = W.DecayScale * m_dblWeightDecay
+    If W.UseGradientClipping Then
+        dblGradientScale = m_dblGradientThreshold / MaxDbl2(m_dblGradientThreshold, VecNorm2(W.Gradient) / W.NumAccumulatedSamples)
+    Else
+        dblGradientScale = 1
+    End If
+    VecLinComb_I m_dblBeta1, m, (1 - m_dblBeta1) * dblGradientScale / W.NumAccumulatedSamples, W.Gradient
+    VecLinComb_I m_dblBeta2, v, (1 - m_dblBeta2) * dblGradientScale * dblGradientScale / W.NumAccumulatedSamples / W.NumAccumulatedSamples, VecPow2(W.Gradient)
+    VecLinComb_I 1 - dblAlpha * dblWeightDecay, W.Tensor, -dblAlpha, VecDivSqrtAddC(m, v, m_dblEpsilon)
     W.ResetGradient
     PutStates W, lStep, m, v
 End Sub
@@ -119,7 +131,7 @@ Private Sub GetStates(ByVal W As Parameter, _
                       ByRef v As Tensor)
     With m_oStates
         If Not .Exists(W) Then
-            PutStates W, 0&, Zeros(W.Variable.Shape), Zeros(W.Variable.Shape)
+            PutStates W, 0&, Zeros(W.Tensor.Shape), Zeros(W.Tensor.Shape)
         End If
         With .Item(W)
             lStep = .Item(KEY_STEP)
@@ -151,6 +163,7 @@ Private Sub Clear()
     m_dblBeta2 = 0
     m_dblEpsilon = 0
     m_dblWeightDecay = 0
+    m_dblGradientThreshold = 0
     Set m_oStates = CreateObject("Scripting.Dictionary")
 End Sub
 
@@ -170,6 +183,7 @@ Private Sub Save(ByVal oWorksheet As Serializer)
         .WriteDouble m_dblBeta2
         .WriteDouble m_dblEpsilon
         .WriteDouble m_dblWeightDecay
+        .WriteDouble m_dblGradientThreshold
         .WriteLong m_oStates.Count
         For Each W In m_oStates.Keys
             GetStates W, lStep, m, v
@@ -200,6 +214,7 @@ Private Sub Load(ByVal oWorksheet As Serializer)
         m_dblBeta2 = .ReadDouble()
         m_dblEpsilon = .ReadDouble()
         m_dblWeightDecay = .ReadDouble()
+        m_dblGradientThreshold = .ReadDouble()
         lNumStates = .ReadLong()
         For i = 1 To lNumStates
             Set W = .ReadObject()
@@ -240,7 +255,7 @@ End Sub
         Me.LearningRate = dblLearningRate
     End Property
     
-    Private Sub IOptimizer_Update(ByVal W As Parameter)
+    Private Sub IOptimizer_Update(ByVal vParameters As Variant)
         Me.Update W
     End Sub
     

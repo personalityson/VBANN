@@ -29,18 +29,18 @@ Public Property Get Optimizer() As IOptimizer
     Set Optimizer = m_oOptimizer
 End Property
 
-'Public Property Get NumLayers() As Long
-'    NumLayers = m_lNumLayers
-'End Property
-'
-'Public Property Get Layer(ByVal lLayerIndex As Long) As ILayer
-'    Const PROCEDURE_NAME As String = "Sequential.Layer"
-'
-'    If lLayerIndex < 1 Or lLayerIndex > m_lNumLayers Then
-'        Err.Raise 9, PROCEDURE_NAME, "Layer index is out of range."
-'    End If
-'    Set Layer = m_aoLayers(lLayerIndex)
-'End Property
+Public Property Get NumLayers() As Long
+    NumLayers = m_lNumLayers
+End Property
+
+Public Property Get Layer(ByVal lLayerIndex As Long) As ILayer
+    Const PROCEDURE_NAME As String = "Sequential.Layer"
+
+    If lLayerIndex < 1 Or lLayerIndex > m_lNumLayers Then
+        Err.Raise 9, PROCEDURE_NAME, "Layer index is out of range."
+    End If
+    Set Layer = m_aoLayers(lLayerIndex)
+End Property
 
 Public Sub Init(ByVal oCriterion As ICriterion, _
                 ByVal oOptimizer As IOptimizer)
@@ -73,21 +73,28 @@ Public Sub Fit(ByVal oTrainingLoader As DataLoader, _
                ByVal lNumEpochs As Long)
     Const PROCEDURE_NAME As String = "Sequential.Fit"
     Dim i As Long
-    Dim dblLoss As Double
+    Dim dblTrainingLoss As Double
+    Dim dblTestLoss As Double
 
     If oTrainingLoader Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid DataLoader object is required."
     End If
     If oTestLoader Is Nothing Then
-        Set oTestLoader = oTrainingLoader
+        Err.Raise 5, PROCEDURE_NAME, "Valid DataLoader object is required."
     End If
     If lNumEpochs < 1 Then
         Err.Raise 5, PROCEDURE_NAME, "Number of epochs must be >= 1."
     End If
     For i = 1 To lNumEpochs
         FitOne oTrainingLoader
-        dblLoss = Me.Loss(oTestLoader)
-        LogToWorksheet "Log", "Time", GetUtcTime(), "Epoch", i, "Total number of epochs", lNumEpochs, "Learning rate", m_oOptimizer.LearningRate, "Loss", dblLoss
+        dblTrainingLoss = Me.Loss(oTrainingLoader)
+        dblTestLoss = Me.Loss(oTestLoader)
+        WriteLog "Log", "Time", GetUtcTime(), _
+                 "Epoch", i, _
+                 "Total number of epochs", lNumEpochs, _
+                 "Learning rate", m_oOptimizer.LearningRate, _
+                 "Training Loss", dblTrainingLoss, _
+                 "Test Loss", dblTestLoss
     Next i
 End Sub
 

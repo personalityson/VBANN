@@ -13,7 +13,7 @@ Implements ISerializable
 
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
-Private Const MAX_DIMENSIONS As Long = 60
+Private Const MAX_DIMENSIONS As Long = 8
 Private Const WILDCARD As Long = -1
 Private Const ELLIPSIS As Long = -2
 

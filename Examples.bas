@@ -17,24 +17,22 @@ Public Sub SetupAndTrain()
     lInputSize = 8
     lLabelSize = 1
     lBatchSize = 16
-    lNumEpochs = 40
+    lNumEpochs = 50
 
     'Prepare training data
     Set oFullSet = ImportDatasetFromWorksheet(ThisWorkbook, "Concrete", Array(lInputSize, lLabelSize), True, False)
-    RandomSplit oFullSet, 0.8, oTrainingSet, oTestSet
+    SplitDataset oFullSet, 0.8, oTrainingSet, oTestSet, True
     Set oTrainingLoader = DataLoader(oTrainingSet, lBatchSize)
     Set oTestLoader = DataLoader(oTestSet, lBatchSize)
     
     'Setup and train
     Set oModel = Sequential(L2Loss(), SGDM())
     oModel.Add InputNormalizationLayer(oTrainingLoader)
-    oModel.Add FullyConnectedLayer(lInputSize, 64)
+    oModel.Add FullyConnectedLayer(lInputSize, 32)
     oModel.Add LeakyReLULayer()
-    oModel.Add FullyConnectedLayer(64, 16)
+    oModel.Add FullyConnectedLayer(32, 16)
     oModel.Add LeakyReLULayer()
-    oModel.Add FullyConnectedLayer(16, 4)
-    oModel.Add LeakyReLULayer()
-    oModel.Add FullyConnectedLayer(4, lLabelSize)
+    oModel.Add FullyConnectedLayer(16, lLabelSize)
     oModel.Fit oTrainingLoader, oTestLoader, lNumEpochs
 
     'Compute test loss
@@ -160,15 +158,3 @@ Public Sub WorkingWithTensors()
     'Create tensor A from an Excel range.
     A.FromRange ActiveSheet.Range("A1:B3")
 End Sub
-
-Public Sub Test()
-    Dim A As Tensor
-    Static A_() As Double
-    
-    Set A = New Tensor
-    A.Resize Array()
-    A.CreateAlias A_
-    
-    A.RemoveAlias A_
-End Sub
-

@@ -19,7 +19,7 @@ Public Sub Init()
 End Sub
 
 Public Function Forward(ByVal Y As Tensor, _
-                     ByVal T As Tensor) As Tensor
+                        ByVal T As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "BCELoss.Forward"
     
     If Y Is Nothing Then
@@ -128,7 +128,7 @@ End Sub
     
     Private Function ICriterion_Backward(ByVal Y As Tensor, _
                                          ByVal T As Tensor) As Tensor
-        Set ICriterion_Backward = Gradient(Y, T)
+        Set ICriterion_Backward = Backward(Y, T)
     End Function
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)

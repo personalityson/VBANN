@@ -5,9 +5,10 @@ Public Function Adam(Optional ByVal dblLearningRate As Double = 0.001, _
                      Optional ByVal dblBeta1 As Double = 0.9, _
                      Optional ByVal dblBeta2 As Double = 0.999, _
                      Optional ByVal dblEpsilon As Double = 0.00000001, _
-                     Optional ByVal dblWeightDecay As Double = 0.01) As Adam
+                     Optional ByVal dblWeightDecay As Double = 0.01, _
+                     Optional ByVal dblGradientThreshold As Double = DOUBLE_MAX_ABS) As Adam
     Set Adam = New Adam
-    Adam.Init dblLearningRate, dblBeta1, dblBeta2, dblEpsilon, dblWeightDecay
+    Adam.Init dblLearningRate, dblBeta1, dblBeta2, dblEpsilon, dblWeightDecay, dblGradientThreshold
 End Function
 
 Public Function BCELoss() As BCELoss
@@ -58,11 +59,12 @@ Public Function LeakyReLULayer(Optional ByVal dblNegativeSlope As Double = 0.01)
     LeakyReLULayer.Init dblNegativeSlope
 End Function
 
-Public Function Parameter(ByVal oVariable As Tensor, _
+Public Function Parameter(ByVal oTensor As Tensor, _
                           Optional ByVal dblLearningRateScale As Double = 1, _
-                          Optional ByVal dblWeightDecayScale As Double = 1) As Parameter
+                          Optional ByVal dblDecayScale As Double = 1, _
+                          Optional ByVal bUseGradientClipping As Boolean = True) As Parameter
     Set Parameter = New Parameter
-    Parameter.Init oVariable, dblLearningRateScale, dblWeightDecayScale
+    Parameter.Init oTensor, dblLearningRateScale, dblDecayScale, bUseGradientClipping
 End Function
 
 Public Function Sequential(ByVal oCriterion As ICriterion, _
@@ -73,9 +75,10 @@ End Function
 
 Public Function SGDM(Optional ByVal dblLearningRate As Double = 0.001, _
                      Optional ByVal dblMomentum As Double = 0.9, _
-                     Optional ByVal dblWeightDecay As Double = 0.01) As SGDM
+                     Optional ByVal dblWeightDecay As Double = 0.01, _
+                     Optional ByVal dblGradientThreshold As Double = DOUBLE_MAX_ABS) As SGDM
     Set SGDM = New SGDM
-    SGDM.Init dblLearningRate, dblMomentum, dblWeightDecay
+    SGDM.Init dblLearningRate, dblMomentum, dblWeightDecay, dblGradientThreshold
 End Function
 
 Public Function SigmoidLayer() As SigmoidLayer
@@ -170,11 +173,12 @@ Public Function ImportDatasetFromWorksheet(ByVal oWorkbook As Workbook, _
     Set ImportDatasetFromWorksheet = oResult
 End Function
 
-Public Sub RandomSplit(ByVal oDataset As IDataset, _
-                       ByVal dblAt As Double, _
-                       ByRef A As SubsetDataset, _
-                       ByRef B As SubsetDataset)
-    Const PROCEDURE_NAME As String = "MLFactory.RandomSplit"
+Public Sub SplitDataset(ByVal oDataset As IDataset, _
+                        ByVal dblAt As Double, _
+                        ByRef A As SubsetDataset, _
+                        ByRef B As SubsetDataset, _
+                        Optional ByVal bRandomize As Boolean)
+    Const PROCEDURE_NAME As String = "MLFactory.SplitDataset"
     Dim lSizeA As Long
     Dim lSizeB As Long
     Dim alFullIndices() As Long
@@ -187,7 +191,11 @@ Public Sub RandomSplit(ByVal oDataset As IDataset, _
     If dblAt < 0 Or dblAt > 1 Then
         Err.Raise 5, PROCEDURE_NAME, "Fraction must be >= 0 and <= 1."
     End If
-    alFullIndices = GetRandomPermutationArray(oDataset.NumSamples)
+    If bRandomize Then
+        alFullIndices = GetRandomPermutationArray(oDataset.NumSamples)
+    Else
+        alFullIndices = GetIdentityPermutationArray(oDataset.NumSamples)
+    End If
     lSizeA = CLng(dblAt * oDataset.NumSamples + 0.5)
     lSizeB = oDataset.NumSamples - lSizeA
     If lSizeA > 0 Then
