@@ -258,7 +258,7 @@ Public Sub WorkingWithTensorOps()
     Set Y = VecExp(A)
     Set Y = VecLog(A)
 
-    'Activations and their derivatives..
+    'Activations and their derivatives.
     Set Y = VecSigmoid(A)
     Set Y = VecSigmoidDerivative(VecSigmoid(A))
     Set Y = VecTanh(A)
@@ -266,10 +266,10 @@ Public Sub WorkingWithTensorOps()
     Set Y = VecLeakyReLU(A, 0.01)
     Set Y = VecLeakyReLUDerivative(A, 0.01)
 
-    'In-place A := 2 * A
+    'In-place A := 2 * A.
     VecMulC_I A, 2
 
-    'In-place A := A + B
+    'In-place A := A + B.
     VecAdd_I A, B
 
     'In-place A := alpha * A + beta * B
