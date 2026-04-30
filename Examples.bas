@@ -14,13 +14,15 @@ Public Sub SetupAndTrain()
     Dim oTestLoader As DataLoader
     Dim oModel As Sequential
 
+    Randomize Timer
+
     lInputSize = 8
     lLabelSize = 1
-    lBatchSize = 16
-    lNumEpochs = 50
+    lBatchSize = 32
+    lNumEpochs = 40
 
     'Prepare training data
-    Set oFullSet = ImportDatasetFromWorksheet(ThisWorkbook, "Concrete", Array(lInputSize, lLabelSize), True, False)
+    Set oFullSet = ImportDatasetFromWorksheet(ThisWorkbook, "Concrete", Array(lInputSize, lLabelSize), True)
     SplitDataset oFullSet, 0.8, oTrainingSet, oTestSet, True
     Set oTrainingLoader = DataLoader(oTrainingSet, lBatchSize)
     Set oTestLoader = DataLoader(oTestSet, lBatchSize)
@@ -30,6 +32,7 @@ Public Sub SetupAndTrain()
     oModel.Add InputNormalizationLayer(oTrainingLoader)
     oModel.Add FullyConnectedLayer(lInputSize, 32)
     oModel.Add LeakyReLULayer()
+    oModel.Add DropoutLayer(0.2)
     oModel.Add FullyConnectedLayer(32, 16)
     oModel.Add LeakyReLULayer()
     oModel.Add FullyConnectedLayer(16, lLabelSize)
@@ -50,6 +53,42 @@ Public Sub SetupAndTrain()
     Beep
 End Sub
 
+Public Sub ContinueTraining()
+    Const MODEL_NAME As String = "MySequentialModel"
+    Dim lBatchSize As Long
+    Dim lNumEpochs As Long
+    Dim lInputSize As Long
+    Dim lLabelSize As Long
+    Dim oFullSet As TensorDataset
+    Dim oTrainingSet As SubsetDataset
+    Dim oTestSet As SubsetDataset
+    Dim oTrainingLoader As DataLoader
+    Dim oTestLoader As DataLoader
+    Dim oModel As Sequential
+
+    lInputSize = 8
+    lLabelSize = 1
+    lBatchSize = 32
+    lNumEpochs = 20
+
+    Set oFullSet = ImportDatasetFromWorksheet(ThisWorkbook, "Concrete", Array(lInputSize, lLabelSize), True)
+    SplitDataset oFullSet, 0.8, oTrainingSet, oTestSet, True
+    Set oTrainingLoader = DataLoader(oTrainingSet, lBatchSize)
+    Set oTestLoader = DataLoader(oTestSet, lBatchSize)
+
+    Set oModel = Unserialize(MODEL_NAME)
+
+    MsgBox "Test loss before continued training: " & oModel.Loss(oTestLoader)
+
+    oModel.Fit oTrainingLoader, oTestLoader, lNumEpochs
+
+    MsgBox "Test loss after continued training: " & oModel.Loss(oTestLoader)
+
+    Serialize MODEL_NAME, oModel
+
+    Beep
+End Sub
+
 Public Function PredictInWorksheet(ByVal oInput As Range) As Variant
     Const MODEL_NAME As String = "MySequentialModel"
     Static s_oModel As Sequential
@@ -61,7 +100,7 @@ Public Function PredictInWorksheet(ByVal oInput As Range) As Variant
     End If
     Set X = TensorFromRange(oInput, True)
     Set Y = s_oModel.Predict(X)
-    PredictInWorksheet = WorksheetFunction.Transpose(Y.ToArray)
+    PredictInWorksheet = MatTranspose(Y).ToArray
 End Function
 
 Public Sub WorkingWithTensors()
@@ -82,14 +121,21 @@ Public Sub WorkingWithTensors()
     MsgBox A.NumElements
     MsgBox A.Address 'Pointer to the first element
 
-    'Create a tensor A filled with constant values.
+    'Constant fills.
     Set A = Ones(Array(2, 3, 4))
     Set A = Full(Array(2, 3, 4), 777)
 
-    'Create a tensor A filled with random values.
+    'Identity matrix.
+    Set A = Eye(3)
+
+    'Random initializers.
     Set A = Uniform(Array(2, 3, 4), 0, 1)
     Set A = Normal(Array(2, 3, 4), 0, 1)
     Set A = Bernoulli(Array(2, 3, 4), 0.5)
+
+    'Glorot and He initializers are what FullyConnectedLayer uses internally.
+    Set A = GlorotUniform(Array(4, 8), 8, 4)
+    Set A = HeNormal(Array(4, 8), 8)
 
     'Fill tensor A with a constant value.
     A.Fill 777
@@ -157,4 +203,82 @@ Public Sub WorkingWithTensors()
 
     'Create tensor A from an Excel range.
     A.FromRange ActiveSheet.Range("A1:B3")
+    
+    Beep
+End Sub
+
+
+Public Sub WorkingWithTensorOps()
+    Dim A As Tensor
+    Dim B As Tensor
+    Dim C As Tensor
+    Dim Y As Tensor
+    Dim dblValue As Double
+
+    'Two random vectors to work with.
+    Set A = Uniform(Array(5), 0, 1)
+    Set B = Uniform(Array(5), 0, 1)
+
+    'VecDot computes Sum(A * B).
+    dblValue = VecDot(A, B)
+
+    'VecNorm2 computes Sqrt(Sum(A^2)).
+    dblValue = VecNorm2(A)
+
+    'Element-wise binary (A and B must have the same NumElements).
+    Set Y = VecAdd(A, B)        'Y = A + B
+    Set Y = VecSub(A, B)        'Y = A - B
+    Set Y = VecMul(A, B)        'Y = A * B  (element-wise; NOT matrix multiply)
+    Set Y = VecDiv(A, B)        'Y = A / B
+
+    'Element-wise scalar.
+    Set Y = VecAddC(A, 10)      'Y = A + 10
+    Set Y = VecSubC(A, 10)      'Y = A - 10
+    Set Y = VecSubCRev(A, 10)   'Y = 10 - A
+    Set Y = VecMulC(A, 2)       'Y = A * 2
+    Set Y = VecDivC(A, 2)       'Y = A / 2
+    Set Y = VecDivCRev(A, 1)    'Y = 1 / A
+
+    'Element-wise unary.
+    Set Y = VecAbs(A)
+    Set Y = VecSign(A)
+    Set Y = VecPow2(A)
+    Set Y = VecSqrt(A)
+    Set Y = VecExp(A)
+    Set Y = VecLog(A)
+
+    'Activations and their derivatives..
+    Set Y = VecSigmoid(A)
+    Set Y = VecSigmoidDerivative(VecSigmoid(A))
+    Set Y = VecTanh(A)
+    Set Y = VecTanhDerivative(VecTanh(A))
+    Set Y = VecLeakyReLU(A, 0.01)
+    Set Y = VecLeakyReLUDerivative(A, 0.01)
+
+    'In-place A := 2 * A
+    VecMulC_I A, 2
+
+    'In-place A := A + B
+    VecAdd_I A, B
+
+    'In-place A := alpha * A + beta * B
+    VecLinComb_I 0.9, A, 0.1, B
+
+    'Standard matrix product.
+    Set A = Uniform(Array(3, 4))     '3x4
+    Set B = Uniform(Array(4, 5))     '4x5
+    Set Y = MatMul(A, B)             'Y is 3x5
+
+    'MatMul_I accumulates: C := C + A * B.
+    Set A = Uniform(Array(3, 4))
+    Set B = Uniform(Array(4, 5))
+    Set C = Zeros(Array(3, 5))
+    MatMul_I C, A, B                 'C := A * B
+    MatMul_I C, A, B                 'C := C + A * B  (so now 2 * A * B)
+
+    'Transpose.
+    Set A = Uniform(Array(3, 4))
+    Set Y = MatTranspose(A)          'Y is 4x3
+    
+    Beep
 End Sub

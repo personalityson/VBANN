@@ -81,7 +81,8 @@ Public Sub Update(ByVal vParameters As Variant)
     Const PROCEDURE_NAME As String = "Adam.Update"
     Dim W As Variant
     
-    For Each W In EnsureArray(vParameters)
+    vParameters = EnsureArray(vParameters)
+    For Each W In vParameters
         If Not IsObject(W) Then
             Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
         End If
@@ -113,8 +114,8 @@ Private Sub ApplyGradients(ByVal W As Parameter)
     lStep = lStep + 1
     dblAlpha = W.LearningRateScale * m_dblLearningRate * Sqr(1 - m_dblBeta2 ^ lStep) / (1 - m_dblBeta1 ^ lStep)
     dblWeightDecay = W.DecayScale * m_dblWeightDecay
-    If W.UseGradientClipping Then
-        dblGradientScale = m_dblGradientThreshold / MaxDbl2(m_dblGradientThreshold, VecNorm2(W.Gradient) / W.NumAccumulatedSamples)
+    If W.UseGradientClipping And m_dblGradientThreshold < DOUBLE_MAX_ABS Then
+        dblGradientScale = m_dblGradientThreshold / MaxDbl(m_dblGradientThreshold, VecNorm2(W.Gradient) / W.NumAccumulatedSamples)
     Else
         dblGradientScale = 1
     End If
@@ -256,7 +257,7 @@ End Sub
     End Property
     
     Private Sub IOptimizer_Update(ByVal vParameters As Variant)
-        Me.Update W
+        Me.Update vParameters
     End Sub
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)

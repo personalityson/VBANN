@@ -23,7 +23,7 @@ Option Explicit
     End Function
 #Else
     Public Function Forward(ByVal Y As Tensor, _
-                         ByVal T As Tensor) As Tensor
+                            ByVal T As Tensor) As Tensor
         '
     End Function
     
@@ -32,3 +32,4 @@ Option Explicit
         '
     End Function
 #End If
+

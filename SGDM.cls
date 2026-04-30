@@ -38,9 +38,9 @@ Public Property Let LearningRate(ByVal dblLearningRate As Double)
     m_dblLearningRate = dblLearningRate
 End Property
 
-Public Sub Init(Optional ByVal dblLearningRate As Double = 0.001, _
+Public Sub Init(Optional ByVal dblLearningRate As Double = 0.01, _
                 Optional ByVal dblMomentum As Double = 0.9, _
-                Optional ByVal dblWeightDecay As Double = 0.01, _
+                Optional ByVal dblWeightDecay As Double = 0.0001, _
                 Optional ByVal dblGradientThreshold As Double = DOUBLE_MAX_ABS)
     Const PROCEDURE_NAME As String = "SGDM.Init"
     
@@ -67,7 +67,8 @@ Public Sub Update(ByVal vParameters As Variant)
     Const PROCEDURE_NAME As String = "SGDM.Update"
     Dim W As Variant
     
-    For Each W In EnsureArray(vParameters)
+    vParameters = EnsureArray(vParameters)
+    For Each W In vParameters
         If Not IsObject(W) Then
             Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
         End If
@@ -95,8 +96,8 @@ Private Sub ApplyGradients(ByVal W As Parameter)
     GetStates W, v
     dblLearningRate = W.LearningRateScale * m_dblLearningRate
     dblWeightDecay = W.DecayScale * m_dblWeightDecay
-    If W.UseGradientClipping Then
-        dblGradientScale = m_dblGradientThreshold / MaxDbl2(m_dblGradientThreshold, VecNorm2(W.Gradient) / W.NumAccumulatedSamples)
+    If W.UseGradientClipping And m_dblGradientThreshold < DOUBLE_MAX_ABS Then
+        dblGradientScale = m_dblGradientThreshold / MaxDbl(m_dblGradientThreshold, VecNorm2(W.Gradient) / W.NumAccumulatedSamples)
     Else
         dblGradientScale = 1
     End If
@@ -215,7 +216,7 @@ End Sub
     End Property
     
     Private Sub IOptimizer_Update(ByVal vParameters As Variant)
-        Me.Update W
+        Me.Update vParameters
     End Sub
     
     Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)

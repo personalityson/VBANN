@@ -89,12 +89,13 @@ Public Sub Fit(ByVal oTrainingLoader As DataLoader, _
         FitOne oTrainingLoader
         dblTrainingLoss = Me.Loss(oTrainingLoader)
         dblTestLoss = Me.Loss(oTestLoader)
-        WriteLog "Log", "Time", GetUtcTime(), _
+        WriteLog "Log", "Name", TypeName(Me), _
+                 "Time", GetUtcTime(), _
                  "Epoch", i, _
                  "Total number of epochs", lNumEpochs, _
                  "Learning rate", m_oOptimizer.LearningRate, _
-                 "Training Loss", dblTrainingLoss, _
-                 "Test Loss", dblTestLoss
+                 "Training loss", dblTrainingLoss, _
+                 "Test loss", dblTestLoss
     Next i
 End Sub
 
@@ -149,7 +150,7 @@ Public Function Loss(ByVal oTestLoader As DataLoader) As Double
             Set Y = Predict(X)
             dblLoss = dblLoss + m_oCriterion.Forward(Y, T).Sum
             lNumSamples = lNumSamples + oBatch.NumSamples
-            If lNumSamples Mod 1000 = 0 Then
+            If lNumSamples \ .BatchSize Mod 10 = 0 Then
                 Application.StatusBar = "Loss progress: " & Format(lNumSamples / .NumSamples, "0.0%")
                 DoEvents
             End If
@@ -173,7 +174,7 @@ Private Sub FitOne(ByVal oTrainingLoader As DataLoader)
             Set T = oBatch.Tensor(2)
             Backpropagate X, T
             lNumSamples = lNumSamples + oBatch.NumSamples
-            If lNumSamples Mod 1000 = 0 Then
+            If lNumSamples \ .BatchSize Mod 10 = 0 Then
                 Application.StatusBar = "FitOne progress: " & Format(lNumSamples / .NumSamples, "0.0%")
                 DoEvents
             End If

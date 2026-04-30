@@ -44,6 +44,16 @@ Private Declare PtrSafe Sub dgemm Lib "libopenblas.dll" (ByVal transA As String,
                                                          ByVal C As LongPtr, _
                                                          ByRef ldC As Long)
 
+Private Declare PtrSafe Sub domatcopy Lib "libopenblas.dll" (ByVal order As String, _
+                                                             ByVal trans As String, _
+                                                             ByRef m As Long, _
+                                                             ByRef n As Long, _
+                                                             ByRef alpha As Double, _
+                                                             ByVal A As LongPtr, _
+                                                             ByRef ldA As Long, _
+                                                             ByVal B As LongPtr, _
+                                                             ByRef ldB As Long)
+
 Public Function IsBlasAvailable() As Boolean
     If IsEmpty(m_vIsBlasAvailable) Then
         If Fso.FileExists(OPENBLAS_PATH) Then
@@ -86,6 +96,7 @@ End Function
 'VecLinComb_I           A = alpha * A + beta * B (In-place)
 'MatMul                 Y = A * B
 'MatMul_I               C = C + A * B (In-place)
+'MatTranspose           Y = A^T
 
 'Y = Sum(A * B)
 Public Function VecDot(ByVal A As Tensor, _
@@ -592,6 +603,22 @@ Public Sub MatMul_I(ByVal C As Tensor, _
     End If
 End Sub
 
+Public Function MatTranspose(ByVal A As Tensor) As Tensor
+    Const PROCEDURE_NAME As String = "TensorOps.MatTranspose"
+    
+    If A Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If A.NumDimensions <> 2 Then
+        Err.Raise 5, PROCEDURE_NAME, "Tensor must be 2-dimensional."
+    End If
+    If IsBlasAvailable() Then
+        Set MatTranspose = MatTransposeBlas(A)
+    Else
+        Set MatTranspose = MatTransposeNaive(A)
+    End If
+End Function
+
 Private Function SafeSigmoid(ByVal dblValue As Double) As Double
     If dblValue < -DOUBLE_MAX_LOG Then
         SafeSigmoid = 0
@@ -622,7 +649,7 @@ Private Function VecDotNaive(ByVal A As Tensor, _
     A.Flatten.CreateAlias A_
     B.Flatten.CreateAlias B_
     For i = 1 To A.NumElements
-        dblSum = VecDotNaive + A_(i) * B_(i)
+        dblSum = dblSum + A_(i) * B_(i)
     Next i
     A.Flatten.RemoveAlias A_
     B.Flatten.RemoveAlias B_
@@ -653,9 +680,11 @@ End Function
 
 Private Function VecAddNaive(ByVal A As Tensor, _
                              ByVal B As Tensor) As Tensor
-    Set A = A.Clone
-    VecAddNaive_I A, B
-    Set VecAddNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecAddNaive_I Y, B
+    Set VecAddNaive = Y
 End Function
 
 Private Sub VecAddNaive_I(ByVal A As Tensor, _
@@ -675,9 +704,11 @@ End Sub
 
 Private Function VecAddCNaive(ByVal A As Tensor, _
                               ByVal dblScalar As Double) As Tensor
-    Set A = A.Clone
-    VecAddCNaive_I A, dblScalar
-    Set VecAddCNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecAddCNaive_I Y, dblScalar
+    Set VecAddCNaive = Y
 End Function
 
 Private Sub VecAddCNaive_I(ByVal A As Tensor, _
@@ -694,9 +725,11 @@ End Sub
 
 Private Function VecSubNaive(ByVal A As Tensor, _
                              ByVal B As Tensor) As Tensor
-    Set A = A.Clone
-    VecSubNaive_I A, B
-    Set VecSubNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecSubNaive_I Y, B
+    Set VecSubNaive = Y
 End Function
 
 Private Sub VecSubNaive_I(ByVal A As Tensor, _
@@ -716,9 +749,11 @@ End Sub
 
 Private Function VecSubCNaive(ByVal A As Tensor, _
                               ByVal dblScalar As Double) As Tensor
-    Set A = A.Clone
-    VecSubCNaive_I A, dblScalar
-    Set VecSubCNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecSubCNaive_I Y, dblScalar
+    Set VecSubCNaive = Y
 End Function
 
 Private Sub VecSubCNaive_I(ByVal A As Tensor, _
@@ -735,9 +770,11 @@ End Sub
 
 Private Function VecSubCRevNaive(ByVal A As Tensor, _
                                  ByVal dblScalar As Double) As Tensor
-    Set A = A.Clone
-    VecSubCRevNaive_I A, dblScalar
-    Set VecSubCRevNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecSubCRevNaive_I Y, dblScalar
+    Set VecSubCRevNaive = Y
 End Function
 
 Private Sub VecSubCRevNaive_I(ByVal A As Tensor, _
@@ -754,9 +791,11 @@ End Sub
 
 Private Function VecMulNaive(ByVal A As Tensor, _
                              ByVal B As Tensor) As Tensor
-    Set A = A.Clone
-    VecMulNaive_I A, B
-    Set VecMulNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecMulNaive_I Y, B
+    Set VecMulNaive = Y
 End Function
 
 Private Sub VecMulNaive_I(ByVal A As Tensor, _
@@ -776,9 +815,11 @@ End Sub
 
 Private Function VecMulCNaive(ByVal A As Tensor, _
                               ByVal dblScalar As Double) As Tensor
-    Set A = A.Clone
-    VecMulCNaive_I A, dblScalar
-    Set VecMulCNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecMulCNaive_I Y, dblScalar
+    Set VecMulCNaive = Y
 End Function
 
 Private Sub VecMulCNaive_I(ByVal A As Tensor, _
@@ -795,9 +836,11 @@ End Sub
 
 Private Function VecMulCBlas(ByVal A As Tensor, _
                              ByVal dblScalar As Double) As Tensor
-    Set A = A.Clone
-    VecMulCBlas_I A, dblScalar
-    Set VecMulCBlas = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecMulCBlas_I Y, dblScalar
+    Set VecMulCBlas = Y
 End Function
 
 Private Sub VecMulCBlas_I(ByVal A As Tensor, _
@@ -807,9 +850,11 @@ End Sub
 
 Private Function VecDivNaive(ByVal A As Tensor, _
                              ByVal B As Tensor) As Tensor
-    Set A = A.Clone
-    VecDivNaive_I A, B
-    Set VecDivNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecDivNaive_I Y, B
+    Set VecDivNaive = Y
 End Function
 
 Private Sub VecDivNaive_I(ByVal A As Tensor, _
@@ -829,9 +874,11 @@ End Sub
 
 Private Function VecDivCRevNaive(ByVal A As Tensor, _
                                  ByVal dblScalar As Double) As Tensor
-    Set A = A.Clone
-    VecDivCRevNaive_I A, dblScalar
-    Set VecDivCRevNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecDivCRevNaive_I Y, dblScalar
+    Set VecDivCRevNaive = Y
 End Function
 
 Private Sub VecDivCRevNaive_I(ByVal A As Tensor, _
@@ -849,9 +896,11 @@ End Sub
 Private Function VecDivSqrtAddCNaive(ByVal A As Tensor, _
                                      ByVal B As Tensor, _
                                      ByVal dblScalar As Double) As Tensor
-    Set A = A.Clone
-    VecDivSqrtAddCNaive_I A, B, dblScalar
-    Set VecDivSqrtAddCNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecDivSqrtAddCNaive_I Y, B, dblScalar
+    Set VecDivSqrtAddCNaive = Y
 End Function
 
 Private Sub VecDivSqrtAddCNaive_I(ByVal A As Tensor, _
@@ -871,9 +920,11 @@ Private Sub VecDivSqrtAddCNaive_I(ByVal A As Tensor, _
 End Sub
 
 Private Function VecAbsNaive(ByVal A As Tensor) As Tensor
-    Set A = A.Clone
-    VecAbsNaive_I A
-    Set VecAbsNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecAbsNaive_I Y
+    Set VecAbsNaive = Y
 End Function
 
 Private Sub VecAbsNaive_I(ByVal A As Tensor)
@@ -888,9 +939,11 @@ Private Sub VecAbsNaive_I(ByVal A As Tensor)
 End Sub
 
 Private Function VecSignNaive(ByVal A As Tensor) As Tensor
-    Set A = A.Clone
-    VecSignNaive_I A
-    Set VecSignNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecSignNaive_I Y
+    Set VecSignNaive = Y
 End Function
 
 Private Sub VecSignNaive_I(ByVal A As Tensor)
@@ -905,9 +958,11 @@ Private Sub VecSignNaive_I(ByVal A As Tensor)
 End Sub
 
 Private Function VecSqrtNaive(ByVal A As Tensor) As Tensor
-    Set A = A.Clone
-    VecSqrtNaive_I A
-    Set VecSqrtNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecSqrtNaive_I Y
+    Set VecSqrtNaive = Y
 End Function
 
 Private Sub VecSqrtNaive_I(ByVal A As Tensor)
@@ -922,9 +977,11 @@ Private Sub VecSqrtNaive_I(ByVal A As Tensor)
 End Sub
 
 Private Function VecExpNaive(ByVal A As Tensor) As Tensor
-    Set A = A.Clone
-    VecExpNaive_I A
-    Set VecExpNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecExpNaive_I Y
+    Set VecExpNaive = Y
 End Function
 
 Private Sub VecExpNaive_I(ByVal A As Tensor)
@@ -939,9 +996,11 @@ Private Sub VecExpNaive_I(ByVal A As Tensor)
 End Sub
 
 Private Function VecLogNaive(ByVal A As Tensor) As Tensor
-    Set A = A.Clone
-    VecLogNaive_I A
-    Set VecLogNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecLogNaive_I Y
+    Set VecLogNaive = Y
 End Function
 
 Private Sub VecLogNaive_I(ByVal A As Tensor)
@@ -957,9 +1016,11 @@ End Sub
 
 Private Function VecLeakyReLUNaive(ByVal A As Tensor, _
                                    ByVal dblNegativeSlope As Double) As Tensor
-    Set A = A.Clone
-    VecLeakyReLUNaive_I A, dblNegativeSlope
-    Set VecLeakyReLUNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecLeakyReLUNaive_I Y, dblNegativeSlope
+    Set VecLeakyReLUNaive = Y
 End Function
 
 Private Sub VecLeakyReLUNaive_I(ByVal A As Tensor, _
@@ -978,9 +1039,11 @@ End Sub
 
 Private Function VecLeakyReLUDerivativeNaive(ByVal A As Tensor, _
                                              ByVal dblNegativeSlope As Double) As Tensor
-    Set A = A.Clone
-    VecLeakyReLUDerivativeNaive_I A, dblNegativeSlope
-    Set VecLeakyReLUDerivativeNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecLeakyReLUDerivativeNaive_I Y, dblNegativeSlope
+    Set VecLeakyReLUDerivativeNaive = Y
 End Function
 
 Private Sub VecLeakyReLUDerivativeNaive_I(ByVal A As Tensor, _
@@ -1000,9 +1063,11 @@ Private Sub VecLeakyReLUDerivativeNaive_I(ByVal A As Tensor, _
 End Sub
 
 Private Function VecSigmoidNaive(ByVal A As Tensor) As Tensor
-    Set A = A.Clone
-    VecSigmoidNaive_I A
-    Set VecSigmoidNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecSigmoidNaive_I Y
+    Set VecSigmoidNaive = Y
 End Function
 
 Private Sub VecSigmoidNaive_I(ByVal A As Tensor)
@@ -1017,9 +1082,11 @@ Private Sub VecSigmoidNaive_I(ByVal A As Tensor)
 End Sub
 
 Private Function VecSigmoidDerivativeNaive(ByVal A As Tensor) As Tensor
-    Set A = A.Clone
-    VecSigmoidDerivativeNaive_I A
-    Set VecSigmoidDerivativeNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecSigmoidDerivativeNaive_I Y
+    Set VecSigmoidDerivativeNaive = Y
 End Function
 
 Private Sub VecSigmoidDerivativeNaive_I(ByVal A As Tensor)
@@ -1034,9 +1101,11 @@ Private Sub VecSigmoidDerivativeNaive_I(ByVal A As Tensor)
 End Sub
 
 Private Function VecTanhNaive(ByVal A As Tensor) As Tensor
-    Set A = A.Clone
-    VecTanhNaive_I A
-    Set VecTanhNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecTanhNaive_I Y
+    Set VecTanhNaive = Y
 End Function
 
 Private Sub VecTanhNaive_I(ByVal A As Tensor)
@@ -1051,9 +1120,11 @@ Private Sub VecTanhNaive_I(ByVal A As Tensor)
 End Sub
 
 Private Function VecTanhDerivativeNaive(ByVal A As Tensor) As Tensor
-    Set A = A.Clone
-    VecTanhDerivativeNaive_I A
-    Set VecTanhDerivativeNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecTanhDerivativeNaive_I Y
+    Set VecTanhDerivativeNaive = Y
 End Function
 
 Private Sub VecTanhDerivativeNaive_I(ByVal A As Tensor)
@@ -1071,9 +1142,11 @@ Private Function VecLinCombNaive(ByVal dblAlpha As Double, _
                                  ByVal A As Tensor, _
                                  ByVal dblBeta As Double, _
                                  ByVal B As Tensor) As Tensor
-    Set A = A.Clone
-    VecLinCombNaive_I dblAlpha, A, dblBeta, B
-    Set VecLinCombNaive = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecLinCombNaive_I dblAlpha, Y, dblBeta, B
+    Set VecLinCombNaive = Y
 End Function
 
 Private Sub VecLinCombNaive_I(ByVal dblAlpha As Double, _
@@ -1097,9 +1170,11 @@ Private Function VecLinCombBlas(ByVal dblAlpha As Double, _
                                 ByVal A As Tensor, _
                                 ByVal dblBeta As Double, _
                                 ByVal B As Tensor) As Tensor
-    Set A = A.Clone
-    VecLinCombBlas_I dblAlpha, A, dblBeta, B
-    Set VecLinCombBlas = A
+    Dim Y As Tensor
+    
+    Set Y = A.Clone
+    VecLinCombBlas_I dblAlpha, Y, dblBeta, B
+    Set VecLinCombBlas = Y
 End Function
 
 Private Sub VecLinCombBlas_I(ByVal dblAlpha As Double, _
@@ -1208,3 +1283,39 @@ Private Sub MatMulBlas_I(ByVal C As Tensor, _
     k = IIf(bTransposeA, A.Size(1), A.Size(2))
     dgemm sTransposeA, sTransposeB, m, n, k, 1#, A.Address, A.Size(1), B.Address, B.Size(1), 1#, C.Address, m
 End Sub
+
+Private Function MatTransposeNaive(ByVal A As Tensor) As Tensor
+    Dim i As Long
+    Dim j As Long
+    Dim m As Long
+    Dim n As Long
+    Dim A_() As Double
+    Dim Y_() As Double
+    Dim Y As Tensor
+    
+    m = A.Size(1)
+    n = A.Size(2)
+    Set Y = Zeros(Array(n, m))
+    A.CreateAlias A_
+    Y.CreateAlias Y_
+    For j = 1 To m
+        For i = 1 To n
+            Y_(i, j) = A_(j, i)
+        Next i
+    Next j
+    A.RemoveAlias A_
+    Y.RemoveAlias Y_
+    Set MatTransposeNaive = Y
+End Function
+
+Private Function MatTransposeBlas(ByVal A As Tensor) As Tensor
+    Dim m As Long
+    Dim n As Long
+    Dim Y As Tensor
+    
+    m = A.Size(1)
+    n = A.Size(2)
+    Set Y = Zeros(Array(n, m))
+    domatcopy "C", "T", m, n, 1#, A.Address, m, Y.Address, n
+    Set MatTransposeBlas = Y
+End Function

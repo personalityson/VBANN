@@ -23,6 +23,21 @@ Public Function Full(ByVal vShape As Variant, _
     End With
 End Function
 
+Public Function Eye(ByVal lSize As Long) As Tensor
+    Dim i As Long
+    Dim A_() As Double
+    
+    Set Eye = New Tensor
+    With Eye
+        .Resize Array(lSize, lSize)
+        .CreateAlias A_
+        For i = 1 To lSize
+            A_(i, i) = 1
+        Next i
+        .RemoveAlias A_
+    End With
+End Function
+
 Public Function Uniform(ByVal vShape As Variant, _
                         Optional ByVal dblLow As Double = 0, _
                         Optional ByVal dblHigh As Double = 1) As Tensor

@@ -60,7 +60,7 @@ Public Function NextBatch(ByRef oBatch As TensorDataset) As Boolean
     Dim lLength As Long
     Dim alBatchIndices() As Long
 
-    lLength = MinLng2(m_lBatchSize, m_oDataset.NumSamples - m_lCursor + 1)
+    lLength = MinLng(m_lBatchSize, m_oDataset.NumSamples - m_lCursor + 1)
     If lLength < IIf(m_bDropRemainder, m_lBatchSize, 1) Then
         Exit Function
     End If

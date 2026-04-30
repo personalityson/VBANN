@@ -118,40 +118,51 @@ Public Sub FromRange(ByVal oRange As Range, _
                      Optional bTranspose As Boolean)
     Dim i As Long
     Dim j As Long
+    Dim lMinRow As Long
+    Dim lMaxRow As Long
+    Dim lMinCol As Long
+    Dim lMaxCol As Long
     Dim lNumRows As Long
     Dim lNumCols As Long
-
+    Dim lRowOffset As Long
+    Dim lColOffset As Long
+    Dim oArea As Range
+    
     Clear
     If oRange Is Nothing Then
         Exit Sub
     End If
-    With oRange.Areas(1)
-        lNumRows = .Rows.Count
-        lNumCols = .Columns.Count
-        If bTranspose Then
-            Resize lNumCols, lNumRows
-            For i = 1 To lNumRows
-                For j = 1 To lNumCols
-                    m_adblBuffer(j, i) = .Cells(i, j)
-                Next j
-                If i Mod 1000 = 0 Then
-                    Application.StatusBar = "FromRange progress: " & Format(i / lNumRows, "0.0%")
-                    DoEvents
+    'Bounding box if non-contiguous range
+    lMinRow = oRange.Areas(1).Row
+    lMaxRow = lMinRow + oRange.Areas(1).Rows.Count - 1
+    lMinCol = oRange.Areas(1).Column
+    lMaxCol = lMinCol + oRange.Areas(1).Columns.Count - 1
+    For Each oArea In oRange.Areas
+        lMinRow = MinLng(lMinRow, oArea.Row)
+        lMinCol = MinLng(lMinCol, oArea.Column)
+        lMaxRow = MaxLng(lMaxRow, oArea.Row + oArea.Rows.Count - 1)
+        lMaxCol = MaxLng(lMaxCol, oArea.Column + oArea.Columns.Count - 1)
+    Next oArea
+    lNumRows = lMaxRow - lMinRow + 1
+    lNumCols = lMaxCol - lMinCol + 1
+    If bTranspose Then
+        Resize lNumCols, lNumRows
+    Else
+        Resize lNumRows, lNumCols
+    End If
+    For Each oArea In oRange.Areas
+        lRowOffset = oArea.Row - lMinRow
+        lColOffset = oArea.Column - lMinCol
+        For i = 1 To oArea.Rows.Count
+            For j = 1 To oArea.Columns.Count
+                If bTranspose Then
+                    m_adblBuffer(lColOffset + j, lRowOffset + i) = oArea.Cells(i, j)
+                Else
+                    m_adblBuffer(lRowOffset + i, lColOffset + j) = oArea.Cells(i, j)
                 End If
-            Next i
-        Else
-            Resize lNumRows, lNumCols
-            For i = 1 To lNumRows
-                For j = 1 To lNumCols
-                    m_adblBuffer(i, j) = .Cells(i, j)
-                Next j
-                If i Mod 1000 = 0 Then
-                    Application.StatusBar = "FromRange progress: " & Format(i / lNumRows, "0.0%")
-                    DoEvents
-                End If
-            Next i
-        End If
-    End With
+            Next j
+        Next i
+    Next oArea
 End Sub
 
 Private Sub Class_Terminate()

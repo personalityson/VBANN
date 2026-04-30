@@ -73,9 +73,9 @@ Public Function Sequential(ByVal oCriterion As ICriterion, _
     Sequential.Init oCriterion, oOptimizer
 End Function
 
-Public Function SGDM(Optional ByVal dblLearningRate As Double = 0.001, _
+Public Function SGDM(Optional ByVal dblLearningRate As Double = 0.01, _
                      Optional ByVal dblMomentum As Double = 0.9, _
-                     Optional ByVal dblWeightDecay As Double = 0.01, _
+                     Optional ByVal dblWeightDecay As Double = 0.0001, _
                      Optional ByVal dblGradientThreshold As Double = DOUBLE_MAX_ABS) As SGDM
     Set SGDM = New SGDM
     SGDM.Init dblLearningRate, dblMomentum, dblWeightDecay, dblGradientThreshold
@@ -125,8 +125,7 @@ End Function
 Public Function ImportDatasetFromWorksheet(ByVal oWorkbook As Workbook, _
                                            ByVal sName As String, _
                                            ByVal vSegmentSizes As Variant, _
-                                           Optional ByVal bHasHeaders As Boolean, _
-                                           Optional ByVal bSqueeze As Boolean) As TensorDataset
+                                           Optional ByVal bHasHeaders As Boolean) As TensorDataset
     Const PROCEDURE_NAME As String = "MLFactory.ImportDatasetFromWorksheet"
     Dim i As Long
     Dim lNumSegments As Long
@@ -138,7 +137,7 @@ Public Function ImportDatasetFromWorksheet(ByVal oWorkbook As Workbook, _
     Dim alTensors() As Tensor
     Dim oSource As Worksheet
     Dim oResult As TensorDataset
-    
+
     If oWorkbook Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Workbook object is required."
     End If
@@ -162,9 +161,6 @@ Public Function ImportDatasetFromWorksheet(ByVal oWorkbook As Workbook, _
             Set X = TensorFromRange(oSource.Cells(lFirstRow, lFirstCol).Resize(lNumSamples, alSegmentSizes(i)), True)
         Else
             Set X = Zeros(Array(alSegmentSizes(i), 0))
-        End If
-        If bSqueeze Then
-            Set X = X.Squeeze
         End If
         Set alTensors(i) = X
         lFirstCol = lFirstCol + alSegmentSizes(i)
@@ -196,7 +192,7 @@ Public Sub SplitDataset(ByVal oDataset As IDataset, _
     Else
         alFullIndices = GetIdentityPermutationArray(oDataset.NumSamples)
     End If
-    lSizeA = CLng(dblAt * oDataset.NumSamples + 0.5)
+    lSizeA = Int(dblAt * oDataset.NumSamples + 0.5)
     lSizeB = oDataset.NumSamples - lSizeA
     If lSizeA > 0 Then
         ReDim alIndicesA(1 To lSizeA)
@@ -209,3 +205,5 @@ Public Sub SplitDataset(ByVal oDataset As IDataset, _
     Set A = oDataset.Subset(alIndicesA)
     Set B = oDataset.Subset(alIndicesB)
 End Sub
+
+

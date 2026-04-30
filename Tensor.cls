@@ -277,25 +277,15 @@ End Function
 
 Public Sub FromRange(ByVal oRange As Range, _
                      Optional ByVal bTranspose As Boolean)
-    Dim lNumRows As Long
-    Dim lNumCols As Long
     Dim oData As Storage
 
     If oRange Is Nothing Then
         Me.Resize Array()
         Exit Sub
     End If
-    With oRange.Areas(1)
-        lNumRows = .Rows.Count
-        lNumCols = .Columns.Count
-        Set oData = New Storage
-        oData.FromRange .Cells, bTranspose
-        If bTranspose Then
-            Me.Resize Array(lNumCols, lNumRows), oData
-        Else
-            Me.Resize Array(lNumRows, lNumCols), oData
-        End If
-    End With
+    Set oData = New Storage
+    oData.FromRange oRange, bTranspose
+    Me.Resize Array(oData.NumRows, oData.NumCols), oData
 End Sub
 
 Public Sub Fill(ByVal dblValue As Double)
@@ -540,7 +530,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
                 For k = 1 To lOuterStride
                     dblAcc = A_(i, 1, k)
                     For j = 2 To lOldSize
-                        dblAcc = MinDbl2(dblAcc, A_(i, j, k))
+                        dblAcc = MinDbl(dblAcc, A_(i, j, k))
                     Next j
                     R_(i, 1, k) = dblAcc
                 Next k
@@ -550,7 +540,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
                 For k = 1 To lOuterStride
                     dblAcc = A_(i, 1, k)
                     For j = 2 To lOldSize
-                        dblAcc = MaxDbl2(dblAcc, A_(i, j, k))
+                        dblAcc = MaxDbl(dblAcc, A_(i, j, k))
                     Next j
                     R_(i, 1, k) = dblAcc
                 Next k
@@ -583,7 +573,7 @@ Private Function SliceInternal(ByVal lDimension As Long, _
     Dim oResult As Tensor
 
     lOldSize = m_alShape(lDimension)
-    lNewSize = MaxLng2(0, lEnd - lStart + 1)
+    lNewSize = MaxLng(0, lEnd - lStart + 1)
     alNewShape = m_alShape
     alNewShape(lDimension) = lNewSize
     Set oResult = New Tensor
@@ -609,7 +599,7 @@ Private Function TileInternal(ByVal lDimension As Long, _
     Dim oResult As Tensor
 
     lOldSize = m_alShape(lDimension)
-    lNewSize = MaxLng2(0, lNumRepeats * lOldSize)
+    lNewSize = MaxLng(0, lNumRepeats * lOldSize)
     alNewShape = m_alShape
     alNewShape(lDimension) = lNewSize
     Set oResult = New Tensor
@@ -649,11 +639,11 @@ Private Sub TileMemory(ByVal pTarget As LongPtr, _
     If pSource = NULL_PTR Then
         Err.Raise 5, PROCEDURE_NAME, "Source memory address cannot be NULL."
     End If
-    pLength = MinPtr2(pTargetLength, pSourceLength)
+    pLength = MinPtr(pTargetLength, pSourceLength)
     CopyMemory ByVal pTarget, ByVal pSource, pLength
     i = pLength
     Do While i < pTargetLength
-        pLength = MinPtr2(i, pTargetLength - i)
+        pLength = MinPtr(i, pTargetLength - i)
         CopyMemory ByVal pTarget + i, ByVal pTarget, pLength
         i = i + pLength
     Loop

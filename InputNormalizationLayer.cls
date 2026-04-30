@@ -122,7 +122,7 @@ Private Sub Adapt(ByVal oTrainingLoader As DataLoader)
                 Set oDelta = VecSub(oBatchMean, oMean)
                 VecLinComb_I 1, oMean, lBatchSize / (lNumSamples + lBatchSize), oDelta
                 VecLinComb_I 1, oM2, 1, oBatchM2
-                VecLinComb_I 1, oM2, lNumSamples * lBatchSize / (lNumSamples + lBatchSize), VecPow2(oDelta)
+                VecLinComb_I 1, oM2, CDbl(lNumSamples) * lBatchSize / (lNumSamples + lBatchSize), VecPow2(oDelta)
                 lNumSamples = lNumSamples + lBatchSize
             End If
             If lNumSamples Mod 1000 = 0 Then

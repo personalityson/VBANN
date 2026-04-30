@@ -2,7 +2,7 @@ Attribute VB_Name = "UtilityFunctions"
 '---------------------------------------------------------------------------------------
 ' Module    : UtilityFunctions
 ' Author    : personalityson
-' Date      : 01.05.2025
+' Date      : 01.05.2026
 ' Purpose   :
 '---------------------------------------------------------------------------------------
 
@@ -60,7 +60,7 @@ Private Type SYSTEMTIME
 End Type
 
 Public Declare PtrSafe Sub CopyMemory Lib "kernel32.dll" Alias "RtlMoveMemory" (ByRef Destination As Any, _
-                                                                                ByRef Source As Any, _
+                                                                                ByRef source As Any, _
                                                                                 ByVal Length As LongPtr)
 
 Public Declare PtrSafe Sub ZeroMemory Lib "kernel32.dll" Alias "RtlZeroMemory" (ByRef Destination As Any, _
@@ -74,129 +74,57 @@ Public Declare PtrSafe Sub Sleep Lib "kernel32.dll" (ByVal dwMilliseconds As Lon
 
 Private Declare PtrSafe Sub GetSystemTime Lib "kernel32.dll" (ByRef lpSystemTime As SYSTEMTIME)
 
-Public Function MinLng2(ByVal A As Long, _
-                        ByVal B As Long) As Long
+Public Function MinLng(ByVal A As Long, _
+                       ByVal B As Long) As Long
     If A < B Then
-        MinLng2 = A
+        MinLng = A
     Else
-        MinLng2 = B
+        MinLng = B
     End If
 End Function
 
-Public Function MaxLng2(ByVal A As Long, _
-                        ByVal B As Long) As Long
+Public Function MaxLng(ByVal A As Long, _
+                       ByVal B As Long) As Long
     If A > B Then
-        MaxLng2 = A
+        MaxLng = A
     Else
-        MaxLng2 = B
+        MaxLng = B
     End If
 End Function
 
-Public Function MinPtr2(ByVal A As LongPtr, _
-                        ByVal B As LongPtr) As LongPtr
+Public Function MinPtr(ByVal A As LongPtr, _
+                       ByVal B As LongPtr) As LongPtr
     If A < B Then
-        MinPtr2 = A
+        MinPtr = A
     Else
-        MinPtr2 = B
+        MinPtr = B
     End If
 End Function
 
-Public Function MaxPtr2(ByVal A As LongPtr, _
-                        ByVal B As LongPtr) As LongPtr
+Public Function MaxPtr(ByVal A As LongPtr, _
+                       ByVal B As LongPtr) As LongPtr
     If A > B Then
-        MaxPtr2 = A
+        MaxPtr = A
     Else
-        MaxPtr2 = B
+        MaxPtr = B
     End If
 End Function
 
-Public Function MinDbl2(ByVal A As Double, _
-                        ByVal B As Double) As Double
+Public Function MinDbl(ByVal A As Double, _
+                       ByVal B As Double) As Double
     If A < B Then
-        MinDbl2 = A
+        MinDbl = A
     Else
-        MinDbl2 = B
+        MinDbl = B
     End If
 End Function
 
-Public Function MaxDbl2(ByVal A As Double, _
-                        ByVal B As Double) As Double
+Public Function MaxDbl(ByVal A As Double, _
+                       ByVal B As Double) As Double
     If A > B Then
-        MaxDbl2 = A
+        MaxDbl = A
     Else
-        MaxDbl2 = B
-    End If
-End Function
-
-Public Function MinLng3(ByVal A As Long, _
-                        ByVal B As Long, _
-                        ByVal C As Long) As Long
-    MinLng3 = A
-    If MinLng3 > B Then
-        MinLng3 = B
-    End If
-    If MinLng3 > C Then
-        MinLng3 = C
-    End If
-End Function
-
-Public Function MaxLng3(ByVal A As Long, _
-                        ByVal B As Long, _
-                        ByVal C As Long) As Long
-    MaxLng3 = A
-    If MaxLng3 < B Then
-        MaxLng3 = B
-    End If
-    If MaxLng3 < C Then
-        MaxLng3 = C
-    End If
-End Function
-
-Public Function MinPtr3(ByVal A As LongPtr, _
-                        ByVal B As LongPtr, _
-                        ByVal C As LongPtr) As LongPtr
-    MinPtr3 = A
-    If MinPtr3 > B Then
-        MinPtr3 = B
-    End If
-    If MinPtr3 > C Then
-        MinPtr3 = C
-    End If
-End Function
-
-Public Function MaxPtr3(ByVal A As LongPtr, _
-                        ByVal B As LongPtr, _
-                        ByVal C As LongPtr) As LongPtr
-    MaxPtr3 = A
-    If MaxPtr3 < B Then
-        MaxPtr3 = B
-    End If
-    If MaxPtr3 < C Then
-        MaxPtr3 = C
-    End If
-End Function
-
-Public Function MinDbl3(ByVal A As Double, _
-                        ByVal B As Double, _
-                        ByVal C As Double) As Double
-    MinDbl3 = A
-    If MinDbl3 > B Then
-        MinDbl3 = B
-    End If
-    If MinDbl3 > C Then
-        MinDbl3 = C
-    End If
-End Function
-
-Public Function MaxDbl3(ByVal A As Double, _
-                        ByVal B As Double, _
-                        ByVal C As Double) As Double
-    MaxDbl3 = A
-    If MaxDbl3 < B Then
-        MaxDbl3 = B
-    End If
-    If MaxDbl3 < C Then
-        MaxDbl3 = C
+        MaxDbl = B
     End If
 End Function
 
@@ -237,27 +165,95 @@ Public Function RoundToSignificantDigits(ByVal dblValue As Double, _
     RoundToSignificantDigits = RoundToMultiple(dblValue, dblMultiple, eRoundingType)
 End Function
 
-Public Function GetRank(ByVal vArray As Variant) As Integer
+Private Function GetSafeArrayPtr(ByRef vArray As Variant, _
+                                 ByRef pSafeArray As LongPtr) As Boolean
     Const VARIANT_OFFSET_parray As Long = 8
+    Const VT_BYREF As Long = &H4000
     Dim iVarType As Integer
-    Dim pSafeArray As LongPtr
-
+    
+    pSafeArray = NULL_PTR
     CopyMemory iVarType, vArray, SIZEOF_INTEGER
     If (iVarType And vbArray) = 0 Then
-        GetRank = -1 'A scalar
         Exit Function
     End If
     CopyMemory pSafeArray, ByVal VarPtr(vArray) + VARIANT_OFFSET_parray, SIZEOF_LONGPTR
-    If pSafeArray = NULL_PTR Then
-        GetRank = 0 'Uninitialized
-        Exit Function
+    If (iVarType And VT_BYREF) <> 0 Then
+        If pSafeArray <> NULL_PTR Then 'To be safe, should not happen
+            CopyMemory pSafeArray, ByVal pSafeArray, SIZEOF_LONGPTR
+        End If
     End If
-    CopyMemory GetRank, ByVal pSafeArray, SIZEOF_INTEGER
+    GetSafeArrayPtr = True
 End Function
 
-Public Function EnsureArray(ByVal vValueOrArray As Variant) As Variant
-    Const PROCEDURE_NAME As String = "EnsureArray"
+Public Function GetRank(ByVal vArray As Variant) As Integer
+    Dim pSafeArray As LongPtr
     
+    Select Case True
+        Case Not GetSafeArrayPtr(vArray, pSafeArray)
+            GetRank = -1 'Scalar
+        Case pSafeArray = NULL_PTR
+            GetRank = 0 'Uninitialized
+        Case Else
+            CopyMemory GetRank, ByVal pSafeArray, SIZEOF_INTEGER
+    End Select
+End Function
+
+Public Function GetSize(ByVal vArray As Variant, _
+                        Optional ByVal iDimension As Integer = 1) As Long
+    Const PROCEDURE_NAME As String = "UtilityFunctions.GetSize"
+    #If Win64 Then
+        Const SA_OFFSET_rgsabound As Long = 24
+    #Else
+        Const SA_OFFSET_rgsabound As Long = 16
+    #End If
+    Dim pSafeArray As LongPtr
+    Dim iNumDimensions As Integer
+    
+    If Not GetSafeArrayPtr(vArray, pSafeArray) Then
+        Err.Raise 5, PROCEDURE_NAME, "Argument is not an array."
+    End If
+    If pSafeArray = NULL_PTR Then
+        Err.Raise 9, PROCEDURE_NAME, "Array is uninitialized."
+    End If
+    CopyMemory iNumDimensions, ByVal pSafeArray, SIZEOF_INTEGER
+    If iDimension < 1 Or iDimension > iNumDimensions Then
+        Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
+    End If
+    CopyMemory GetSize, _
+               ByVal pSafeArray + SA_OFFSET_rgsabound + (iNumDimensions - iDimension) * 2 * SIZEOF_LONG, _
+               SIZEOF_LONG
+End Function
+
+Public Sub SetLBound(ByRef vArray As Variant, _
+                     ByVal iDimension As Integer, _
+                     ByVal lLBound As Long)
+    Const PROCEDURE_NAME As String = "UtilityFunctions.SetLBound"
+    #If Win64 Then
+        Const SA_OFFSET_rgsabound As Long = 24
+    #Else
+        Const SA_OFFSET_rgsabound As Long = 16
+    #End If
+    Dim pSafeArray As LongPtr
+    Dim iNumDimensions As Integer
+
+    If Not GetSafeArrayPtr(vArray, pSafeArray) Then
+        Err.Raise 5, PROCEDURE_NAME, "Argument is not an array."
+    End If
+    If pSafeArray = NULL_PTR Then
+        Err.Raise 9, PROCEDURE_NAME, "Array is uninitialized."
+    End If
+    CopyMemory iNumDimensions, ByVal pSafeArray, SIZEOF_INTEGER
+    If iDimension < 1 Or iDimension > iNumDimensions Then
+        Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
+    End If
+    CopyMemory ByVal pSafeArray + SA_OFFSET_rgsabound + (iNumDimensions - iDimension) * 2 * SIZEOF_LONG + SIZEOF_LONG, _
+               lLBound, _
+               SIZEOF_LONG
+End Sub
+
+Public Function EnsureArray(ByVal vValueOrArray As Variant, _
+                            Optional ByVal vLBound As Variant) As Variant
+    Const PROCEDURE_NAME As String = "UtilityFunctions.EnsureArray"
     Select Case GetRank(vValueOrArray)
         Case -1
             EnsureArray = Array(vValueOrArray)
@@ -266,29 +262,21 @@ Public Function EnsureArray(ByVal vValueOrArray As Variant) As Variant
         Case 1
             EnsureArray = vValueOrArray
         Case Else
-            Err.Raise 5, PROCEDURE_NAME, "Expecting a acalar, an uninitialized array, or a one-dimensional array."
+            Err.Raise 5, PROCEDURE_NAME, "Expecting a scalar, an uninitialized array, or a one-dimensional array."
     End Select
+    If Not IsMissing(vLBound) Then
+        SetLBound EnsureArray, 1, CLng(vLBound)
+    End If
 End Function
 
-Public Sub ParseVariantToLongArray(ByVal vValueOrArray As Variant, _
+Public Sub ParseVariantToLongArray(ByVal vArray As Variant, _
                                    ByRef lNumElements As Long, _
                                    ByRef alArray() As Long)
-    Const PROCEDURE_NAME As String = "UtilityFunctions.ParseVariantToLongArray"
     Dim i As Long
     Dim lLBound As Long
     Dim lUBound As Long
-    Dim vArray As Variant
 
-    Select Case GetRank(vValueOrArray)
-        Case -1
-            vArray = Array(vValueOrArray)
-        Case 0
-            vArray = Array()
-        Case 1
-            vArray = vValueOrArray
-        Case Else
-            Err.Raise 5, PROCEDURE_NAME, "Expected a single value, an uninitialized array, or a one-dimensional array."
-    End Select
+    vArray = EnsureArray(vArray)
     lLBound = LBound(vArray)
     lUBound = UBound(vArray)
     If lLBound > lUBound Then
@@ -303,25 +291,14 @@ Public Sub ParseVariantToLongArray(ByVal vValueOrArray As Variant, _
     End If
 End Sub
 
-Public Sub ParseVariantToDoubleArray(ByVal vValueOrArray As Variant, _
+Public Sub ParseVariantToDoubleArray(ByVal vArray As Variant, _
                                      ByRef lNumElements As Long, _
                                      ByRef adblArray() As Double)
-    Const PROCEDURE_NAME As String = "UtilityFunctions.ParseVariantToLongArray"
     Dim i As Long
     Dim lLBound As Long
     Dim lUBound As Long
-    Dim vArray As Variant
 
-    Select Case GetRank(vValueOrArray)
-        Case -1
-            vArray = Array(vValueOrArray)
-        Case 0
-            vArray = Array()
-        Case 1
-            vArray = vValueOrArray
-        Case Else
-            Err.Raise 5, PROCEDURE_NAME, "Expected a single value, an uninitialized array, or a one-dimensional array."
-    End Select
+    vArray = EnsureArray(vArray)
     lLBound = LBound(vArray)
     lUBound = UBound(vArray)
     If lLBound > lUBound Then
@@ -367,111 +344,6 @@ Public Function GetRandomPermutationArray(ByVal lNumElements As Long) As Long()
     GetRandomPermutationArray = alResult
 End Function
 
-Public Function Union(ByVal oRangeA As Range, _
-                      ByVal oRangeB As Range) As Range
-    Const PROCEDURE_NAME As String = "UtilityFunctions.Union"
-    
-    If oRangeA Is Nothing Then
-        Set Union = oRangeB
-        Exit Function
-    End If
-    If oRangeB Is Nothing Then
-        Set Union = oRangeA
-        Exit Function
-    End If
-    If Not oRangeA.Worksheet Is oRangeB.Worksheet Then
-        Err.Raise 5, PROCEDURE_NAME, "Specified ranges are not on the same worksheet."
-    End If
-    Set Union = Application.Union(oRangeA, oRangeB)
-End Function
-
-Public Function Intersect(ByVal oRangeA As Range, _
-                          ByVal oRangeB As Range) As Range
-    If oRangeA Is Nothing Then
-        Exit Function
-    End If
-    If oRangeB Is Nothing Then
-        Exit Function
-    End If
-    If Not oRangeA.Worksheet Is oRangeB.Worksheet Then
-        Exit Function
-    End If
-    Set Intersect = Application.Intersect(oRangeA, oRangeB)
-End Function
-
-Public Function Complement(ByVal oRangeA As Range, _
-                           ByVal oRangeB As Range) As Range
-    Dim oAreaA As Range
-    Dim oAreaB As Range
-    Dim lStartRowA As Long
-    Dim lStartColA As Long
-    Dim lEndRowA As Long
-    Dim lEndColA As Long
-    Dim lStartRowB As Long
-    Dim lStartColB As Long
-    Dim lEndRowB As Long
-    Dim lEndColB As Long
-    Dim lIntersectStartRow As Long
-    Dim lIntersectStartCol As Long
-    Dim lIntersectEndRow As Long
-    Dim lIntersectEndCol As Long
-    Dim oResult As Range
-    Dim oResultCopy As Range
-
-    If oRangeA Is Nothing Then
-        Exit Function
-    End If
-    If oRangeB Is Nothing Then
-        Set Complement = oRangeA
-        Exit Function
-    End If
-    If Not oRangeA.Worksheet Is oRangeB.Worksheet Then
-        Set Complement = oRangeA
-        Exit Function
-    End If
-    Set oResult = oRangeA
-    With oRangeA.Worksheet
-        For Each oAreaB In oRangeB.Areas
-            If oResult Is Nothing Then
-                Exit For
-            End If
-            lStartRowB = oAreaB.Row
-            lStartColB = oAreaB.Column
-            lEndRowB = lStartRowB + oAreaB.Rows.Count - 1
-            lEndColB = lStartColB + oAreaB.Columns.Count - 1
-            Set oResultCopy = oResult
-            Set oResult = Nothing
-            For Each oAreaA In oResultCopy.Areas
-                lStartRowA = oAreaA.Row
-                lStartColA = oAreaA.Column
-                lEndRowA = lStartRowA + oAreaA.Rows.Count - 1
-                lEndColA = lStartColA + oAreaA.Columns.Count - 1
-                lIntersectStartRow = MaxLng2(lStartRowA, lStartRowB)
-                lIntersectStartCol = MaxLng2(lStartColA, lStartColB)
-                lIntersectEndRow = MinLng2(lEndRowA, lEndRowB)
-                lIntersectEndCol = MinLng2(lEndColA, lEndColB)
-                If lIntersectStartRow <= lIntersectEndRow And lIntersectStartCol <= lIntersectEndCol Then
-                    If lIntersectStartRow > lStartRowA Then
-                        Set oResult = Union(oResult, .Range(.Cells(lStartRowA, lStartColA), .Cells(lIntersectStartRow - 1, lEndColA)))
-                    End If
-                    If lIntersectStartCol > lStartColA Then
-                        Set oResult = Union(oResult, .Range(.Cells(lIntersectStartRow, lStartColA), .Cells(lIntersectEndRow, lIntersectStartCol - 1)))
-                    End If
-                    If lEndColA > lIntersectEndCol Then
-                        Set oResult = Union(oResult, .Range(.Cells(lIntersectStartRow, lIntersectEndCol + 1), .Cells(lIntersectEndRow, lEndColA)))
-                    End If
-                    If lEndRowA > lIntersectEndRow Then
-                        Set oResult = Union(oResult, .Range(.Cells(lIntersectEndRow + 1, lStartColA), .Cells(lEndRowA, lEndColA)))
-                    End If
-                Else
-                    Set oResult = Union(oResult, oAreaA)
-                End If
-            Next oAreaA
-        Next oAreaB
-    End With
-    Set Complement = oResult
-End Function
-
 Public Function GetFirstRow(ByVal oWorksheet As Worksheet, _
                             Optional ByVal lColumn As Long) As Long
     Const PROCEDURE_NAME As String = "UtilityFunctions.GetFirstRow"
@@ -481,9 +353,9 @@ Public Function GetFirstRow(ByVal oWorksheet As Worksheet, _
         Err.Raise 5, PROCEDURE_NAME, "Valid Worksheet object is required."
     End If
     If lColumn > 0 Then
-        Set oNonEmptyCell = oWorksheet.Columns(lColumn).Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
+        Set oNonEmptyCell = oWorksheet.Columns(lColumn).Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
     Else
-        Set oNonEmptyCell = oWorksheet.Cells.Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
+        Set oNonEmptyCell = oWorksheet.Cells.Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
     End If
     If Not oNonEmptyCell Is Nothing Then
         GetFirstRow = oNonEmptyCell.Row
@@ -499,9 +371,9 @@ Public Function GetLastRow(ByVal oWorksheet As Worksheet, _
         Err.Raise 5, PROCEDURE_NAME, "Valid Worksheet object is required."
     End If
     If lColumn > 0 Then
-        Set oNonEmptyCell = oWorksheet.Columns(lColumn).Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
+        Set oNonEmptyCell = oWorksheet.Columns(lColumn).Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
     Else
-        Set oNonEmptyCell = oWorksheet.Cells.Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
+        Set oNonEmptyCell = oWorksheet.Cells.Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
     End If
     If Not oNonEmptyCell Is Nothing Then
         GetLastRow = oNonEmptyCell.Row
@@ -517,9 +389,9 @@ Public Function GetFirstColumn(ByVal oWorksheet As Worksheet, _
         Err.Raise 5, PROCEDURE_NAME, "Valid Worksheet object is required."
     End If
     If lRow > 0 Then
-        Set oNonEmptyCell = oWorksheet.Rows(lRow).Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
+        Set oNonEmptyCell = oWorksheet.Rows(lRow).Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
     Else
-        Set oNonEmptyCell = oWorksheet.Cells.Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
+        Set oNonEmptyCell = oWorksheet.Cells.Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
     End If
     If Not oNonEmptyCell Is Nothing Then
         GetFirstColumn = oNonEmptyCell.Column
@@ -535,9 +407,9 @@ Public Function GetLastColumn(ByVal oWorksheet As Worksheet, _
         Err.Raise 5, PROCEDURE_NAME, "Valid Worksheet object is required."
     End If
     If lRow > 0 Then
-        Set oNonEmptyCell = oWorksheet.Rows(lRow).Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
+        Set oNonEmptyCell = oWorksheet.Rows(lRow).Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
     Else
-        Set oNonEmptyCell = oWorksheet.Cells.Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
+        Set oNonEmptyCell = oWorksheet.Cells.Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
     End If
     If Not oNonEmptyCell Is Nothing Then
         GetLastColumn = oNonEmptyCell.Column
@@ -555,25 +427,40 @@ End Function
 
 Public Function SanitizeFileName(ByVal sName As String) As String
     Const MAX_LENGTH As Long = 255
-    Static s_oIllegalCharacters As Object
+    Static s_oIllegalChars As Object
+    Static s_oReservedNames As Object
     Dim sBaseName As String
     Dim sExtension As String
+    Dim lDotPosition As Long
     
     sName = Trim$(sName)
-    If s_oIllegalCharacters Is Nothing Then
-        Set s_oIllegalCharacters = CreateObject("VBScript.RegExp")
-        With s_oIllegalCharacters
+    If s_oIllegalChars Is Nothing Then
+        Set s_oIllegalChars = CreateObject("VBScript.RegExp")
+        With s_oIllegalChars
             .Global = True
-            .IgnoreCase = True
-            '"*/:<>?[\]|
-            .Pattern = "[\x00-\x1F\x22\x2A\x2F\x3A\x3C\x3E\x3F\x5B-\x5D\x7C\x7F]|[\s.]$|^(CON|PRN|AUX|NUL|COM\d|LPT\d)(\..*)?$"
+            .IgnoreCase = False
+            .Pattern = "[\x00-\x1F\x22\x2A\x2F\x3A\x3C\x3E\x3F\x5B-\x5D\x7C\x7F]|[\s.]+$"
         End With
     End If
-    sName = s_oIllegalCharacters.Replace(sName, "_")
-    sBaseName = Fso.GetBaseName(sName)
-    sExtension = Fso.GetExtensionName(sName)
-    If sExtension <> "" Then
-        sExtension = "." & sExtension
+    If s_oReservedNames Is Nothing Then
+        Set s_oReservedNames = CreateObject("VBScript.RegExp")
+        With s_oReservedNames
+            .Global = False
+            .IgnoreCase = True
+            .Pattern = "^(CON|PRN|AUX|NUL|COM\d|LPT\d)$"
+        End With
+    End If
+    sName = s_oIllegalChars.Replace(sName, "_")
+    lDotPosition = InStrRev(sName, ".")
+    If lDotPosition > 1 Then
+        sBaseName = Left$(sName, lDotPosition - 1)
+        sExtension = Mid$(sName, lDotPosition)
+    Else
+        sBaseName = sName
+        sExtension = ""
+    End If
+    If s_oReservedNames.Test(sBaseName) Then
+        sBaseName = "_" & sBaseName
     End If
     If Len(sExtension) < MAX_LENGTH Then
         SanitizeFileName = Left$(sBaseName, MAX_LENGTH - Len(sExtension)) & sExtension
@@ -581,6 +468,9 @@ Public Function SanitizeFileName(ByVal sName As String) As String
         SanitizeFileName = Left$(sBaseName, 1) & Left$(sExtension, MAX_LENGTH - 1)
     Else
         SanitizeFileName = Left$(sExtension, MAX_LENGTH)
+    End If
+    If Len(SanitizeFileName) = 0 Or SanitizeFileName = "." Then
+        SanitizeFileName = "_"
     End If
 End Function
 
@@ -650,7 +540,7 @@ Public Function CreateWorkbook(ByVal sDirectory As String, _
                                ByVal sName As String, _
                                Optional ByVal lFileFormat As XlFileFormat = xlWorkbookDefault, _
                                Optional ByVal bOverwrite As Boolean, _
-                               Optional ByRef bIsWorkbookNew As Boolean) As Workbook
+                               Optional ByRef bWorkbookIsNew As Boolean) As Workbook
     Const PROCEDURE_NAME As String = "UtilityFunctions.CreateWorkbook"
     Dim sExtension As String
     Dim sFilename As String
@@ -668,7 +558,7 @@ Public Function CreateWorkbook(ByVal sDirectory As String, _
             Kill sPath
         Else
             Set oResult = Workbooks.Open(Filename:=sPath, UpdateLinks:=False, IgnoreReadOnlyRecommended:=True, Notify:=False, Local:=True)
-            bIsWorkbookNew = False
+            bWorkbookIsNew = False
             Set CreateWorkbook = oResult
             Exit Function
         End If
@@ -676,25 +566,38 @@ Public Function CreateWorkbook(ByVal sDirectory As String, _
     Set oResult = Workbooks.Add
     oResult.Title = sName
     oResult.SaveAs Filename:=sPath, FileFormat:=lFileFormat, Local:=True
-    bIsWorkbookNew = True
+    bWorkbookIsNew = True
     Set CreateWorkbook = oResult
 End Function
 
 Public Function SanitizeWorksheetName(ByVal sName As String) As String
     Const MAX_LENGTH As Long = 31
-    Static s_oIllegalCharacters As Object
+    Static s_oIllegalChars As Object
     
     sName = Trim$(sName)
-    If s_oIllegalCharacters Is Nothing Then
-        Set s_oIllegalCharacters = CreateObject("VBScript.RegExp")
-        With s_oIllegalCharacters
+    If s_oIllegalChars Is Nothing Then
+        Set s_oIllegalChars = CreateObject("VBScript.RegExp")
+        With s_oIllegalChars
             .Global = True
-            ''*/:?[\]
-            .Pattern = "[\x00-\x1F\x27\x2A\x2F\x3A\x3F\x5B-\x5D\x7F]"
+            .IgnoreCase = False
+            .Pattern = "[\x00-\x1F\x2A\x2F\x3A\x3F\x5B-\x5D\x7F]"
         End With
     End If
-    sName = s_oIllegalCharacters.Replace(sName, "_")
-    SanitizeWorksheetName = Left$(sName, MAX_LENGTH)
+    sName = s_oIllegalChars.Replace(sName, "_")
+    sName = Left$(sName, MAX_LENGTH)
+    If Len(sName) > 0 And Left$(sName, 1) = "'" Then
+        sName = "_" & Mid$(sName, 2)
+    End If
+    If Len(sName) > 0 And Right$(sName, 1) = "'" Then
+        sName = Left$(sName, Len(sName) - 1) & "_"
+    End If
+    If StrComp(sName, "History", vbTextCompare) = 0 Then
+        sName = "History_"
+    End If
+    If Len(sName) = 0 Then
+        sName = "_"
+    End If
+    SanitizeWorksheetName = sName
 End Function
 
 Public Function WorksheetExists(ByVal oWorkbook As Workbook, _
@@ -711,7 +614,7 @@ End Function
 Public Function CreateWorksheet(ByVal oWorkbook As Workbook, _
                                 ByVal sName As String, _
                                 Optional ByVal bOverwrite As Boolean, _
-                                Optional ByRef bIsWorksheetNew As Boolean) As Worksheet
+                                Optional ByRef bWorksheetIsNew As Boolean) As Worksheet
     Const PROCEDURE_NAME As String = "UtilityFunctions.CreateWorksheet"
     Dim bDisplayAlertsSave As Boolean
     Dim oResult As Worksheet
@@ -728,15 +631,15 @@ Public Function CreateWorksheet(ByVal oWorkbook As Workbook, _
             oWorkbook.Worksheets(sName).Delete
             Application.DisplayAlerts = bDisplayAlertsSave
             oResult.Name = sName
-            bIsWorksheetNew = True
+            bWorksheetIsNew = True
         Else
             Set oResult = oWorkbook.Worksheets(sName)
-            bIsWorksheetNew = False
+            bWorksheetIsNew = False
         End If
     Else
         Set oResult = oWorkbook.Worksheets.Add(After:=oWorkbook.Worksheets(oWorkbook.Worksheets.Count))
         oResult.Name = sName
-        bIsWorksheetNew = True
+        bWorksheetIsNew = True
     End If
     oResult.Activate
     ActiveWindow.Zoom = 80
@@ -775,11 +678,11 @@ Public Sub WriteLog(ByVal sName As String, _
     Dim lLastRow As Long
     Dim vHeader As Variant
     Dim vHeaderCol As Variant
-    Dim bIsWorksheetNew As Boolean
+    Dim bWorksheetIsNew As Boolean
     Dim oLog As Worksheet
     
-    Set oLog = CreateWorksheet(ThisWorkbook, sName, False, bIsWorksheetNew)
-    lLastRow = MaxLng2(1, GetLastRow(oLog))
+    Set oLog = CreateWorksheet(ThisWorkbook, sName, False, bWorksheetIsNew)
+    lLastRow = MaxLng(1, GetLastRow(oLog))
     With oLog
         On Error Resume Next
         For i = 0 To UBound(avArgs) - 1 Step 2
@@ -794,10 +697,11 @@ Public Sub WriteLog(ByVal sName As String, _
             DoEvents
         Next i
         On Error GoTo 0
-        If bIsWorksheetNew Then
+        If bWorksheetIsNew Then
             .Activate
             .Cells(2, 1).Select
             ActiveWindow.FreezePanes = True
         End If
     End With
 End Sub
+
