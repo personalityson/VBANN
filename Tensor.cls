@@ -489,7 +489,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
     Dim A_() As Double
     Dim R_() As Double
     Dim A As Tensor
-    Dim R As Tensor
+    Dim r As Tensor
     Dim oResult As Tensor
 
     lOldSize = m_alShape(lDimension)
@@ -501,9 +501,9 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
     lInnerStride = m_alInnerStrides(lDimension)
     lOuterStride = m_alOuterStrides(lDimension)
     Set A = Me.View(Array(lInnerStride, lOldSize, lOuterStride))
-    Set R = oResult.View(Array(lInnerStride, lNewSize, lOuterStride))
+    Set r = oResult.View(Array(lInnerStride, lNewSize, lOuterStride))
     A.CreateAlias A_
-    R.CreateAlias R_
+    r.CreateAlias R_
     Select Case eReduction
         Case rdcSum
             For i = 1 To lInnerStride
@@ -557,7 +557,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
             Next i
     End Select
     A.RemoveAlias A_
-    R.RemoveAlias R_
+    r.RemoveAlias R_
     Set ReduceInternal = oResult
 End Function
 

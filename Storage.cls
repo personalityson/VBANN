@@ -161,6 +161,10 @@ Public Sub FromRange(ByVal oRange As Range, _
                     m_adblBuffer(lRowOffset + i, lColOffset + j) = oArea.Cells(i, j)
                 End If
             Next j
+            If (lRowOffset + i) Mod 1000 = 0 Then
+                Application.StatusBar = "FromRange progress: " & Format((lRowOffset + i) / lMaxRow, "0.0%")
+                DoEvents
+            End If
         Next i
     Next oArea
 End Sub

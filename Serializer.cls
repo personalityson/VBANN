@@ -240,8 +240,8 @@ Private Function CreateInstance(ByVal sTypeName As String) As ISerializable
     Const PROCEDURE_NAME As String = "Serializer.CreateInstance"
     
     Select Case sTypeName
-        Case "Adam"
-            Set CreateInstance = New Adam
+        Case "AdamW"
+            Set CreateInstance = New AdamW
         Case "BCELoss"
             Set CreateInstance = New BCELoss
         Case "CCELoss"
@@ -262,8 +262,8 @@ Private Function CreateInstance(ByVal sTypeName As String) As ISerializable
             Set CreateInstance = New Parameter
         Case "Sequential"
             Set CreateInstance = New Sequential
-        Case "SGDM"
-            Set CreateInstance = New SGDM
+        Case "SGDW"
+            Set CreateInstance = New SGDW
         Case "SigmoidLayer"
             Set CreateInstance = New SigmoidLayer
         Case "SoftmaxLayer"

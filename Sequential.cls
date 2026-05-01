@@ -150,7 +150,7 @@ Public Function Loss(ByVal oTestLoader As DataLoader) As Double
             Set Y = Predict(X)
             dblLoss = dblLoss + m_oCriterion.Forward(Y, T).Sum
             lNumSamples = lNumSamples + oBatch.NumSamples
-            If lNumSamples \ .BatchSize Mod 10 = 0 Then
+            If lNumSamples \ .BatchSize Mod 100 = 0 Then
                 Application.StatusBar = "Loss progress: " & Format(lNumSamples / .NumSamples, "0.0%")
                 DoEvents
             End If
@@ -174,7 +174,7 @@ Private Sub FitOne(ByVal oTrainingLoader As DataLoader)
             Set T = oBatch.Tensor(2)
             Backpropagate X, T
             lNumSamples = lNumSamples + oBatch.NumSamples
-            If lNumSamples \ .BatchSize Mod 10 = 0 Then
+            If lNumSamples \ .BatchSize Mod 100 = 0 Then
                 Application.StatusBar = "FitOne progress: " & Format(lNumSamples / .NumSamples, "0.0%")
                 DoEvents
             End If

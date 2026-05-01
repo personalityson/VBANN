@@ -1,14 +1,14 @@
 Attribute VB_Name = "MLFactory"
 Option Explicit
 
-Public Function Adam(Optional ByVal dblLearningRate As Double = 0.001, _
+Public Function AdamW(Optional ByVal dblLearningRate As Double = 0.001, _
                      Optional ByVal dblBeta1 As Double = 0.9, _
                      Optional ByVal dblBeta2 As Double = 0.999, _
                      Optional ByVal dblEpsilon As Double = 0.00000001, _
                      Optional ByVal dblWeightDecay As Double = 0.01, _
-                     Optional ByVal dblGradientThreshold As Double = DOUBLE_MAX_ABS) As Adam
-    Set Adam = New Adam
-    Adam.Init dblLearningRate, dblBeta1, dblBeta2, dblEpsilon, dblWeightDecay, dblGradientThreshold
+                     Optional ByVal dblGradientThreshold As Double = DOUBLE_MAX_ABS) As AdamW
+    Set AdamW = New AdamW
+    AdamW.Init dblLearningRate, dblBeta1, dblBeta2, dblEpsilon, dblWeightDecay, dblGradientThreshold
 End Function
 
 Public Function BCELoss() As BCELoss
@@ -73,12 +73,12 @@ Public Function Sequential(ByVal oCriterion As ICriterion, _
     Sequential.Init oCriterion, oOptimizer
 End Function
 
-Public Function SGDM(Optional ByVal dblLearningRate As Double = 0.01, _
+Public Function SGDW(Optional ByVal dblLearningRate As Double = 0.001, _
                      Optional ByVal dblMomentum As Double = 0.9, _
                      Optional ByVal dblWeightDecay As Double = 0.0001, _
-                     Optional ByVal dblGradientThreshold As Double = DOUBLE_MAX_ABS) As SGDM
-    Set SGDM = New SGDM
-    SGDM.Init dblLearningRate, dblMomentum, dblWeightDecay, dblGradientThreshold
+                     Optional ByVal dblGradientThreshold As Double = DOUBLE_MAX_ABS) As SGDW
+    Set SGDW = New SGDW
+    SGDW.Init dblLearningRate, dblMomentum, dblWeightDecay, dblGradientThreshold
 End Function
 
 Public Function SigmoidLayer() As SigmoidLayer
@@ -153,7 +153,10 @@ Public Function ImportDatasetFromWorksheet(ByVal oWorkbook As Workbook, _
     Set oSource = oWorkbook.Sheets(sName)
     lFirstRow = GetFirstRow(oSource) + IIf(bHasHeaders, 1, 0)
     lFirstCol = GetFirstColumn(oSource)
-    lNumSamples = GetLastRow(oSource) - lFirstRow + 1
+    
+    'lNumSamples = GetLastRow(oSource) - lFirstRow + 1
+    lNumSamples = GetLastRow(oSource, 1) - lFirstRow + 1
+    
     ReDim alTensors(1 To lNumSegments)
     Set oResult = New TensorDataset
     For i = 1 To lNumSegments
