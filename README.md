@@ -11,6 +11,7 @@ This project is licensed under the [Creative Commons Zero v1.0 Universal](LICENS
 
 ### Examples
 ```vba
+Attribute VB_Name = "Examples"
 Option Explicit
 
 Public Sub SetupAndTrain()
@@ -38,13 +39,13 @@ Public Sub SetupAndTrain()
     SplitDataset oFullSet, 0.8, oTrainingSet, oTestSet, True
     Set oTrainingLoader = DataLoader(oTrainingSet, lBatchSize)
     Set oTestLoader = DataLoader(oTestSet, lBatchSize)
-    
+
     'Setup and train
-    Set oModel = Sequential(L2Loss(), SGDM())
+    Set oModel = Sequential(L2Loss(), SGDW())
     oModel.Add InputNormalizationLayer(oTrainingLoader)
     oModel.Add FullyConnectedLayer(lInputSize, 32)
     oModel.Add LeakyReLULayer()
-    oModel.Add DropoutLayer(0.2)
+    oModel.Add DropoutLayer(0.3)
     oModel.Add FullyConnectedLayer(32, 16)
     oModel.Add LeakyReLULayer()
     oModel.Add FullyConnectedLayer(16, lLabelSize)
@@ -106,7 +107,7 @@ Public Function PredictInWorksheet(ByVal oInput As Range) As Variant
     Static s_oModel As Sequential
     Dim X As Tensor
     Dim Y As Tensor
-    
+
     If s_oModel Is Nothing Then
         Set s_oModel = Unserialize(MODEL_NAME)
     End If
@@ -215,9 +216,10 @@ Public Sub WorkingWithTensors()
 
     'Create tensor A from an Excel range.
     A.FromRange ActiveSheet.Range("A1:B3")
-    
+
     Beep
 End Sub
+
 
 Public Sub WorkingWithTensorOps()
     Dim A As Tensor
@@ -239,7 +241,7 @@ Public Sub WorkingWithTensorOps()
     'Element-wise binary (A and B must have the same NumElements).
     Set Y = VecAdd(A, B)        'Y = A + B
     Set Y = VecSub(A, B)        'Y = A - B
-    Set Y = VecMul(A, B)        'Y = A * B  (element-wise; NOT matrix multiply)
+    Set Y = VecMul(A, B)        'Y = A * B  (not matrix multiply)
     Set Y = VecDiv(A, B)        'Y = A / B
 
     'Element-wise scalar.
@@ -266,10 +268,10 @@ Public Sub WorkingWithTensorOps()
     Set Y = VecLeakyReLU(A, 0.01)
     Set Y = VecLeakyReLUDerivative(A, 0.01)
 
-    'In-place A := 2 * A.
+    'In-place A := 2 * A
     VecMulC_I A, 2
 
-    'In-place A := A + B.
+    'In-place A := A + B
     VecAdd_I A, B
 
     'In-place A := alpha * A + beta * B
@@ -290,7 +292,7 @@ Public Sub WorkingWithTensorOps()
     'Transpose.
     Set A = Uniform(Array(3, 4))
     Set Y = MatTranspose(A)          'Y is 4x3
-    
+
     Beep
 End Sub
 ```
