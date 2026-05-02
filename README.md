@@ -220,7 +220,6 @@ Public Sub WorkingWithTensors()
     Beep
 End Sub
 
-
 Public Sub WorkingWithTensorOps()
     Dim A As Tensor
     Dim B As Tensor
