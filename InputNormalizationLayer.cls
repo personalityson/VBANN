@@ -14,6 +14,8 @@ Implements ISerializable
 
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
+Private Const EPSILON As Double = 0.00001
+
 'Dimensions
 Private m_alInputShape() As Long
 
@@ -46,6 +48,9 @@ Public Function Forward(ByVal X As Tensor, _
     If X Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
+    If m_oMean Is Nothing Or m_oVariance Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Layer must be adapted before the forward pass."
+    End If
     If Not X.ShapeEquals(m_alInputShape) Then
         Err.Raise 5, PROCEDURE_NAME, "Input tensor does not match the expected shape for forward pass."
     End If
@@ -60,10 +65,13 @@ Public Function Backward(ByVal dLdY As Tensor) As Tensor
     If dLdY Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
+    If m_oMean Is Nothing Or m_oVariance Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Layer must be adapted before the backward pass."
+    End If
     If Not dLdY.ShapeEquals(m_alInputShape) Then
         Err.Raise 5, PROCEDURE_NAME, "Gradient tensor does not match the expected shape for backward pass."
     End If
-    Set Backward = CalculateInputError(dLdY)
+    Set Backward = CalculateInputGradient(dLdY)
 End Function
 
 'Y = (X - m) / Sqrt(v + Epsilon)
@@ -77,11 +85,11 @@ Private Function CalculateOutput(ByVal X As Tensor) As Tensor
     lBatchSize = X.Size(lBatchDimension)
     Set oTiledMean = m_oMean.Tile(lBatchDimension, lBatchSize)
     Set oTiledVariance = m_oVariance.Tile(lBatchDimension, lBatchSize)
-    Set CalculateOutput = VecDivSqrtAddC(VecSub(X, oTiledMean), oTiledVariance, DOUBLE_EPSILON)
+    Set CalculateOutput = VecDivRms(VecSub(X, oTiledMean), oTiledVariance, EPSILON, 0)
 End Function
 
 'dLdX = dLdY / Sqrt(v + Epsilon)
-Private Function CalculateInputError(ByVal dLdY As Tensor) As Tensor
+Private Function CalculateInputGradient(ByVal dLdY As Tensor) As Tensor
     Dim lBatchDimension As Long
     Dim lBatchSize As Long
     Dim oTiledVariance As Tensor
@@ -89,7 +97,7 @@ Private Function CalculateInputError(ByVal dLdY As Tensor) As Tensor
     lBatchDimension = dLdY.NumDimensions
     lBatchSize = dLdY.Size(lBatchDimension)
     Set oTiledVariance = m_oVariance.Tile(lBatchDimension, lBatchSize)
-    Set CalculateInputError = VecDivSqrtAddC(dLdY, oTiledVariance, DOUBLE_EPSILON)
+    Set CalculateInputGradient = VecDivRms(dLdY, oTiledVariance, EPSILON, 0)
 End Function
 
 Private Sub Adapt(ByVal oTrainingLoader As DataLoader)
@@ -145,27 +153,27 @@ Private Sub Clear()
     Set m_Y = Nothing
 End Sub
 
-Private Sub Save(ByVal oWorksheet As Serializer)
+Private Sub Save(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "InputNormalizationLayer.Save"
 
-    If oWorksheet Is Nothing Then
+    If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
-    With oWorksheet
+    With oSerializer
         .WriteLongArray m_alInputShape
         .WriteObject m_oMean
         .WriteObject m_oVariance
     End With
 End Sub
 
-Private Sub Load(ByVal oWorksheet As Serializer)
+Private Sub Load(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "InputNormalizationLayer.Load"
 
-    If oWorksheet Is Nothing Then
+    If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
     Clear
-    With oWorksheet
+    With oSerializer
         m_alInputShape = .ReadLongArray()
         Set m_oMean = .ReadObject()
         Set m_oVariance = .ReadObject()
@@ -186,12 +194,12 @@ End Sub
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
     
-    Private Sub ISerializable_Save(ByVal oWorksheet As Object)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Object)
+        Save oSerializer
     End Sub
     
-    Private Sub ISerializable_Load(ByVal oWorksheet As Object)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Object)
+        Load oSerializer
     End Sub
 #Else
     Private Property Get ILayer_LearnableParameters() As Variant
@@ -207,12 +215,12 @@ End Sub
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
     
-    Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
+        Save oSerializer
     End Sub
     
-    Private Sub ISerializable_Load(ByVal oWorksheet As Serializer)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Serializer)
+        Load oSerializer
     End Sub
 #End If
 

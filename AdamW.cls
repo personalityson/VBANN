@@ -109,7 +109,7 @@ Private Sub ApplyGradients(ByVal W As Parameter)
     Dim dblGradientScale As Double
     Dim m As Tensor
     Dim v As Tensor
-    
+
     If W.NumAccumulatedSamples < 1 Then
         Exit Sub
     End If
@@ -117,7 +117,7 @@ Private Sub ApplyGradients(ByVal W As Parameter)
     lStep = lStep + 1
     dblLearningRate = W.LearningRateScale * m_dblLearningRate
     dblAlpha = dblLearningRate * Sqr(1 - m_dblBeta2 ^ lStep) / (1 - m_dblBeta1 ^ lStep)
-    dblWeightDecay = W.DecayScale * m_dblWeightDecay
+    dblWeightDecay = W.WeightDecayScale * m_dblWeightDecay
     If W.UseGradientClipping And m_dblGradientThreshold < DOUBLE_MAX_ABS Then
         dblGradientScale = m_dblGradientThreshold / MaxDbl(m_dblGradientThreshold, VecNorm2(W.Gradient) / W.NumAccumulatedSamples)
     Else
@@ -125,7 +125,7 @@ Private Sub ApplyGradients(ByVal W As Parameter)
     End If
     VecLinComb_I m_dblBeta1, m, (1 - m_dblBeta1) * dblGradientScale / W.NumAccumulatedSamples, W.Gradient
     VecLinComb_I m_dblBeta2, v, (1 - m_dblBeta2) * dblGradientScale * dblGradientScale / W.NumAccumulatedSamples / W.NumAccumulatedSamples, VecPow2(W.Gradient)
-    VecLinComb_I 1 - dblLearningRate * dblWeightDecay, W.Tensor, -dblAlpha, VecDivSqrtAddC(m, v, m_dblEpsilon)
+    VecLinComb_I 1 - dblLearningRate * dblWeightDecay, W.Tensor, -dblAlpha, VecDivRms(m, v, 0, m_dblEpsilon)
     W.ResetGradient
     PutStates W, lStep, m, v
 End Sub
@@ -172,17 +172,17 @@ Private Sub Clear()
     Set m_oStates = CreateObject("Scripting.Dictionary")
 End Sub
 
-Private Sub Save(ByVal oWorksheet As Serializer)
+Private Sub Save(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "AdamW.Save"
     Dim W As Variant
     Dim lStep As Long
     Dim m As Tensor
     Dim v As Tensor
     
-    If oWorksheet Is Nothing Then
+    If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
-    With oWorksheet
+    With oSerializer
         .WriteDouble m_dblLearningRate
         .WriteDouble m_dblBeta1
         .WriteDouble m_dblBeta2
@@ -200,7 +200,7 @@ Private Sub Save(ByVal oWorksheet As Serializer)
     End With
 End Sub
 
-Private Sub Load(ByVal oWorksheet As Serializer)
+Private Sub Load(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "AdamW.Load"
     Dim i As Long
     Dim lNumStates As Long
@@ -209,11 +209,11 @@ Private Sub Load(ByVal oWorksheet As Serializer)
     Dim m As Tensor
     Dim v As Tensor
     
-    If oWorksheet Is Nothing Then
+    If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
     Clear
-    With oWorksheet
+    With oSerializer
         m_dblLearningRate = .ReadDouble()
         m_dblBeta1 = .ReadDouble()
         m_dblBeta2 = .ReadDouble()
@@ -244,12 +244,12 @@ End Sub
         Me.Update vParameters
     End Sub
     
-    Private Sub ISerializable_Save(ByVal oWorksheet As Object)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Object)
+        Save oSerializer
     End Sub
     
-    Private Sub ISerializable_Load(ByVal oWorksheet As Object)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Object)
+        Load oSerializer
     End Sub
 #Else
     Private Property Get IOptimizer_LearningRate() As Double
@@ -264,12 +264,12 @@ End Sub
         Me.Update vParameters
     End Sub
     
-    Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
+        Save oSerializer
     End Sub
     
-    Private Sub ISerializable_Load(ByVal oWorksheet As Serializer)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Serializer)
+        Load oSerializer
     End Sub
 #End If
 

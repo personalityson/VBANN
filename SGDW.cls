@@ -38,7 +38,7 @@ Public Property Let LearningRate(ByVal dblLearningRate As Double)
     m_dblLearningRate = dblLearningRate
 End Property
 
-Public Sub Init(Optional ByVal dblLearningRate As Double = 0.001, _
+Public Sub Init(Optional ByVal dblLearningRate As Double = 0.01, _
                 Optional ByVal dblMomentum As Double = 0.9, _
                 Optional ByVal dblWeightDecay As Double = 0.0001, _
                 Optional ByVal dblGradientThreshold As Double = DOUBLE_MAX_ABS)
@@ -82,8 +82,8 @@ Public Sub Update(ByVal vParameters As Variant)
     Next W
 End Sub
 
-'SGD with momentum and decoupled weight decay
-'v = momentum * v + dW / NumAccumulatedSamples
+'SGD with dampened momentum and decoupled weight decay
+'v = momentum * v + (1 - momentum) * (dW / NumAccumulatedSamples)
 'W = (1 - lr * wd) * W - lr * v
 Private Sub ApplyGradients(ByVal W As Parameter)
     Dim dblLearningRate As Double
@@ -96,13 +96,13 @@ Private Sub ApplyGradients(ByVal W As Parameter)
     End If
     GetStates W, v
     dblLearningRate = W.LearningRateScale * m_dblLearningRate
-    dblWeightDecay = W.DecayScale * m_dblWeightDecay
+    dblWeightDecay = W.WeightDecayScale * m_dblWeightDecay
     If W.UseGradientClipping And m_dblGradientThreshold < DOUBLE_MAX_ABS Then
         dblGradientScale = m_dblGradientThreshold / MaxDbl(m_dblGradientThreshold, VecNorm2(W.Gradient) / W.NumAccumulatedSamples)
     Else
         dblGradientScale = 1
     End If
-    VecLinComb_I m_dblMomentum, v, dblGradientScale / W.NumAccumulatedSamples, W.Gradient
+    VecLinComb_I m_dblMomentum, v, (1 - m_dblMomentum) * dblGradientScale / W.NumAccumulatedSamples, W.Gradient
     VecLinComb_I 1 - dblLearningRate * dblWeightDecay, W.Tensor, -dblLearningRate, v
     W.ResetGradient
     'PutStates W, v
@@ -140,15 +140,15 @@ Private Sub Clear()
     Set m_oStates = CreateObject("Scripting.Dictionary")
 End Sub
 
-Private Sub Save(ByVal oWorksheet As Serializer)
+Private Sub Save(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "SGDW.Save"
     Dim W As Variant
     Dim v As Tensor
     
-    If oWorksheet Is Nothing Then
+    If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
-    With oWorksheet
+    With oSerializer
         .WriteDouble m_dblLearningRate
         .WriteDouble m_dblMomentum
         .WriteDouble m_dblWeightDecay
@@ -162,18 +162,18 @@ Private Sub Save(ByVal oWorksheet As Serializer)
     End With
 End Sub
 
-Private Sub Load(ByVal oWorksheet As Serializer)
+Private Sub Load(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "SGDW.Load"
     Dim lNumStates As Long
     Dim i As Long
-    Dim W As Variant
+    Dim W As Parameter
     Dim v As Tensor
     
-    If oWorksheet Is Nothing Then
+    If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
     Clear
-    With oWorksheet
+    With oSerializer
         m_dblLearningRate = .ReadDouble()
         m_dblMomentum = .ReadDouble()
         m_dblWeightDecay = .ReadDouble()
@@ -200,12 +200,12 @@ End Sub
         Me.Update vParameters
     End Sub
     
-    Private Sub ISerializable_Save(ByVal oWorksheet As Object)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Object)
+        Save oSerializer
     End Sub
     
-    Private Sub ISerializable_Load(ByVal oWorksheet As Object)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Object)
+        Load oSerializer
     End Sub
 #Else
     Private Property Get IOptimizer_LearningRate() As Double
@@ -220,12 +220,12 @@ End Sub
         Me.Update vParameters
     End Sub
     
-    Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
+        Save oSerializer
     End Sub
     
-    Private Sub ISerializable_Load(ByVal oWorksheet As Serializer)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Serializer)
+        Load oSerializer
     End Sub
 #End If
 

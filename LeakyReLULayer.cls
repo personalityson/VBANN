@@ -54,16 +54,16 @@ Public Function Backward(ByVal dLdY As Tensor) As Tensor
     If Not dLdY.ShapeEquals(m_X.Shape) Then
         Err.Raise 5, PROCEDURE_NAME, "Gradient tensor does not match the expected shape for backward pass."
     End If
-    Set Backward = CalculateInputError(m_X, dLdY)
+    Set Backward = CalculateInputGradient(m_X, dLdY)
 End Function
 
 Private Function CalculateOutput(ByVal X As Tensor) As Tensor
     Set CalculateOutput = VecLeakyReLU(X, m_dblNegativeSlope)
 End Function
 
-Private Function CalculateInputError(ByVal X As Tensor, _
+Private Function CalculateInputGradient(ByVal X As Tensor, _
                                      ByVal dLdY As Tensor) As Tensor
-    Set CalculateInputError = VecMul(dLdY, VecLeakyReLUDerivative(X, m_dblNegativeSlope))
+    Set CalculateInputGradient = VecMul(dLdY, VecLeakyReLUDerivative(X, m_dblNegativeSlope))
 End Function
 
 Private Sub Clear()
@@ -72,25 +72,25 @@ Private Sub Clear()
     Set m_Y = Nothing
 End Sub
 
-Private Sub Save(ByVal oWorksheet As Serializer)
+Private Sub Save(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "LeakyReLULayer.Save"
     
-    If oWorksheet Is Nothing Then
+    If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
-    With oWorksheet
+    With oSerializer
         .WriteDouble m_dblNegativeSlope
     End With
 End Sub
 
-Private Sub Load(ByVal oWorksheet As Serializer)
+Private Sub Load(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "LeakyReLULayer.Load"
     
-    If oWorksheet Is Nothing Then
+    If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
     Clear
-    With oWorksheet
+    With oSerializer
         m_dblNegativeSlope = .ReadDouble()
     End With
 End Sub
@@ -109,12 +109,12 @@ End Sub
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
     
-    Private Sub ISerializable_Save(ByVal oWorksheet As Object)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Object)
+        Save oSerializer
     End Sub
     
-    Private Sub ISerializable_Load(ByVal oWorksheet As Object)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Object)
+        Load oSerializer
     End Sub
 #Else
     Private Property Get ILayer_LearnableParameters() As Variant
@@ -130,12 +130,12 @@ End Sub
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
     
-    Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
+        Save oSerializer
     End Sub
     
-    Private Sub ISerializable_Load(ByVal oWorksheet As Serializer)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Serializer)
+        Load oSerializer
     End Sub
 #End If
 

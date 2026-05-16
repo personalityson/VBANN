@@ -421,7 +421,6 @@ Private Sub AllocateData()
 End Sub
 
 Private Sub AllocateDescriptor()
-    Const PROCEDURE_NAME As String = "Tensor.AllocateDescriptor"
     Const FADF_STATIC As Integer = &H2
     Const FADF_HAVEVARTYPE As Integer = &H80
     Dim i As Long
@@ -489,7 +488,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
     Dim A_() As Double
     Dim R_() As Double
     Dim A As Tensor
-    Dim r As Tensor
+    Dim R As Tensor
     Dim oResult As Tensor
 
     lOldSize = m_alShape(lDimension)
@@ -501,9 +500,9 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
     lInnerStride = m_alInnerStrides(lDimension)
     lOuterStride = m_alOuterStrides(lDimension)
     Set A = Me.View(Array(lInnerStride, lOldSize, lOuterStride))
-    Set r = oResult.View(Array(lInnerStride, lNewSize, lOuterStride))
+    Set R = oResult.View(Array(lInnerStride, lNewSize, lOuterStride))
     A.CreateAlias A_
-    r.CreateAlias R_
+    R.CreateAlias R_
     Select Case eReduction
         Case rdcSum
             For i = 1 To lInnerStride
@@ -557,7 +556,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
             Next i
     End Select
     A.RemoveAlias A_
-    r.RemoveAlias R_
+    R.RemoveAlias R_
     Set ReduceInternal = oResult
 End Function
 
@@ -649,27 +648,27 @@ Private Sub TileMemory(ByVal pTarget As LongPtr, _
     Loop
 End Sub
 
-Private Sub Save(ByVal oWorksheet As Serializer)
+Private Sub Save(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "Tensor.Save"
 
-    If oWorksheet Is Nothing Then
+    If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
-    With oWorksheet
+    With oSerializer
         .WriteLongArray m_alShape
         .WriteObject m_oData
     End With
 End Sub
 
-Private Sub Load(ByVal oWorksheet As Serializer)
+Private Sub Load(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "Tensor.Load"
     Dim alShape() As Long
     Dim oData As Storage
 
-    If oWorksheet Is Nothing Then
+    If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
-    With oWorksheet
+    With oSerializer
         alShape = .ReadLongArray()
         Set oData = .ReadObject()
     End With
@@ -677,20 +676,20 @@ Private Sub Load(ByVal oWorksheet As Serializer)
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
-    Private Sub ISerializable_Save(ByVal oWorksheet As Object)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Object)
+        Save oSerializer
     End Sub
 
-    Private Sub ISerializable_Load(ByVal oWorksheet As Object)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Object)
+        Load oSerializer
     End Sub
 #Else
-    Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
+        Save oSerializer
     End Sub
 
-    Private Sub ISerializable_Load(ByVal oWorksheet As Serializer)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Serializer)
+        Load oSerializer
     End Sub
 #End If
 

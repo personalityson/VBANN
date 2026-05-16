@@ -62,11 +62,11 @@ Private Function CalculateGradient(ByVal Y As Tensor, _
     Set CalculateGradient = VecSign(VecSub(Y, T))
 End Function
 
-Private Sub Save(ByVal oWorksheet As Serializer)
+Private Sub Save(ByVal oSerializer As Serializer)
     'Do nothing
 End Sub
 
-Private Sub Load(ByVal oWorksheet As Serializer)
+Private Sub Load(ByVal oSerializer As Serializer)
     'Do nothing
 End Sub
 
@@ -81,12 +81,12 @@ End Sub
         Set ICriterion_Backward = Backward(Y, T)
     End Function
     
-    Private Sub ISerializable_Save(ByVal oWorksheet As Object)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Object)
+        Save oSerializer
     End Sub
     
-    Private Sub ISerializable_Load(ByVal oWorksheet As Object)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Object)
+        Load oSerializer
     End Sub
 #Else
     Private Function ICriterion_Forward(ByVal Y As Tensor, _
@@ -99,12 +99,12 @@ End Sub
         Set ICriterion_Backward = Backward(Y, T)
     End Function
     
-    Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
+        Save oSerializer
     End Sub
     
-    Private Sub ISerializable_Load(ByVal oWorksheet As Serializer)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Serializer)
+        Load oSerializer
     End Sub
 #End If
 

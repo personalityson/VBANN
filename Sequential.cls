@@ -124,13 +124,13 @@ Private Sub Backpropagate(ByVal X As Tensor, _
     
     Set Y = Me.Predict(X, True)
     Set dLdY = m_oCriterion.Backward(Y, T)
-    For i = m_lNumLayers To 1 Step -1
+    For i = m_lNumLayers To 2 Step -1
         Set dLdY = m_aoLayers(i).Backward(dLdY)
         m_oOptimizer.Update m_aoLayers(i).LearnableParameters
     Next i
 End Sub
 
-Public Function Loss(ByVal oTestLoader As DataLoader) As Double
+Public Function Loss(ByVal oDataLoader As DataLoader) As Double
     Const PROCEDURE_NAME As String = "Sequential.Loss"
     Dim lNumSamples As Long
     Dim dblLoss As Double
@@ -139,10 +139,10 @@ Public Function Loss(ByVal oTestLoader As DataLoader) As Double
     Dim Y As Tensor
     Dim oBatch As TensorDataset
 
-    If oTestLoader Is Nothing Then
+    If oDataLoader Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid DataLoader object is required."
     End If
-    With oTestLoader
+    With oDataLoader
         .Reset
         Do While .NextBatch(oBatch)
             Set X = oBatch.Tensor(1)
@@ -189,14 +189,14 @@ Private Sub Clear()
     Erase m_aoLayers
 End Sub
 
-Private Sub Save(ByVal oWorksheet As Serializer)
+Private Sub Save(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "Sequential.Save"
     Dim i As Long
 
-    If oWorksheet Is Nothing Then
+    If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
-    With oWorksheet
+    With oSerializer
         .WriteLong m_lNumLayers
         For i = 1 To m_lNumLayers
             .WriteObject m_aoLayers(i)
@@ -206,15 +206,15 @@ Private Sub Save(ByVal oWorksheet As Serializer)
     End With
 End Sub
 
-Private Sub Load(ByVal oWorksheet As Serializer)
+Private Sub Load(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "Sequential.Load"
     Dim i As Long
     
-    If oWorksheet Is Nothing Then
+    If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
     Clear
-    With oWorksheet
+    With oSerializer
         m_lNumLayers = .ReadLong()
         If m_lNumLayers > 0 Then
             ReDim m_aoLayers(1 To m_lNumLayers)
@@ -228,19 +228,19 @@ Private Sub Load(ByVal oWorksheet As Serializer)
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
-    Private Sub ISerializable_Save(ByVal oWorksheet As Object)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Object)
+        Save oSerializer
     End Sub
 
-    Private Sub ISerializable_Load(ByVal oWorksheet As Object)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Object)
+        Load oSerializer
     End Sub
 #Else
-    Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
+        Save oSerializer
     End Sub
 
-    Private Sub ISerializable_Load(ByVal oWorksheet As Serializer)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Serializer)
+        Load oSerializer
     End Sub
 #End If

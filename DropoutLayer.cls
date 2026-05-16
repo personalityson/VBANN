@@ -37,17 +37,19 @@ Public Sub Init(Optional ByVal dblDropoutRate As Double = 0.5)
 End Sub
 
 Public Function Forward(ByVal X As Tensor, _
-                        Optional ByVal bIsTraining As Boolean = True) As Tensor
+                        Optional ByVal bIsTraining As Boolean) As Tensor
     Const PROCEDURE_NAME As String = "DropoutLayer.Forward"
     
     If X Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    Set m_X = X
     If bIsTraining Then
         Set m_oMask = Bernoulli(X.Shape, 1 - m_dblDropoutRate)
+        Set m_X = X
         Set m_Y = ApplyDropoutMask(X, m_oMask)
     Else
+        Set m_oMask = Nothing
+        Set m_X = X
         Set m_Y = X
     End If
     Set Forward = m_Y
@@ -56,11 +58,11 @@ End Function
 Public Function Backward(ByVal dLdY As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "DropoutLayer.Backward"
     
-    If m_oMask Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Forward pass must be executed in training before the backward pass."
-    End If
     If dLdY Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If m_oMask Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Forward pass must be executed in training before the backward pass."
     End If
     If Not dLdY.ShapeEquals(m_oMask.Shape) Then
         Err.Raise 5, PROCEDURE_NAME, "Gradient tensor shape does not match the shape of the input from the forward pass."
@@ -80,25 +82,25 @@ Private Sub Clear()
     Set m_Y = Nothing
 End Sub
 
-Private Sub Save(ByVal oWorksheet As Serializer)
+Private Sub Save(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "DropoutLayer.Save"
     
-    If oWorksheet Is Nothing Then
+    If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
-    With oWorksheet
+    With oSerializer
         .WriteDouble m_dblDropoutRate
     End With
 End Sub
 
-Private Sub Load(ByVal oWorksheet As Serializer)
+Private Sub Load(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "DropoutLayer.Load"
     
-    If oWorksheet Is Nothing Then
+    If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
     Clear
-    With oWorksheet
+    With oSerializer
         m_dblDropoutRate = .ReadDouble()
     End With
 End Sub
@@ -117,12 +119,12 @@ End Sub
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
     
-    Private Sub ISerializable_Save(ByVal oWorksheet As Object)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Object)
+        Save oSerializer
     End Sub
     
-    Private Sub ISerializable_Load(ByVal oWorksheet As Object)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Object)
+        Load oSerializer
     End Sub
 #Else
     Private Property Get ILayer_LearnableParameters() As Variant
@@ -138,12 +140,12 @@ End Sub
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
     
-    Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
+        Save oSerializer
     End Sub
     
-    Private Sub ISerializable_Load(ByVal oWorksheet As Serializer)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Serializer)
+        Load oSerializer
     End Sub
 #End If
 

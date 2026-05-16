@@ -50,16 +50,16 @@ Public Function Backward(ByVal dLdY As Tensor) As Tensor
     If Not dLdY.ShapeEquals(m_Y.Shape) Then
         Err.Raise 5, PROCEDURE_NAME, "Gradient tensor does not match the expected shape for backward pass."
     End If
-    Set Backward = CalculateInputError(m_Y, dLdY)
+    Set Backward = CalculateInputGradient(m_Y, dLdY)
 End Function
 
 Private Function CalculateOutput(ByVal X As Tensor) As Tensor
     Set CalculateOutput = VecSigmoid(X)
 End Function
 
-Private Function CalculateInputError(ByVal Y As Tensor, _
+Private Function CalculateInputGradient(ByVal Y As Tensor, _
                                      ByVal dLdY As Tensor) As Tensor
-    Set CalculateInputError = VecMul(dLdY, VecSigmoidDerivative(Y))
+    Set CalculateInputGradient = VecMul(dLdY, VecSigmoidDerivative(Y))
 End Function
 
 Private Sub Clear()
@@ -67,11 +67,11 @@ Private Sub Clear()
     Set m_Y = Nothing
 End Sub
 
-Private Sub Save(ByVal oWorksheet As Serializer)
+Private Sub Save(ByVal oSerializer As Serializer)
     'Do nothing
 End Sub
 
-Private Sub Load(ByVal oWorksheet As Serializer)
+Private Sub Load(ByVal oSerializer As Serializer)
     Clear
 End Sub
 
@@ -89,12 +89,12 @@ End Sub
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
     
-    Private Sub ISerializable_Save(ByVal oWorksheet As Object)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Object)
+        Save oSerializer
     End Sub
     
-    Private Sub ISerializable_Load(ByVal oWorksheet As Object)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Object)
+        Load oSerializer
     End Sub
 #Else
     Private Property Get ILayer_LearnableParameters() As Variant
@@ -110,12 +110,12 @@ End Sub
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
     
-    Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
+        Save oSerializer
     End Sub
     
-    Private Sub ISerializable_Load(ByVal oWorksheet As Serializer)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Serializer)
+        Load oSerializer
     End Sub
 #End If
 

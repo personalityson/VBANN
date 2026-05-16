@@ -15,7 +15,7 @@ Implements ISerializable
 
 'Hyperparameters
 Private m_dblLearningRateScale As Double
-Private m_dblDecayScale As Double
+Private m_dblWeightDecayScale As Double
 Private m_bUseGradientClipping As Boolean
 
 'State
@@ -43,8 +43,8 @@ Public Property Get LearningRateScale() As Double
     LearningRateScale = m_dblLearningRateScale
 End Property
 
-Public Property Get DecayScale() As Double
-    DecayScale = m_dblDecayScale
+Public Property Get WeightDecayScale() As Double
+    WeightDecayScale = m_dblWeightDecayScale
 End Property
 
 Public Property Get UseGradientClipping() As Boolean
@@ -53,7 +53,7 @@ End Property
 
 Public Sub Init(ByVal oTensor As Tensor, _
                 Optional ByVal dblLearningRateScale As Double = 1, _
-                Optional ByVal dblDecayScale As Double = 1, _
+                Optional ByVal dblWeightDecayScale As Double = 1, _
                 Optional ByVal bUseGradientClipping As Boolean = True)
     Const PROCEDURE_NAME As String = "Parameter.Init"
     
@@ -65,7 +65,7 @@ Public Sub Init(ByVal oTensor As Tensor, _
     Set m_oGradient = Zeros(m_oTensor.Shape)
     m_lNumAccumulatedSamples = 0
     m_dblLearningRateScale = dblLearningRateScale
-    m_dblDecayScale = dblDecayScale
+    m_dblWeightDecayScale = dblWeightDecayScale
     m_bUseGradientClipping = bUseGradientClipping
 End Sub
 
@@ -79,57 +79,57 @@ Private Sub Clear()
     Set m_oGradient = Nothing
     m_lNumAccumulatedSamples = 0
     m_dblLearningRateScale = 0
-    m_dblDecayScale = 0
+    m_dblWeightDecayScale = 0
     m_bUseGradientClipping = False
 End Sub
 
-Private Sub Save(ByVal oWorksheet As Serializer)
+Private Sub Save(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "Parameter.Save"
     
-    If oWorksheet Is Nothing Then
+    If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
-    With oWorksheet
+    With oSerializer
         .WriteObject m_oTensor
         .WriteObject m_oGradient
         .WriteLong m_lNumAccumulatedSamples
         .WriteDouble m_dblLearningRateScale
-        .WriteDouble m_dblDecayScale
+        .WriteDouble m_dblWeightDecayScale
         .WriteBoolean m_bUseGradientClipping
     End With
 End Sub
 
-Private Sub Load(ByVal oWorksheet As Serializer)
+Private Sub Load(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "Parameter.Load"
     
-    If oWorksheet Is Nothing Then
+    If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
     Clear
-    With oWorksheet
+    With oSerializer
         Set m_oTensor = .ReadObject()
         Set m_oGradient = .ReadObject()
         m_lNumAccumulatedSamples = .ReadLong()
         m_dblLearningRateScale = .ReadDouble()
-        m_dblDecayScale = .ReadDouble()
+        m_dblWeightDecayScale = .ReadDouble()
         m_bUseGradientClipping = .ReadBoolean()
     End With
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
-    Private Sub ISerializable_Save(ByVal oWorksheet As Object)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Object)
+        Save oSerializer
     End Sub
     
-    Private Sub ISerializable_Load(ByVal oWorksheet As Object)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Object)
+        Load oSerializer
     End Sub
 #Else
-    Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
+        Save oSerializer
     End Sub
     
-    Private Sub ISerializable_Load(ByVal oWorksheet As Serializer)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Serializer)
+        Load oSerializer
     End Sub
 #End If

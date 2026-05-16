@@ -138,5 +138,5 @@ Public Function TensorFromArray(ByRef adblArray() As Double) As Tensor
 End Function
 
 Private Function NormRand() As Double
-    NormRand = Sqr(-2 * Log(Rnd() + DOUBLE_EPSILON)) * Cos(MATH_2PI * Rnd())
+    NormRand = Sqr(-2 * Log(1 - Rnd())) * Cos(MATH_2PI * Rnd())
 End Function

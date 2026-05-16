@@ -12,19 +12,19 @@ Option Explicit
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
-    Public Sub Save(ByVal oWorksheet As Object)
+    Public Sub Save(ByVal oSerializer As Object)
         '
     End Sub
     
-    Public Sub Load(ByVal oWorksheet As Object)
+    Public Sub Load(ByVal oSerializer As Object)
         '
     End Sub
 #Else
-    Public Sub Save(ByVal oWorksheet As Serializer)
+    Public Sub Save(ByVal oSerializer As Serializer)
         '
     End Sub
     
-    Public Sub Load(ByVal oWorksheet As Serializer)
+    Public Sub Load(ByVal oSerializer As Serializer)
         '
     End Sub
 #End If

@@ -14,6 +14,8 @@ Implements ISerializable
 
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
+Private Const EPSILON As Double = 0.0000001
+
 Public Sub Init()
     'Do nothing
 End Sub
@@ -54,6 +56,7 @@ End Function
 Private Function CalculateLoss(ByVal Y As Tensor, _
                                ByVal T As Tensor) As Tensor
     Dim i As Long
+    Dim dblY As Double
     Dim Y_() As Double
     Dim T_() As Double
     Dim L_() As Double
@@ -64,7 +67,8 @@ Private Function CalculateLoss(ByVal Y As Tensor, _
     T.Flatten.CreateAlias T_
     L.Flatten.CreateAlias L_
     For i = 1 To Y.NumElements
-        L_(i) = -T_(i) * Log(Y_(i) + DOUBLE_EPSILON) - (1 - T_(i)) * Log(1 - Y_(i) + DOUBLE_EPSILON)
+        dblY = MinDbl(1 - EPSILON, MaxDbl(EPSILON, Y_(i)))
+        L_(i) = -T_(i) * Log(dblY) - (1 - T_(i)) * Log(1 - dblY)
     Next i
     Y.Flatten.RemoveAlias Y_
     T.Flatten.RemoveAlias T_
@@ -76,17 +80,19 @@ End Function
 Private Function CalculateGradient(ByVal Y As Tensor, _
                                    ByVal T As Tensor) As Tensor
     Dim i As Long
+    Dim dblY As Double
     Dim Y_() As Double
     Dim T_() As Double
     Dim dLdY_() As Double
     Dim dLdY As Tensor
-
+    
     Set dLdY = Zeros(Y.Shape)
     Y.Flatten.CreateAlias Y_
     T.Flatten.CreateAlias T_
     dLdY.Flatten.CreateAlias dLdY_
     For i = 1 To Y.NumElements
-        dLdY_(i) = (Y_(i) - T_(i)) / (Y_(i) * (1 - Y_(i)) + DOUBLE_EPSILON)
+        dblY = MinDbl(1 - EPSILON, MaxDbl(EPSILON, Y_(i)))
+        dLdY_(i) = (dblY - T_(i)) / (dblY * (1 - dblY))
     Next i
     Y.Flatten.RemoveAlias Y_
     T.Flatten.RemoveAlias T_
@@ -94,11 +100,11 @@ Private Function CalculateGradient(ByVal Y As Tensor, _
     Set CalculateGradient = dLdY
 End Function
 
-Private Sub Save(ByVal oWorksheet As Serializer)
+Private Sub Save(ByVal oSerializer As Serializer)
     'Do nothing
 End Sub
 
-Private Sub Load(ByVal oWorksheet As Serializer)
+Private Sub Load(ByVal oSerializer As Serializer)
     'Do nothing
 End Sub
 
@@ -113,12 +119,12 @@ End Sub
         Set ICriterion_Backward = Backward(Y, T)
     End Function
     
-    Private Sub ISerializable_Save(ByVal oWorksheet As Object)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Object)
+        Save oSerializer
     End Sub
     
-    Private Sub ISerializable_Load(ByVal oWorksheet As Object)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Object)
+        Load oSerializer
     End Sub
 #Else
     Private Function ICriterion_Forward(ByVal Y As Tensor, _
@@ -131,12 +137,12 @@ End Sub
         Set ICriterion_Backward = Backward(Y, T)
     End Function
     
-    Private Sub ISerializable_Save(ByVal oWorksheet As Serializer)
-        Save oWorksheet
+    Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
+        Save oSerializer
     End Sub
     
-    Private Sub ISerializable_Load(ByVal oWorksheet As Serializer)
-        Load oWorksheet
+    Private Sub ISerializable_Load(ByVal oSerializer As Serializer)
+        Load oSerializer
     End Sub
 #End If
 

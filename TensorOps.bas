@@ -3,7 +3,8 @@ Option Explicit
 
 Private Const OPENBLAS_PATH As String = "C:\Users\hello\OneDrive\Documents\VBANN\libopenblas.dll"
 
-Private m_vIsBlasAvailable As Variant
+Private m_bBlasInitialized As Boolean
+Private m_bIsBlasAvailable As Boolean
 
 Private Declare PtrSafe Function SetDllDirectory Lib "kernel32" Alias "SetDllDirectoryA" (ByVal lpPathName As String) As Long
 
@@ -55,14 +56,13 @@ Private Declare PtrSafe Sub domatcopy Lib "libopenblas.dll" (ByVal order As Stri
                                                              ByRef ldB As Long)
 
 Public Function IsBlasAvailable() As Boolean
-    If IsEmpty(m_vIsBlasAvailable) Then
+    If Not m_bBlasInitialized Then
         If Fso.FileExists(OPENBLAS_PATH) Then
-            m_vIsBlasAvailable = SetDllDirectory(Fso.GetParentFolderName(OPENBLAS_PATH)) <> 0
-        Else
-            m_vIsBlasAvailable = False
+            m_bIsBlasAvailable = SetDllDirectory(Fso.GetParentFolderName(OPENBLAS_PATH)) <> 0
         End If
+        m_bBlasInitialized = True
     End If
-    IsBlasAvailable = m_vIsBlasAvailable
+    IsBlasAvailable = m_bIsBlasAvailable
 End Function
 
 'VecDot                 Y = Sum(A * B)
@@ -75,11 +75,11 @@ End Function
 'VecSubCRev             Y = scalar - A
 'VecMul                 Y = A * B
 'VecMulC                Y = A * scalar
-'VecMulC_I              A = A * scalar
+'VecMulC_I              A = A * scalar (In-place)
 'VecDiv                 Y = A / B
 'VecDivC                Y = A / scalar
 'VecDivCRev             Y = scalar / A
-'VecDivSqrtAddC         Y = A / Sqrt(B + scalar)
+'VecDivRms              Y = A / (Sqrt(B + inner_epsilon) + outer_epsilon)
 'VecAbs                 Y = Abs(A)
 'VecSign                Y = Sign(A)
 'VecPow2                Y = A^2
@@ -183,11 +183,7 @@ Public Function VecAddC(ByVal A As Tensor, _
     If A Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If IsBlasAvailable() Then
-        Set VecAddC = VecLinCombBlas(1, A, 1, Full(A.Shape, dblScalar))
-    Else
-        Set VecAddC = VecAddCNaive(A, dblScalar)
-    End If
+    Set VecAddC = VecAddCNaive(A, dblScalar)
 End Function
 
 'Y = A - B
@@ -219,11 +215,7 @@ Public Function VecSubC(ByVal A As Tensor, _
     If A Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If IsBlasAvailable() Then
-        Set VecSubC = VecLinCombBlas(1, A, -1, Full(A.Shape, dblScalar))
-    Else
-        Set VecSubC = VecSubCNaive(A, dblScalar)
-    End If
+    Set VecSubC = VecSubCNaive(A, dblScalar)
 End Function
 
 'Y = scalar - A
@@ -234,11 +226,7 @@ Public Function VecSubCRev(ByVal A As Tensor, _
     If A Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If IsBlasAvailable() Then
-        Set VecSubCRev = VecLinCombBlas(1, Full(A.Shape, dblScalar), -1, A)
-    Else
-        Set VecSubCRev = VecSubCRevNaive(A, dblScalar)
-    End If
+    Set VecSubCRev = VecSubCRevNaive(A, dblScalar)
 End Function
 
 'Y = A * B
@@ -322,12 +310,13 @@ Public Function VecDivCRev(ByVal A As Tensor, _
     Set VecDivCRev = VecDivCRevNaive(A, dblScalar)
 End Function
 
-'Y = A / (Sqrt(B) + scalar)
-Public Function VecDivSqrtAddC(ByVal A As Tensor, _
-                               ByVal B As Tensor, _
-                               ByVal dblScalar As Double) As Tensor
-    Const PROCEDURE_NAME As String = "TensorOps.VecDivSqrtAddC"
-    
+'Y = A / (Sqrt(B + inner_epsilon) + outer_epsilon)
+Public Function VecDivRms(ByVal A As Tensor, _
+                          ByVal B As Tensor, _
+                          ByVal dblInnerEpsilon As Double, _
+                          ByVal dblOuterEpsilon As Double) As Tensor
+    Const PROCEDURE_NAME As String = "TensorOps.VecDivRms"
+
     If A Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
@@ -337,7 +326,13 @@ Public Function VecDivSqrtAddC(ByVal A As Tensor, _
     If A.NumElements <> B.NumElements Then
         Err.Raise 5, PROCEDURE_NAME, "Tensors A and B must have the same number of elements."
     End If
-    Set VecDivSqrtAddC = VecDivSqrtAddCNaive(A, B, dblScalar)
+    If dblInnerEpsilon < 0 Then
+        Err.Raise 5, PROCEDURE_NAME, "Inner epsilon must be >= 0."
+    End If
+    If dblOuterEpsilon < 0 Then
+        Err.Raise 5, PROCEDURE_NAME, "Outer epsilon must be >= 0."
+    End If
+    Set VecDivRms = VecDivRmsNaive(A, B, dblInnerEpsilon, dblOuterEpsilon)
 End Function
 
 'Y = Abs(A)
@@ -893,27 +888,29 @@ Private Sub VecDivCRevNaive_I(ByVal A As Tensor, _
     A.Flatten.RemoveAlias A_
 End Sub
 
-Private Function VecDivSqrtAddCNaive(ByVal A As Tensor, _
-                                     ByVal B As Tensor, _
-                                     ByVal dblScalar As Double) As Tensor
+Private Function VecDivRmsNaive(ByVal A As Tensor, _
+                                ByVal B As Tensor, _
+                                ByVal dblInnerEpsilon As Double, _
+                                ByVal dblOuterEpsilon As Double) As Tensor
     Dim Y As Tensor
-    
+
     Set Y = A.Clone
-    VecDivSqrtAddCNaive_I Y, B, dblScalar
-    Set VecDivSqrtAddCNaive = Y
+    VecDivRmsNaive_I Y, B, dblInnerEpsilon, dblOuterEpsilon
+    Set VecDivRmsNaive = Y
 End Function
 
-Private Sub VecDivSqrtAddCNaive_I(ByVal A As Tensor, _
-                                  ByVal B As Tensor, _
-                                  ByVal dblScalar As Double)
+Private Sub VecDivRmsNaive_I(ByVal A As Tensor, _
+                             ByVal B As Tensor, _
+                             ByVal dblInnerEpsilon As Double, _
+                             ByVal dblOuterEpsilon As Double)
     Dim i As Long
     Dim A_() As Double
     Dim B_() As Double
-    
+
     A.Flatten.CreateAlias A_
     B.Flatten.CreateAlias B_
     For i = 1 To A.NumElements
-        A_(i) = A_(i) / (Sqr(B_(i)) + dblScalar)
+        A_(i) = A_(i) / (Sqr(B_(i) + dblInnerEpsilon) + dblOuterEpsilon)
     Next i
     A.Flatten.RemoveAlias A_
     B.Flatten.RemoveAlias B_

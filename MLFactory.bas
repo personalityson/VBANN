@@ -2,11 +2,11 @@ Attribute VB_Name = "MLFactory"
 Option Explicit
 
 Public Function AdamW(Optional ByVal dblLearningRate As Double = 0.001, _
-                     Optional ByVal dblBeta1 As Double = 0.9, _
-                     Optional ByVal dblBeta2 As Double = 0.999, _
-                     Optional ByVal dblEpsilon As Double = 0.00000001, _
-                     Optional ByVal dblWeightDecay As Double = 0.01, _
-                     Optional ByVal dblGradientThreshold As Double = DOUBLE_MAX_ABS) As AdamW
+                      Optional ByVal dblBeta1 As Double = 0.9, _
+                      Optional ByVal dblBeta2 As Double = 0.999, _
+                      Optional ByVal dblEpsilon As Double = 0.00000001, _
+                      Optional ByVal dblWeightDecay As Double = 0.01, _
+                      Optional ByVal dblGradientThreshold As Double = DOUBLE_MAX_ABS) As AdamW
     Set AdamW = New AdamW
     AdamW.Init dblLearningRate, dblBeta1, dblBeta2, dblEpsilon, dblWeightDecay, dblGradientThreshold
 End Function
@@ -61,10 +61,10 @@ End Function
 
 Public Function Parameter(ByVal oTensor As Tensor, _
                           Optional ByVal dblLearningRateScale As Double = 1, _
-                          Optional ByVal dblDecayScale As Double = 1, _
+                          Optional ByVal dblWeightDecayScale As Double = 1, _
                           Optional ByVal bUseGradientClipping As Boolean = True) As Parameter
     Set Parameter = New Parameter
-    Parameter.Init oTensor, dblLearningRateScale, dblDecayScale, bUseGradientClipping
+    Parameter.Init oTensor, dblLearningRateScale, dblWeightDecayScale, bUseGradientClipping
 End Function
 
 Public Function Sequential(ByVal oCriterion As ICriterion, _
@@ -73,7 +73,7 @@ Public Function Sequential(ByVal oCriterion As ICriterion, _
     Sequential.Init oCriterion, oOptimizer
 End Function
 
-Public Function SGDW(Optional ByVal dblLearningRate As Double = 0.001, _
+Public Function SGDW(Optional ByVal dblLearningRate As Double = 0.01, _
                      Optional ByVal dblMomentum As Double = 0.9, _
                      Optional ByVal dblWeightDecay As Double = 0.0001, _
                      Optional ByVal dblGradientThreshold As Double = DOUBLE_MAX_ABS) As SGDW
@@ -115,10 +115,10 @@ Public Sub Serialize(ByVal sName As String, _
     End With
 End Sub
 
-Public Function Unserialize(ByVal sName As String) As ISerializable
+Public Function Deserialize(ByVal sName As String) As ISerializable
     With New Serializer
         .Init sName, False
-        Set Unserialize = .ReadObject()
+        Set Deserialize = .ReadObject()
     End With
 End Function
 
@@ -133,8 +133,7 @@ Public Function ImportDatasetFromWorksheet(ByVal oWorkbook As Workbook, _
     Dim lFirstRow As Long
     Dim lFirstCol As Long
     Dim lNumSamples As Long
-    Dim X As Tensor
-    Dim alTensors() As Tensor
+    Dim aoTensors() As Tensor
     Dim oSource As Worksheet
     Dim oResult As TensorDataset
 
@@ -145,6 +144,9 @@ Public Function ImportDatasetFromWorksheet(ByVal oWorkbook As Workbook, _
         Err.Raise 9, PROCEDURE_NAME, "Specified worksheet does not exist."
     End If
     ParseVariantToLongArray vSegmentSizes, lNumSegments, alSegmentSizes
+    If lNumSegments < 1 Then
+        Err.Raise 9, PROCEDURE_NAME, "Dataset must have at least one segment."
+    End If
     For i = 1 To lNumSegments
         If alSegmentSizes(i) < 1 Then
             Err.Raise 5, PROCEDURE_NAME, "Segment size must be >= 1."
@@ -157,19 +159,116 @@ Public Function ImportDatasetFromWorksheet(ByVal oWorkbook As Workbook, _
     'lNumSamples = GetLastRow(oSource) - lFirstRow + 1
     lNumSamples = GetLastRow(oSource, 1) - lFirstRow + 1
     
-    ReDim alTensors(1 To lNumSegments)
+    ReDim aoTensors(1 To lNumSegments)
     Set oResult = New TensorDataset
     For i = 1 To lNumSegments
         If lNumSamples > 0 Then
-            Set X = TensorFromRange(oSource.Cells(lFirstRow, lFirstCol).Resize(lNumSamples, alSegmentSizes(i)), True)
+            Set aoTensors(i) = TensorFromRange(oSource.Cells(lFirstRow, lFirstCol).Resize(lNumSamples, alSegmentSizes(i)), True)
         Else
-            Set X = Zeros(Array(alSegmentSizes(i), 0))
+            Set aoTensors(i) = Zeros(Array(alSegmentSizes(i), 0))
         End If
-        Set alTensors(i) = X
         lFirstCol = lFirstCol + alSegmentSizes(i)
     Next i
-    oResult.Init alTensors
+    oResult.Init aoTensors
     Set ImportDatasetFromWorksheet = oResult
+End Function
+
+Public Function ImportDatasetFromCsv(ByVal sPath As String, _
+                                     ByVal vSegmentSizes As Variant, _
+                                     Optional ByVal bHasHeaders As Boolean, _
+                                     Optional ByVal sDelimiter As String = ",", _
+                                     Optional ByVal sDecimalSeparator As String = ".") As TensorDataset
+    Const PROCEDURE_NAME As String = "MLFactory.ImportDatasetFromCsv"
+    Const ForReading As Long = 1
+    Dim bDecimalComma As Boolean
+    Dim i As Long
+    Dim j As Long
+    Dim k As Long
+    Dim lNumSegments As Long
+    Dim alSegmentSizes() As Long
+    Dim lNumColumns As Long
+    Dim lNumSamples As Long
+    Dim lNumFields As Long
+    Dim lOffset As Long
+    Dim sLine As String
+    Dim asFields() As String
+    Dim adblRow() As Double
+    Dim aoTensors() As Tensor
+    Dim oResult As TensorDataset
+
+    If Not Fso.FileExists(sPath) Then
+        Err.Raise 53, PROCEDURE_NAME, "File not found."
+    End If
+    ParseVariantToLongArray vSegmentSizes, lNumSegments, alSegmentSizes
+    If lNumSegments < 1 Then
+        Err.Raise 5, PROCEDURE_NAME, "Dataset must have at least one segment."
+    End If
+    For i = 1 To lNumSegments
+        If alSegmentSizes(i) < 1 Then
+            Err.Raise 5, PROCEDURE_NAME, "Segment size must be >= 1."
+        End If
+        lNumColumns = lNumColumns + alSegmentSizes(i)
+    Next i
+    If sDelimiter = "" Then
+        Err.Raise 5, PROCEDURE_NAME, "Delimiter cannot be empty."
+    End If
+    Select Case sDecimalSeparator
+        Case "."
+            bDecimalComma = False
+        Case ","
+            bDecimalComma = True
+        Case Else
+            Err.Raise 5, PROCEDURE_NAME, "Decimal separator must be either '.' or ','."
+    End Select
+    If sDelimiter = sDecimalSeparator Then
+        Err.Raise 5, PROCEDURE_NAME, "Delimiter and decimal separator must differ."
+    End If
+    With Fso.OpenTextFile(sPath, ForReading)
+        If bHasHeaders And Not .AtEndOfStream Then
+            .SkipLine
+        End If
+        Do While Not .AtEndOfStream
+            .SkipLine
+            lNumSamples = lNumSamples + 1
+        Loop
+        .Close
+    End With
+    ReDim aoTensors(1 To lNumSegments)
+    For i = 1 To lNumSegments
+        Set aoTensors(i) = Zeros(Array(alSegmentSizes(i), lNumSamples))
+    Next i
+    ReDim adblRow(1 To lNumColumns)
+    With Fso.OpenTextFile(sPath, ForReading)
+        If bHasHeaders And Not .AtEndOfStream Then
+            .SkipLine
+        End If
+        For j = 1 To lNumSamples
+            sLine = .ReadLine
+            If bDecimalComma Then
+                sLine = Replace$(sLine, ",", ".")
+            End If
+            asFields = Split(sLine, sDelimiter)
+            lNumFields = UBound(asFields) + 1
+            For k = 1 To lNumColumns
+                If k > lNumFields Then
+                    adblRow(k) = 0
+                Else
+                    adblRow(k) = Val(asFields(k - 1))
+                End If
+            Next k
+            lOffset = 1
+            For i = 1 To lNumSegments
+                CopyMemory ByVal aoTensors(i).Address + CLngPtr(j - 1) * alSegmentSizes(i) * SIZEOF_DOUBLE, _
+                           adblRow(lOffset), _
+                           alSegmentSizes(i) * SIZEOF_DOUBLE
+                lOffset = lOffset + alSegmentSizes(i)
+            Next i
+        Next j
+        .Close
+    End With
+    Set oResult = New TensorDataset
+    oResult.Init aoTensors
+    Set ImportDatasetFromCsv = oResult
 End Function
 
 Public Sub SplitDataset(ByVal oDataset As IDataset, _
