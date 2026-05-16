@@ -11,7 +11,6 @@ This project is licensed under the [Creative Commons Zero v1.0 Universal](LICENS
 
 ### Examples
 ```vba
-Attribute VB_Name = "Examples"
 Option Explicit
 
 Public Sub SetupAndTrain()
@@ -41,13 +40,14 @@ Public Sub SetupAndTrain()
     Set oTestLoader = DataLoader(oTestSet, lBatchSize)
 
     'Setup and train
-    Set oModel = Sequential(L2Loss(), SGDW())
+    Set oModel = Sequential(L2Loss(), SGDW(0.01, 0.9, 0.0001, 20))
     oModel.Add InputNormalizationLayer(oTrainingLoader)
     oModel.Add FullyConnectedLayer(lInputSize, 32)
     oModel.Add LeakyReLULayer()
-    oModel.Add DropoutLayer(0.3)
+    oModel.Add DropoutLayer(0.2)
     oModel.Add FullyConnectedLayer(32, 16)
     oModel.Add LeakyReLULayer()
+    oModel.Add DropoutLayer(0.1)
     oModel.Add FullyConnectedLayer(16, lLabelSize)
     oModel.Fit oTrainingLoader, oTestLoader, lNumEpochs
 
@@ -58,9 +58,9 @@ Public Sub SetupAndTrain()
     Serialize MODEL_NAME, oModel
 
     'Load from worksheet
-    Set oModel = Unserialize(MODEL_NAME)
+    Set oModel = Deserialize(MODEL_NAME)
 
-    'Compute test loss again with unserialized model
+    'Compute test loss again with deserialized model
     MsgBox oModel.Loss(oTestLoader)
 
     Beep
@@ -89,7 +89,7 @@ Public Sub ContinueTraining()
     Set oTrainingLoader = DataLoader(oTrainingSet, lBatchSize)
     Set oTestLoader = DataLoader(oTestSet, lBatchSize)
 
-    Set oModel = Unserialize(MODEL_NAME)
+    Set oModel = Deserialize(MODEL_NAME)
 
     MsgBox "Test loss before continued training: " & oModel.Loss(oTestLoader)
 
@@ -109,7 +109,7 @@ Public Function PredictInWorksheet(ByVal oInput As Range) As Variant
     Dim Y As Tensor
 
     If s_oModel Is Nothing Then
-        Set s_oModel = Unserialize(MODEL_NAME)
+        Set s_oModel = Deserialize(MODEL_NAME)
     End If
     Set X = TensorFromRange(oInput, True)
     Set Y = s_oModel.Predict(X)
@@ -220,6 +220,7 @@ Public Sub WorkingWithTensors()
     Beep
 End Sub
 
+
 Public Sub WorkingWithTensorOps()
     Dim A As Tensor
     Dim B As Tensor
@@ -267,13 +268,13 @@ Public Sub WorkingWithTensorOps()
     Set Y = VecLeakyReLU(A, 0.01)
     Set Y = VecLeakyReLUDerivative(A, 0.01)
 
-    'In-place A := 2 * A
+    'In-place A = 2 * A
     VecMulC_I A, 2
 
-    'In-place A := A + B
+    'In-place A = A + B
     VecAdd_I A, B
 
-    'In-place A := alpha * A + beta * B
+    'In-place A = alpha * A + beta * B
     VecLinComb_I 0.9, A, 0.1, B
 
     'Standard matrix product.
@@ -281,12 +282,12 @@ Public Sub WorkingWithTensorOps()
     Set B = Uniform(Array(4, 5))     '4x5
     Set Y = MatMul(A, B)             'Y is 3x5
 
-    'MatMul_I accumulates: C := C + A * B.
+    'MatMul_I accumulates: C = C + A * B.
     Set A = Uniform(Array(3, 4))
     Set B = Uniform(Array(4, 5))
     Set C = Zeros(Array(3, 5))
-    MatMul_I C, A, B                 'C := A * B
-    MatMul_I C, A, B                 'C := C + A * B  (so now 2 * A * B)
+    MatMul_I C, A, B                 'C = A * B
+    MatMul_I C, A, B                 'C = C + A * B  (so now 2 * A * B)
 
     'Transpose.
     Set A = Uniform(Array(3, 4))
