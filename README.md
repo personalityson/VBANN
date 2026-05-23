@@ -58,7 +58,7 @@ Public Sub SetupAndTrain()
     'Compute test loss
     MsgBox oTrainer.Evaluate(oTestLoader)
 
-    'Save everything to worksheet
+    'Save everything to worksheet, optimizer's internal state is also saved
     Serialize TRAINER_NAME, oTrainer
 
     'Load from worksheet
@@ -70,7 +70,7 @@ Public Sub SetupAndTrain()
     'Continue training
     oTrainer.Fit oTrainingLoader, oTestLoader, lNumEpochs
     
-    'Save everything to worksheet, optimizer's internal state is also saved
+    'Save everything to worksheet
     Serialize TRAINER_NAME, oTrainer
     
     'Save model only
