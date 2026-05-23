@@ -13,8 +13,10 @@ This project is licensed under the [Creative Commons Zero v1.0 Universal](LICENS
 ```vba
 Option Explicit
 
+Const MODEL_NAME As String = "MySequentialModel"
+Const TRAINER_NAME As String = "MyBackpropTrainer"
+
 Public Sub SetupAndTrain()
-    Const MODEL_NAME As String = "MySequentialModel"
     Dim lBatchSize As Long
     Dim lNumEpochs As Long
     Dim lInputSize As Long
@@ -25,12 +27,13 @@ Public Sub SetupAndTrain()
     Dim oTestSet As SubsetDataset
     Dim oTestLoader As DataLoader
     Dim oModel As Sequential
+    Dim oTrainer As BackpropTrainer
 
     Randomize Timer
 
     lInputSize = 8
     lLabelSize = 1
-    lBatchSize = 32
+    lBatchSize = 16
     lNumEpochs = 40
 
     'Prepare training data
@@ -39,8 +42,7 @@ Public Sub SetupAndTrain()
     Set oTrainingLoader = DataLoader(oTrainingSet, lBatchSize)
     Set oTestLoader = DataLoader(oTestSet, lBatchSize)
 
-    'Setup and train
-    Set oModel = Sequential(L2Loss(), SGDW(0.01, 0.9, 0.0001, 20))
+    Set oModel = Sequential()
     oModel.Add InputNormalizationLayer(oTrainingLoader)
     oModel.Add FullyConnectedLayer(lInputSize, 32)
     oModel.Add LeakyReLULayer()
@@ -49,54 +51,29 @@ Public Sub SetupAndTrain()
     oModel.Add LeakyReLULayer()
     oModel.Add DropoutLayer(0.1)
     oModel.Add FullyConnectedLayer(16, lLabelSize)
-    oModel.Fit oTrainingLoader, oTestLoader, lNumEpochs
+    
+    Set oTrainer = BackpropTrainer(oModel, L2Loss(), SGDW(0.01, 0.9, 0.0001, 20))
+    oTrainer.Fit oTrainingLoader, oTestLoader, lNumEpochs
 
     'Compute test loss
-    MsgBox oModel.Loss(oTestLoader)
+    MsgBox oTrainer.Evaluate(oTestLoader)
 
-    'Save to worksheet
-    Serialize MODEL_NAME, oModel
+    'Save everything to worksheet
+    Serialize TRAINER_NAME, oTrainer
 
     'Load from worksheet
-    Set oModel = Deserialize(MODEL_NAME)
+    Set oTrainer = Deserialize(TRAINER_NAME)
 
     'Compute test loss again with deserialized model
-    MsgBox oModel.Loss(oTestLoader)
-
-    Beep
-End Sub
-
-Public Sub ContinueTraining()
-    Const MODEL_NAME As String = "MySequentialModel"
-    Dim lBatchSize As Long
-    Dim lNumEpochs As Long
-    Dim lInputSize As Long
-    Dim lLabelSize As Long
-    Dim oFullSet As TensorDataset
-    Dim oTrainingSet As SubsetDataset
-    Dim oTestSet As SubsetDataset
-    Dim oTrainingLoader As DataLoader
-    Dim oTestLoader As DataLoader
-    Dim oModel As Sequential
-
-    lInputSize = 8
-    lLabelSize = 1
-    lBatchSize = 32
-    lNumEpochs = 20
-
-    Set oFullSet = ImportDatasetFromWorksheet(ThisWorkbook, "Concrete", Array(lInputSize, lLabelSize), True)
-    SplitDataset oFullSet, 0.8, oTrainingSet, oTestSet, True
-    Set oTrainingLoader = DataLoader(oTrainingSet, lBatchSize)
-    Set oTestLoader = DataLoader(oTestSet, lBatchSize)
-
-    Set oModel = Deserialize(MODEL_NAME)
-
-    MsgBox "Test loss before continued training: " & oModel.Loss(oTestLoader)
-
-    oModel.Fit oTrainingLoader, oTestLoader, lNumEpochs
-
-    MsgBox "Test loss after continued training: " & oModel.Loss(oTestLoader)
-
+    MsgBox oTrainer.Evaluate(oTestLoader)
+    
+    'Continue training
+    oTrainer.Fit oTrainingLoader, oTestLoader, lNumEpochs
+    
+    'Save everything to worksheet, optimizer's internal state is also saved
+    Serialize TRAINER_NAME, oTrainer
+    
+    'Save model only
     Serialize MODEL_NAME, oModel
 
     Beep
@@ -112,7 +89,7 @@ Public Function PredictInWorksheet(ByVal oInput As Range) As Variant
         Set s_oModel = Deserialize(MODEL_NAME)
     End If
     Set X = TensorFromRange(oInput, True)
-    Set Y = s_oModel.Predict(X)
+    Set Y = s_oModel.Forward(X)
     PredictInWorksheet = MatTranspose(Y).ToArray
 End Function
 
@@ -147,8 +124,8 @@ Public Sub WorkingWithTensors()
     Set A = Bernoulli(Array(2, 3, 4), 0.5)
 
     'Glorot and He initializers are what FullyConnectedLayer uses internally.
-    Set A = GlorotUniform(Array(4, 8), 8, 4)
-    Set A = HeNormal(Array(4, 8), 8)
+    Set A = GlorotUniform(Array(2, 3, 4), 8, 4)
+    Set A = HeNormal(Array(2, 3, 4), 8)
 
     'Fill tensor A with a constant value.
     A.Fill 777
@@ -185,6 +162,9 @@ Public Sub WorkingWithTensors()
     'Both return 0.
     MsgBox A_(1, 1, 1)
     MsgBox B_(1, 1)
+    
+    'This will fail.
+    ReDim B_(1 To 10)
 
     'Remove the aliases to avoid memory deallocation.
     A.RemoveAlias A_
@@ -200,7 +180,7 @@ Public Sub WorkingWithTensors()
     A.Reshape Array(4, 6)
 
     'Reduce A along dimension 2 using mean reduction. The new shape is (4, 1).
-    Set A = A.Reduce(2, rdcMean)
+    Set A = A.Reduce(2, rtMean)
 
     'Slice A along dimension 1 from index 3 to 4. The new shape is (2, 1).
     Set A = A.Slice(1, 3, 4)
@@ -208,18 +188,17 @@ Public Sub WorkingWithTensors()
     'Tile A along dimension 2, repeating it 3 times. The new shape is (2, 3).
     Set A = A.Tile(2, 3)
 
-    'Create tensor A from a native VBA array.
-    A.FromArray adblArray
-
     'Copy tensor A to a native VBA array.
     adblArray = A.ToArray
+
+    'Create tensor A from a native VBA array.
+    A.FromArray adblArray
 
     'Create tensor A from an Excel range.
     A.FromRange ActiveSheet.Range("A1:B3")
 
     Beep
 End Sub
-
 
 Public Sub WorkingWithTensorOps()
     Dim A As Tensor
@@ -241,7 +220,7 @@ Public Sub WorkingWithTensorOps()
     'Element-wise binary (A and B must have the same NumElements).
     Set Y = VecAdd(A, B)        'Y = A + B
     Set Y = VecSub(A, B)        'Y = A - B
-    Set Y = VecMul(A, B)        'Y = A * B  (not matrix multiply)
+    Set Y = VecMul(A, B)        'Y = A * B
     Set Y = VecDiv(A, B)        'Y = A / B
 
     'Element-wise scalar.
