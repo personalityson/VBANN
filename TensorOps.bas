@@ -605,7 +605,7 @@ Public Function MatTranspose(ByVal A As Tensor) As Tensor
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
     If A.NumDimensions <> 2 Then
-        Err.Raise 5, PROCEDURE_NAME, "Tensor must be 2-dimensional."
+        Err.Raise 5, PROCEDURE_NAME, "Tensor must be two-dimensional."
     End If
     If IsBlasAvailable() Then
         Set MatTranspose = MatTransposeBlas(A)
@@ -1214,34 +1214,56 @@ Private Sub MatMulNaive_I(ByVal C As Tensor, _
     
     m = C.Size(1)
     n = C.Size(2)
-    k = IIf(bTransposeA, A.Size(1), A.Size(2))
+    If bTransposeA Then
+        k = A.Size(1)
+    Else
+        k = A.Size(2)
+    End If
     A.CreateAlias A_
     B.CreateAlias B_
     C.CreateAlias C_
-    For i = 1 To m
-        For j = 1 To n
-            dblSum = 0
-            Select Case True
-                Case Not bTransposeA And Not bTransposeB
+    Select Case True
+        Case Not bTransposeA And Not bTransposeB
+            For i = 1 To m
+                For j = 1 To n
+                    dblSum = 0
                     For p = 1 To k
                         dblSum = dblSum + A_(i, p) * B_(p, j)
                     Next p
-                Case bTransposeA And Not bTransposeB
+                    C_(i, j) = C_(i, j) + dblSum
+                Next j
+            Next i
+        Case bTransposeA And Not bTransposeB
+            For i = 1 To m
+                For j = 1 To n
+                    dblSum = 0
                     For p = 1 To k
                         dblSum = dblSum + A_(p, i) * B_(p, j)
                     Next p
-                Case Not bTransposeA And bTransposeB
+                    C_(i, j) = C_(i, j) + dblSum
+                Next j
+            Next i
+        Case Not bTransposeA And bTransposeB
+            For i = 1 To m
+                For j = 1 To n
+                    dblSum = 0
                     For p = 1 To k
                         dblSum = dblSum + A_(i, p) * B_(j, p)
                     Next p
-                Case bTransposeA And bTransposeB
+                    C_(i, j) = C_(i, j) + dblSum
+                Next j
+            Next i
+        Case bTransposeA And bTransposeB
+            For i = 1 To m
+                For j = 1 To n
+                    dblSum = 0
                     For p = 1 To k
                         dblSum = dblSum + A_(p, i) * B_(j, p)
                     Next p
-            End Select
-            C_(i, j) = C_(i, j) + dblSum
-        Next j
-    Next i
+                    C_(i, j) = C_(i, j) + dblSum
+                Next j
+            Next i
+    End Select
     A.RemoveAlias A_
     B.RemoveAlias B_
     C.RemoveAlias C_

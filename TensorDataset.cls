@@ -14,9 +14,8 @@ Implements IDataset
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
 'State
-Private m_lNumTensors As Long
-Private m_aoTensors() As Tensor
 Private m_lNumSamples As Long
+Private m_oTensors As Collection
 
 Public Property Get NumSamples() As Long
     NumSamples = m_lNumSamples
@@ -27,16 +26,16 @@ Public Property Get Cache() As TensorDataset
 End Property
 
 Public Property Get NumTensors() As Long
-    NumTensors = m_lNumTensors
+    NumTensors = m_oTensors.Count
 End Property
 
 Public Property Get Tensor(ByVal lTensorIndex As Long) As Tensor
     Const PROCEDURE_NAME As String = "TensorDataset.Item"
 
-    If lTensorIndex < 1 Or lTensorIndex > m_lNumTensors Then
+    If lTensorIndex < 1 Or lTensorIndex > m_oTensors.Count Then
         Err.Raise 9, PROCEDURE_NAME, "Tensor index is out of range."
     End If
-    Set Tensor = m_aoTensors(lTensorIndex)
+    Set Tensor = m_oTensors(lTensorIndex)
 End Property
 
 Public Sub Init(ByVal vTensors As Variant)
@@ -45,14 +44,10 @@ Public Sub Init(ByVal vTensors As Variant)
     Dim lNumTensors As Long
     Dim lNumSamples As Long
     Dim X As Variant
-    Dim aoTensors() As Tensor
+    Dim oTensors As Collection
     
-    vTensors = EnsureArray(vTensors)
-    lNumTensors = UBound(vTensors) - LBound(vTensors) + 1
-    If lNumTensors > 0 Then
-        ReDim aoTensors(1 To lNumTensors)
-    End If
-    For Each X In vTensors
+    Set oTensors = New Collection
+    For Each X In EnsureIterable(vTensors)
         If Not IsObject(X) Then
             Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
         End If
@@ -65,19 +60,17 @@ Public Sub Init(ByVal vTensors As Variant)
         If X.NumDimensions < 1 Then
             Err.Raise 5, PROCEDURE_NAME, "Tensor must have at least one dimension."
         End If
-        If i = 0 Then
+        If oTensors.Count = 0 Then
             lNumSamples = X.Size(X.NumDimensions)
         End If
         If X.Size(X.NumDimensions) <> lNumSamples Then
             Err.Raise 5, PROCEDURE_NAME, "All tensors in the dataset must have the same number of samples."
         End If
-        i = i + 1
-        Set aoTensors(i) = X
+        oTensors.Add X
     Next X
     Clear
-    m_lNumTensors = lNumTensors
-    m_aoTensors = aoTensors
     m_lNumSamples = lNumSamples
+    Set m_oTensors = oTensors
 End Sub
 
 Public Function Gather(ByVal vSampleIndices As Variant) As TensorDataset
@@ -85,10 +78,10 @@ Public Function Gather(ByVal vSampleIndices As Variant) As TensorDataset
     Dim aoGatheredTensors() As Tensor
     Dim oResult As TensorDataset
     
-    If m_lNumTensors > 0 Then
-        ReDim aoGatheredTensors(1 To m_lNumTensors)
-        For i = 1 To m_lNumTensors
-            Set aoGatheredTensors(i) = m_aoTensors(i).Gather(m_aoTensors(i).NumDimensions, vSampleIndices)
+    If m_oTensors.Count > 0 Then
+        ReDim aoGatheredTensors(1 To m_oTensors.Count)
+        For i = 1 To m_oTensors.Count
+            Set aoGatheredTensors(i) = m_oTensors(i).Gather(m_oTensors(i).NumDimensions, vSampleIndices)
         Next i
     End If
     Set oResult = New TensorDataset
@@ -105,9 +98,8 @@ Public Function Subset(ByVal vSampleIndices As Variant) As SubsetDataset
 End Function
 
 Private Sub Clear()
-    m_lNumTensors = 0
-    Erase m_aoTensors
     m_lNumSamples = 0
+    Set m_oTensors = New Collection
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then

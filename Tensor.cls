@@ -33,20 +33,20 @@ End Type
 
 Private Type SafeArrayDescriptorHeader
     Reserved(1 To 12) As Byte
-    DataType As Long
+    VarType As Long
 End Type
 
-Private Type SafeArrayDescriptor
+Private Type SafeArrayDescriptorEx
     Header As SafeArrayDescriptorHeader
-    sa As SAFEARRAY
+    Descriptor As SAFEARRAY
 End Type
 
 Public Enum ReductionType
-    rdcSum
-    rdcProduct
-    rdcMin
-    rdcMax
-    rdcMean
+    rtSum
+    rtProduct
+    rtMin
+    rtMax
+    rtMean
 End Enum
 
 'Dimensions
@@ -57,7 +57,7 @@ Private m_alOuterStrides() As Long
 Private m_lNumElements As Long
 
 'Storage
-Private m_uDescriptor As SafeArrayDescriptor
+Private m_uSafeArray As SafeArrayDescriptorEx
 Private m_oData As Storage
 
 'View cache
@@ -193,7 +193,7 @@ Public Function Reduce(ByVal lDimension As Long, _
     End If
     If m_alShape(lDimension) = 0 Then
         Select Case eReduction
-            Case rdcMin, rdcMax, rdcMean
+            Case rtMin, rtMax, rtMean
                 Err.Raise 5, PROCEDURE_NAME, "Reducing over an empty dimension is not allowed."
         End Select
     End If
@@ -228,23 +228,23 @@ Public Function Tile(ByVal lDimension As Long, _
 End Function
 
 Public Function Sum() As Double
-    Sum = AggregateAll(rdcSum)
+    Sum = AggregateAll(rtSum)
 End Function
 
 Public Function Product() As Double
-    Product = AggregateAll(rdcProduct)
+    Product = AggregateAll(rtProduct)
 End Function
 
 Public Function Min() As Double
-    Min = AggregateAll(rdcMin)
+    Min = AggregateAll(rtMin)
 End Function
 
 Public Function Max() As Double
-    Max = AggregateAll(rdcMax)
+    Max = AggregateAll(rtMax)
 End Function
 
 Public Function Mean() As Double
-    Mean = AggregateAll(rdcMean)
+    Mean = AggregateAll(rtMean)
 End Function
 
 Public Sub FromArray(ByRef adblArray() As Double)
@@ -356,7 +356,7 @@ Public Function ShapeEquals(ByVal vShape As Variant) As Boolean
 End Function
 
 Public Sub CreateAlias(ByRef adblAlias() As Double)
-    CopyMemory ByVal VarPtrArray(adblAlias), VarPtr(m_uDescriptor.sa), SIZEOF_LONGPTR
+    CopyMemory ByVal VarPtrArray(adblAlias), VarPtr(m_uSafeArray.Descriptor), SIZEOF_LONGPTR
 End Sub
 
 Public Sub RemoveAlias(ByRef adblAlias() As Double)
@@ -368,14 +368,14 @@ Private Sub Class_Terminate()
 End Sub
 
 Private Sub Clear()
-    Dim uEmpty As SafeArrayDescriptor
+    Dim uEmpty As SafeArrayDescriptorEx
 
     m_lNumDimensions = 0
     Erase m_alShape
     Erase m_alInnerStrides
     Erase m_alOuterStrides
     m_lNumElements = 0
-    m_uDescriptor = uEmpty
+    m_uSafeArray = uEmpty
     Set m_oData = Nothing
     Set m_oFlatView = Nothing
 End Sub
@@ -422,18 +422,19 @@ End Sub
 
 Private Sub AllocateDescriptor()
     Const FADF_STATIC As Integer = &H2
+    Const FADF_FIXEDSIZE As Integer = &H10
     Const FADF_HAVEVARTYPE As Integer = &H80
     Dim i As Long
 
-    With m_uDescriptor
-        .Header.DataType = m_oData.DataType
-        .sa.cDims = m_lNumDimensions
-        .sa.fFeatures = FADF_STATIC Or FADF_HAVEVARTYPE
-        .sa.cbElements = m_oData.ElementSize
-        .sa.pvData = m_oData.Address
+    With m_uSafeArray
+        .Header.VarType = m_oData.VarType
+        .Descriptor.cDims = m_lNumDimensions
+        .Descriptor.fFeatures = FADF_STATIC Or FADF_FIXEDSIZE Or FADF_HAVEVARTYPE
+        .Descriptor.cbElements = m_oData.ElementSize
+        .Descriptor.pvData = m_oData.Address
         For i = 1 To m_lNumDimensions
-            .sa.rgsabound(i).cElements = m_alShape(m_lNumDimensions - i + 1)
-            .sa.rgsabound(i).lLBound = 1
+            .Descriptor.rgsabound(i).cElements = m_alShape(m_lNumDimensions - i + 1)
+            .Descriptor.rgsabound(i).lLBound = 1
         Next i
     End With
 End Sub
@@ -504,7 +505,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
     A.CreateAlias A_
     R.CreateAlias R_
     Select Case eReduction
-        Case rdcSum
+        Case rtSum
             For i = 1 To lInnerStride
                 For k = 1 To lOuterStride
                     dblAcc = 0
@@ -514,7 +515,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
                     R_(i, 1, k) = dblAcc
                 Next k
             Next i
-        Case rdcProduct
+        Case rtProduct
             For i = 1 To lInnerStride
                 For k = 1 To lOuterStride
                     dblAcc = 1
@@ -524,7 +525,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
                     R_(i, 1, k) = dblAcc
                 Next k
             Next i
-        Case rdcMin
+        Case rtMin
             For i = 1 To lInnerStride
                 For k = 1 To lOuterStride
                     dblAcc = A_(i, 1, k)
@@ -534,7 +535,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
                     R_(i, 1, k) = dblAcc
                 Next k
             Next i
-        Case rdcMax
+        Case rtMax
             For i = 1 To lInnerStride
                 For k = 1 To lOuterStride
                     dblAcc = A_(i, 1, k)
@@ -544,7 +545,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
                     R_(i, 1, k) = dblAcc
                 Next k
             Next i
-        Case rdcMean
+        Case rtMean
             For i = 1 To lInnerStride
                 For k = 1 To lOuterStride
                     dblAcc = 0

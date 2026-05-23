@@ -18,8 +18,8 @@ Implements ISerializable
 Private m_X As Tensor
 Private m_Y As Tensor
 
-Public Property Get LearnableParameters() As Variant
-    LearnableParameters = Array()
+Public Property Get Learnables() As Variant
+    Learnables = Array()
 End Property
 
 Public Sub Init()
@@ -67,10 +67,10 @@ Private Function CalculateOutput(ByVal X As Tensor) As Tensor
     Dim oExpShiftedSum As Tensor
 
     lNumClasses = X.Size(1)
-    Set oMaxPerClass = X.Reduce(1, rdcMax)
+    Set oMaxPerClass = X.Reduce(1, rtMax)
     Set oShifted = VecSub(X, oMaxPerClass.Tile(1, lNumClasses))
     Set oExpShifted = VecExp(oShifted)
-    Set oExpShiftedSum = oExpShifted.Reduce(1, rdcSum)
+    Set oExpShiftedSum = oExpShifted.Reduce(1, rtSum)
     Set CalculateOutput = VecDiv(oExpShifted, oExpShiftedSum.Tile(1, lNumClasses))
 End Function
 
@@ -83,7 +83,7 @@ Private Function CalculateInputGradient(ByVal Y As Tensor, _
 
     lNumClasses = Y.Size(1)
     Set oWeightedError = VecMul(Y, dLdY)
-    Set oSumPerClass = oWeightedError.Reduce(1, rdcSum)
+    Set oSumPerClass = oWeightedError.Reduce(1, rtSum)
     Set oAdjustedError = VecSub(dLdY, oSumPerClass.Tile(1, lNumClasses))
     Set CalculateInputGradient = VecMul(Y, oAdjustedError)
 End Function
@@ -102,8 +102,8 @@ Private Sub Load(ByVal oSerializer As Serializer)
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
-    Private Property Get ILayer_LearnableParameters() As Variant
-        ILayer_LearnableParameters = Me.LearnableParameters
+    Private Property Get ILayer_Learnables() As Variant
+        ILayer_Learnables = Me.Learnables
     End Property
     
     Private Function ILayer_Forward(ByVal X As Object, _
@@ -123,8 +123,8 @@ End Sub
         Load oSerializer
     End Sub
 #Else
-    Private Property Get ILayer_LearnableParameters() As Variant
-        ILayer_LearnableParameters = Me.LearnableParameters
+    Private Property Get ILayer_Learnables() As Variant
+        ILayer_Learnables = Me.Learnables
     End Property
     
     Private Function ILayer_Forward(ByVal X As Tensor, _

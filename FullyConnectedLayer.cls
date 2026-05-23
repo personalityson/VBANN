@@ -18,7 +18,7 @@ Implements ISerializable
 Private m_lInputSize As Long
 Private m_lOutputSize As Long
 
-'Learnable parameters
+'Learnables
 Private m_oWeights As Parameter
 Private m_oBias As Parameter
 
@@ -34,8 +34,8 @@ Public Property Get Bias() As Parameter
     Set Bias = m_oBias
 End Property
 
-Public Property Get LearnableParameters() As Variant
-    LearnableParameters = Array(m_oWeights, m_oBias)
+Public Property Get Learnables() As Variant
+    Learnables = Array(m_oWeights, m_oBias)
 End Property
 
 Public Sub Init(ByVal lInputSize As Long, _
@@ -51,7 +51,7 @@ Public Sub Init(ByVal lInputSize As Long, _
     Clear
     m_lInputSize = lInputSize
     m_lOutputSize = lOutputSize
-    Set m_oWeights = Parameter(HeUniform(Array(m_lOutputSize, m_lInputSize), m_lInputSize, 1), 1, 1, True)
+    Set m_oWeights = Parameter(GlorotUniform(Array(m_lOutputSize, m_lInputSize), m_lInputSize, m_lOutputSize, 1), 1, 1, True)
     Set m_oBias = Parameter(Zeros(Array(m_lOutputSize)), 1, 0, False)
 End Sub
 
@@ -164,8 +164,8 @@ Private Sub Load(ByVal oSerializer As Serializer)
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
-    Private Property Get ILayer_LearnableParameters() As Variant
-        ILayer_LearnableParameters = Me.LearnableParameters
+    Private Property Get ILayer_Learnables() As Variant
+        ILayer_Learnables = Me.Learnables
     End Property
     
     Private Function ILayer_Forward(ByVal X As Object, _
@@ -185,8 +185,8 @@ End Sub
         Load oSerializer
     End Sub
 #Else
-    Private Property Get ILayer_LearnableParameters() As Variant
-        ILayer_LearnableParameters = Me.LearnableParameters
+    Private Property Get ILayer_Learnables() As Variant
+        ILayer_Learnables = Me.Learnables
     End Property
     
     Private Function ILayer_Forward(ByVal X As Tensor, _

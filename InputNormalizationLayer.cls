@@ -14,7 +14,7 @@ Implements ISerializable
 
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
-Private Const EPSILON As Double = 0.00001
+Private Const NORMALIZATION_EPSILON As Double = 0.00001
 
 'Dimensions
 Private m_alInputShape() As Long
@@ -27,8 +27,8 @@ Private m_oVariance As Tensor
 Private m_X As Tensor
 Private m_Y As Tensor
 
-Public Property Get LearnableParameters() As Variant
-    LearnableParameters = Array()
+Public Property Get Learnables() As Variant
+    Learnables = Array()
 End Property
 
 Public Sub Init(ByVal oTrainingLoader As DataLoader)
@@ -48,9 +48,6 @@ Public Function Forward(ByVal X As Tensor, _
     If X Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If m_oMean Is Nothing Or m_oVariance Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Layer must be adapted before the forward pass."
-    End If
     If Not X.ShapeEquals(m_alInputShape) Then
         Err.Raise 5, PROCEDURE_NAME, "Input tensor does not match the expected shape for forward pass."
     End If
@@ -64,9 +61,6 @@ Public Function Backward(ByVal dLdY As Tensor) As Tensor
     
     If dLdY Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
-    End If
-    If m_oMean Is Nothing Or m_oVariance Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Layer must be adapted before the backward pass."
     End If
     If Not dLdY.ShapeEquals(m_alInputShape) Then
         Err.Raise 5, PROCEDURE_NAME, "Gradient tensor does not match the expected shape for backward pass."
@@ -85,7 +79,7 @@ Private Function CalculateOutput(ByVal X As Tensor) As Tensor
     lBatchSize = X.Size(lBatchDimension)
     Set oTiledMean = m_oMean.Tile(lBatchDimension, lBatchSize)
     Set oTiledVariance = m_oVariance.Tile(lBatchDimension, lBatchSize)
-    Set CalculateOutput = VecDivRms(VecSub(X, oTiledMean), oTiledVariance, EPSILON, 0)
+    Set CalculateOutput = VecDivRms(VecSub(X, oTiledMean), oTiledVariance, NORMALIZATION_EPSILON, 0)
 End Function
 
 'dLdX = dLdY / Sqrt(v + Epsilon)
@@ -97,7 +91,7 @@ Private Function CalculateInputGradient(ByVal dLdY As Tensor) As Tensor
     lBatchDimension = dLdY.NumDimensions
     lBatchSize = dLdY.Size(lBatchDimension)
     Set oTiledVariance = m_oVariance.Tile(lBatchDimension, lBatchSize)
-    Set CalculateInputGradient = VecDivRms(dLdY, oTiledVariance, EPSILON, 0)
+    Set CalculateInputGradient = VecDivRms(dLdY, oTiledVariance, NORMALIZATION_EPSILON, 0)
 End Function
 
 Private Sub Adapt(ByVal oTrainingLoader As DataLoader)
@@ -118,8 +112,8 @@ Private Sub Adapt(ByVal oTrainingLoader As DataLoader)
             Set X = oBatch.Tensor(1)
             lBatchDimension = X.NumDimensions
             lBatchSize = oBatch.NumSamples
-            Set oBatchMean = X.Reduce(lBatchDimension, rdcMean)
-            Set oBatchM2 = VecPow2(VecSub(X, oBatchMean.Tile(lBatchDimension, lBatchSize))).Reduce(lBatchDimension, rdcSum)
+            Set oBatchMean = X.Reduce(lBatchDimension, rtMean)
+            Set oBatchM2 = VecPow2(VecSub(X, oBatchMean.Tile(lBatchDimension, lBatchSize))).Reduce(lBatchDimension, rtSum)
             If lNumSamples = 0 Then
                 m_alInputShape = X.Shape
                 m_alInputShape(lBatchDimension) = -1
@@ -181,8 +175,8 @@ Private Sub Load(ByVal oSerializer As Serializer)
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
-    Private Property Get ILayer_LearnableParameters() As Variant
-        ILayer_LearnableParameters = Me.LearnableParameters
+    Private Property Get ILayer_Learnables() As Variant
+        ILayer_Learnables = Me.Learnables
     End Property
     
     Private Function ILayer_Forward(ByVal X As Object, _
@@ -202,8 +196,8 @@ End Sub
         Load oSerializer
     End Sub
 #Else
-    Private Property Get ILayer_LearnableParameters() As Variant
-        ILayer_LearnableParameters = Me.LearnableParameters
+    Private Property Get ILayer_Learnables() As Variant
+        ILayer_Learnables = Me.Learnables
     End Property
     
     Private Function ILayer_Forward(ByVal X As Tensor, _

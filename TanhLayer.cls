@@ -18,8 +18,8 @@ Implements ISerializable
 Private m_X As Tensor
 Private m_Y As Tensor
 
-Public Property Get LearnableParameters() As Variant
-    LearnableParameters = Array()
+Public Property Get Learnables() As Variant
+    Learnables = Array()
 End Property
 
 Public Sub Init()
@@ -76,8 +76,8 @@ Private Sub Load(ByVal oSerializer As Serializer)
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
-    Private Property Get ILayer_LearnableParameters() As Variant
-        ILayer_LearnableParameters = Me.LearnableParameters
+    Private Property Get ILayer_Learnables() As Variant
+        ILayer_Learnables = Me.Learnables
     End Property
     
     Private Function ILayer_Forward(ByVal X As Object, _
@@ -97,8 +97,8 @@ End Sub
         Load oSerializer
     End Sub
 #Else
-    Private Property Get ILayer_LearnableParameters() As Variant
-        ILayer_LearnableParameters = Me.LearnableParameters
+    Private Property Get ILayer_Learnables() As Variant
+        ILayer_Learnables = Me.Learnables
     End Property
     
     Private Function ILayer_Forward(ByVal X As Tensor, _
@@ -118,4 +118,3 @@ End Sub
         Load oSerializer
     End Sub
 #End If
-

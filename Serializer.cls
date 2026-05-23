@@ -16,8 +16,7 @@ Private Const SERIALIZABLE_TYPE_NOTHING As String = "Nothing"
 Private m_oWorksheet As Worksheet
 
 'State
-Private m_lNumSerializedObjects As Long
-Private m_aoSerializedObjects() As ISerializable
+Private m_oSerializedObjects As Collection
 Private m_lCursor As Long
 Private m_lIndent As Long
 
@@ -128,16 +127,14 @@ Public Function ReadBooleanArray() As Boolean()
 End Function
 
 Private Sub Memoize(ByVal oObject As ISerializable)
-    m_lNumSerializedObjects = m_lNumSerializedObjects + 1
-    ReDim Preserve m_aoSerializedObjects(1 To m_lNumSerializedObjects)
-    Set m_aoSerializedObjects(m_lNumSerializedObjects) = oObject
+    m_oSerializedObjects.Add oObject
 End Sub
 
 Private Function IndexOf(ByVal oObject As ISerializable) As Long
     Dim i As Long
     
-    For i = 1 To m_lNumSerializedObjects
-        If m_aoSerializedObjects(i) Is oObject Then
+    For i = 1 To m_oSerializedObjects.Count
+        If m_oSerializedObjects(i) Is oObject Then
             IndexOf = i
             Exit Function
         End If
@@ -225,7 +222,7 @@ Private Function ReadMemo() As ISerializable
     m_lIndent = m_lIndent + 1
     lMemoIndex = ReadLong()
     m_lIndent = m_lIndent - 1
-    Set ReadMemo = m_aoSerializedObjects(lMemoIndex)
+    Set ReadMemo = m_oSerializedObjects(lMemoIndex)
 End Function
 
 Private Function ReadSerializable(ByVal sTypeName As String) As ISerializable
@@ -242,6 +239,8 @@ Private Function CreateInstance(ByVal sTypeName As String) As ISerializable
     Select Case sTypeName
         Case "AdamW"
             Set CreateInstance = New AdamW
+        Case "BackpropTrainer"
+            Set CreateInstance = New BackpropTrainer
         Case "BCELoss"
             Set CreateInstance = New BCELoss
         Case "CCELoss"
@@ -318,8 +317,7 @@ End Sub
 
 Private Sub Clear()
     Set m_oWorksheet = Nothing
-    m_lNumSerializedObjects = 0
-    Erase m_aoSerializedObjects()
+    Set m_oSerializedObjects = New Collection
     m_lCursor = 1
     m_lIndent = 1
 End Sub

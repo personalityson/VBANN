@@ -13,7 +13,7 @@ Implements ISerializable
 
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
-Private Const DATA_TYPE As Long = vbDouble
+Private Const VARIANT_TYPE As Long = vbDouble
 Private Const ELEMENT_SIZE As Long = SIZEOF_DOUBLE
 
 #If Win64 Then
@@ -31,8 +31,8 @@ Private m_lNumElements As Long
 Private m_adblBuffer() As Double
 Private m_pAddress As LongPtr
 
-Public Property Get DataType() As VbVarType
-    DataType = DATA_TYPE
+Public Property Get VarType() As VbVarType
+    VarType = VARIANT_TYPE
 End Property
 
 Public Property Get ElementSize() As Long
@@ -116,6 +116,7 @@ End Function
 
 Public Sub FromRange(ByVal oRange As Range, _
                      Optional ByVal bTranspose As Boolean)
+    Const CHUNK_ROWS As Long = 1000
     Dim i As Long
     Dim j As Long
     Dim lMinRow As Long
@@ -126,17 +127,21 @@ Public Sub FromRange(ByVal oRange As Range, _
     Dim lNumCols As Long
     Dim lRowOffset As Long
     Dim lColOffset As Long
+    Dim lStartRow As Long
+    Dim lChunkRows As Long
+    Dim vValues As Variant
     Dim oArea As Range
-    
+
     Clear
     If oRange Is Nothing Then
         Exit Sub
     End If
-    'Bounding box if non-contiguous range
-    lMinRow = oRange.Areas(1).Row
-    lMaxRow = lMinRow + oRange.Areas(1).Rows.Count - 1
-    lMinCol = oRange.Areas(1).Column
-    lMaxCol = lMinCol + oRange.Areas(1).Columns.Count - 1
+    With oRange.Areas(1)
+        lMinRow = .Row
+        lMaxRow = .Row + .Rows.Count - 1
+        lMinCol = .Column
+        lMaxCol = .Column + .Columns.Count - 1
+    End With
     For Each oArea In oRange.Areas
         lMinRow = MinLng(lMinRow, oArea.Row)
         lMinCol = MinLng(lMinCol, oArea.Column)
@@ -153,19 +158,33 @@ Public Sub FromRange(ByVal oRange As Range, _
     For Each oArea In oRange.Areas
         lRowOffset = oArea.Row - lMinRow
         lColOffset = oArea.Column - lMinCol
-        For i = 1 To oArea.Rows.Count
-            For j = 1 To oArea.Columns.Count
+        For lStartRow = 1 To oArea.Rows.Count Step CHUNK_ROWS
+            lChunkRows = MinLng(CHUNK_ROWS, oArea.Rows.Count - lStartRow + 1)
+            vValues = oArea.Rows(lStartRow).Resize(lChunkRows).Value2
+            If lChunkRows = 1 And oArea.Columns.Count = 1 Then '.Value2 returns a scalar
                 If bTranspose Then
-                    m_adblBuffer(lColOffset + j, lRowOffset + i) = oArea.Cells(i, j)
+                    m_adblBuffer(lColOffset + 1, lRowOffset + lStartRow) = vValues
                 Else
-                    m_adblBuffer(lRowOffset + i, lColOffset + j) = oArea.Cells(i, j)
+                    m_adblBuffer(lRowOffset + lStartRow, lColOffset + 1) = vValues
                 End If
-            Next j
-            If (lRowOffset + i) Mod 1000 = 0 Then
-                Application.StatusBar = "FromRange progress: " & Format((lRowOffset + i) / lMaxRow, "0.0%")
-                DoEvents
+            Else
+                If bTranspose Then
+                    For i = 1 To lChunkRows
+                        For j = 1 To oArea.Columns.Count
+                            m_adblBuffer(lColOffset + j, lRowOffset + lStartRow + i - 1) = vValues(i, j)
+                        Next j
+                    Next i
+                Else
+                    For i = 1 To lChunkRows
+                        For j = 1 To oArea.Columns.Count
+                            m_adblBuffer(lRowOffset + lStartRow + i - 1, lColOffset + j) = vValues(i, j)
+                        Next j
+                    Next i
+                End If
             End If
-        Next i
+            Application.StatusBar = "FromRange progress: " & Format((lRowOffset + lStartRow + CHUNK_ROWS - 1) / lNumRows, "0.0%")
+            DoEvents
+        Next lStartRow
     Next oArea
 End Sub
 

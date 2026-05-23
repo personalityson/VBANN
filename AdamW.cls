@@ -15,8 +15,8 @@ Implements ISerializable
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
 Private Const KEY_STEP As String = "Step"
-Private Const KEY_MEAN As String = "Mean"
-Private Const KEY_VARIANCE As String = "Variance"
+Private Const KEY_1ST_MOMENT As String = "Mean"
+Private Const KEY_2ND_MOMENT As String = "Variance"
 
 'Hyperparameters
 Private m_dblLearningRate As Double
@@ -81,8 +81,7 @@ Public Sub Update(ByVal vParameters As Variant)
     Const PROCEDURE_NAME As String = "AdamW.Update"
     Dim W As Variant
     
-    vParameters = EnsureArray(vParameters)
-    For Each W In vParameters
+    For Each W In EnsureIterable(vParameters)
         If Not IsObject(W) Then
             Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
         End If
@@ -140,8 +139,8 @@ Private Sub GetStates(ByVal W As Parameter, _
         End If
         With .Item(W)
             lStep = .Item(KEY_STEP)
-            Set m = .Item(KEY_MEAN)
-            Set v = .Item(KEY_VARIANCE)
+            Set m = .Item(KEY_1ST_MOMENT)
+            Set v = .Item(KEY_2ND_MOMENT)
         End With
     End With
 End Sub
@@ -156,8 +155,8 @@ Private Sub PutStates(ByVal W As Parameter, _
         End If
         With .Item(W)
             .Item(KEY_STEP) = lStep
-            Set .Item(KEY_MEAN) = m
-            Set .Item(KEY_VARIANCE) = v
+            Set .Item(KEY_1ST_MOMENT) = m
+            Set .Item(KEY_2ND_MOMENT) = v
         End With
     End With
 End Sub

@@ -45,7 +45,7 @@ Public Sub Init(Optional ByVal dblLearningRate As Double = 0.01, _
     Const PROCEDURE_NAME As String = "SGDW.Init"
     
     If dblLearningRate <= 0 Then
-        Err.Raise 5, PROCEDURE_NAME, "LearningRate must be > 0."
+        Err.Raise 5, PROCEDURE_NAME, "Learning rate must be > 0."
     End If
     If dblMomentum < 0 Or dblMomentum >= 1 Then
         Err.Raise 5, PROCEDURE_NAME, "Momentum must be >= 0 and < 1."
@@ -67,8 +67,7 @@ Public Sub Update(ByVal vParameters As Variant)
     Const PROCEDURE_NAME As String = "SGDW.Update"
     Dim W As Variant
     
-    vParameters = EnsureArray(vParameters)
-    For Each W In vParameters
+    For Each W In EnsureIterable(vParameters)
         If Not IsObject(W) Then
             Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
         End If

@@ -14,7 +14,7 @@ Implements ISerializable
 
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
-Private Const EPSILON As Double = 0.0000001
+Private Const BCE_EPSILON As Double = 0.0000001
 
 Public Sub Init()
     'Do nothing
@@ -67,7 +67,7 @@ Private Function CalculateLoss(ByVal Y As Tensor, _
     T.Flatten.CreateAlias T_
     L.Flatten.CreateAlias L_
     For i = 1 To Y.NumElements
-        dblY = MinDbl(1 - EPSILON, MaxDbl(EPSILON, Y_(i)))
+        dblY = MinDbl(1 - BCE_EPSILON, MaxDbl(BCE_EPSILON, Y_(i)))
         L_(i) = -T_(i) * Log(dblY) - (1 - T_(i)) * Log(1 - dblY)
     Next i
     Y.Flatten.RemoveAlias Y_
@@ -91,7 +91,7 @@ Private Function CalculateGradient(ByVal Y As Tensor, _
     T.Flatten.CreateAlias T_
     dLdY.Flatten.CreateAlias dLdY_
     For i = 1 To Y.NumElements
-        dblY = MinDbl(1 - EPSILON, MaxDbl(EPSILON, Y_(i)))
+        dblY = MinDbl(1 - BCE_EPSILON, MaxDbl(BCE_EPSILON, Y_(i)))
         dLdY_(i) = (dblY - T_(i)) / (dblY * (1 - dblY))
     Next i
     Y.Flatten.RemoveAlias Y_

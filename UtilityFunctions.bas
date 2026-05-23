@@ -39,14 +39,6 @@ Public Const SIZEOF_DOUBLE As Long = 8
     Public Const SIZEOF_VARIANT As Long = 16
 #End If
 
-Public Enum RoundingType
-    rndNearest
-    rndDown
-    rndUp
-    rndTowardsZero
-    rndTowardsInfinity
-End Enum
-
 Private Type SYSTEMTIME
     wYear As Integer
     wMonth As Integer
@@ -125,43 +117,6 @@ Public Function MaxDbl(ByVal A As Double, _
     Else
         MaxDbl = B
     End If
-End Function
-
-Public Function RoundToMultiple(ByVal dblValue As Double, _
-                                ByVal dblMultiple As Double, _
-                                ByVal eRoundingType As RoundingType) As Double
-    If dblMultiple = 0 Then
-        RoundToMultiple = dblValue
-        Exit Function
-    End If
-    dblMultiple = Abs(dblMultiple)
-    Select Case eRoundingType
-        Case rndNearest
-            RoundToMultiple = Round(dblValue / dblMultiple) * dblMultiple
-        Case rndDown
-            RoundToMultiple = Int(dblValue / dblMultiple) * dblMultiple
-        Case rndUp
-            RoundToMultiple = -Int(-dblValue / dblMultiple) * dblMultiple
-        Case rndTowardsZero
-            RoundToMultiple = Sgn(dblValue) * Int(Abs(dblValue) / dblMultiple) * dblMultiple
-        Case rndTowardsInfinity
-            RoundToMultiple = Sgn(dblValue) * -Int(-Abs(dblValue) / dblMultiple) * dblMultiple
-    End Select
-End Function
-
-Public Function RoundToSignificantDigits(ByVal dblValue As Double, _
-                                         ByVal lNumDigits As Long, _
-                                         ByVal eRoundingType As RoundingType) As Double
-    Dim dblMultiple As Double
-    
-    If dblValue = 0 Then
-        Exit Function
-    End If
-    If lNumDigits < 1 Then
-        Exit Function
-    End If
-    dblMultiple = 10 ^ (Int(Log(Abs(dblValue)) / Log(10)) + 1 - lNumDigits)
-    RoundToSignificantDigits = RoundToMultiple(dblValue, dblMultiple, eRoundingType)
 End Function
 
 Private Function GetSafeArrayPtr(ByRef vArray As Variant, _
@@ -250,22 +205,71 @@ Public Sub SetLBound(ByRef vArray As Variant, _
                SIZEOF_LONG
 End Sub
 
-Public Function EnsureArray(ByVal vValueOrArray As Variant, _
+Public Function EnsureArray(ByVal vArray As Variant, _
                             Optional ByVal vLBound As Variant) As Variant
     Const PROCEDURE_NAME As String = "UtilityFunctions.EnsureArray"
-    Select Case GetRank(vValueOrArray)
+    Select Case GetRank(vArray)
         Case -1
-            EnsureArray = Array(vValueOrArray)
+            EnsureArray = Array(vArray)
         Case 0
             EnsureArray = Array()
         Case 1
-            EnsureArray = vValueOrArray
+            EnsureArray = vArray
         Case Else
             Err.Raise 5, PROCEDURE_NAME, "Expecting a scalar, an uninitialized array, or a one-dimensional array."
     End Select
     If Not IsMissing(vLBound) Then
         SetLBound EnsureArray, 1, CLng(vLBound)
     End If
+End Function
+
+Function EnsureIterable(ByVal vArray As Variant) As Variant
+    Dim vIterator As Variant
+    
+    On Error GoTo ErrorHandler
+    For Each vIterator In vArray
+        Exit For
+    Next vIterator
+    EnsureIterable = vArray
+    Exit Function
+ErrorHandler:
+    EnsureIterable = EnsureArray(vArray)
+End Function
+
+
+Public Function Combine(ByVal vArrayA As Variant, _
+                        ByVal vArrayB As Variant) As Variant
+    Dim i As Long
+    Dim lLBoundA As Long
+    Dim lUBoundA As Long
+    Dim lLBoundB As Long
+    Dim lUBoundB As Long
+    Dim avResult() As Variant
+    
+    vArrayA = EnsureArray(vArrayA)
+    vArrayB = EnsureArray(vArrayB)
+    lLBoundA = LBound(vArrayA)
+    lUBoundA = UBound(vArrayA)
+    If lLBoundA > lUBoundA Then
+        Combine = vArrayB
+        Exit Function
+    End If
+    lLBoundB = LBound(vArrayB)
+    lUBoundB = UBound(vArrayB)
+    If lLBoundB > lUBoundB Then
+        Combine = vArrayA
+        Exit Function
+    End If
+    avResult = vArrayA
+    ReDim Preserve avResult(lLBoundA To lUBoundA + lUBoundB - lLBoundB + 1)
+    For i = lLBoundB To lUBoundB
+        If IsObject(vArrayB(i)) Then
+            Set avResult(lUBoundA + i - lLBoundB + 1) = vArrayB(i)
+        Else
+            avResult(lUBoundA + i - lLBoundB + 1) = vArrayB(i)
+        End If
+    Next i
+    Combine = avResult
 End Function
 
 Public Sub ParseVariantToLongArray(ByVal vArray As Variant, _
@@ -608,6 +612,7 @@ Public Function WorksheetExists(ByVal oWorkbook As Workbook, _
     End If
     On Error Resume Next
     WorksheetExists = Not oWorkbook.Worksheets(sName) Is Nothing
+    On Error GoTo 0
 End Function
 
 Public Function CreateWorksheet(ByVal oWorkbook As Workbook, _
@@ -692,7 +697,7 @@ Public Sub WriteLog(ByVal sName As String, _
                 .Cells(1, vHeaderCol) = vHeader
             End If
             .Cells(lLastRow + 1, vHeaderCol) = avArgs(i + 1)
-            'Application.GoTo .Cells(lLastRow + 1, vHeaderCol)
+            Application.GoTo .Cells(lLastRow + 1, vHeaderCol)
             DoEvents
         Next i
         On Error GoTo 0

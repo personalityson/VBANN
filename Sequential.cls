@@ -9,52 +9,21 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
 
+Implements ILayer
 Implements ISerializable
 
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
-'Dependencies
-Private m_oCriterion As ICriterion
-Private m_oOptimizer As IOptimizer
-
 'State
-Private m_lNumLayers As Long
-Private m_aoLayers() As ILayer
+Private m_oLayers As Collection
+Private m_vLearnables As Variant
 
-Public Property Get Criterion() As ICriterion
-    Set Criterion = m_oCriterion
+Public Property Get Learnables() As Variant
+    Learnables = m_vLearnables
 End Property
 
-Public Property Get Optimizer() As IOptimizer
-    Set Optimizer = m_oOptimizer
-End Property
-
-Public Property Get NumLayers() As Long
-    NumLayers = m_lNumLayers
-End Property
-
-Public Property Get Layer(ByVal lLayerIndex As Long) As ILayer
-    Const PROCEDURE_NAME As String = "Sequential.Layer"
-
-    If lLayerIndex < 1 Or lLayerIndex > m_lNumLayers Then
-        Err.Raise 9, PROCEDURE_NAME, "Layer index is out of range."
-    End If
-    Set Layer = m_aoLayers(lLayerIndex)
-End Property
-
-Public Sub Init(ByVal oCriterion As ICriterion, _
-                ByVal oOptimizer As IOptimizer)
-    Const PROCEDURE_NAME As String = "Sequential.Init"
-
-    If oCriterion Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid ICriterion object is required."
-    End If
-    If oOptimizer Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid IOptimizer object is required."
-    End If
+Public Sub Init()
     Clear
-    Set m_oCriterion = oCriterion
-    Set m_oOptimizer = oOptimizer
 End Sub
 
 Public Sub Add(ByVal oLayer As ILayer)
@@ -63,130 +32,40 @@ Public Sub Add(ByVal oLayer As ILayer)
     If oLayer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid ILayer object is required."
     End If
-    m_lNumLayers = m_lNumLayers + 1
-    ReDim Preserve m_aoLayers(1 To m_lNumLayers)
-    Set m_aoLayers(m_lNumLayers) = oLayer
+    m_oLayers.Add oLayer
+    m_vLearnables = Combine(m_vLearnables, oLayer.Learnables)
 End Sub
 
-Public Sub Fit(ByVal oTrainingLoader As DataLoader, _
-               ByVal oTestLoader As DataLoader, _
-               ByVal lNumEpochs As Long)
-    Const PROCEDURE_NAME As String = "Sequential.Fit"
-    Dim i As Long
-    Dim dblTrainingLoss As Double
-    Dim dblTestLoss As Double
-
-    If oTrainingLoader Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid DataLoader object is required."
-    End If
-    If oTestLoader Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid DataLoader object is required."
-    End If
-    If lNumEpochs < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Number of epochs must be >= 1."
-    End If
-    For i = 1 To lNumEpochs
-        FitOne oTrainingLoader
-        dblTrainingLoss = Me.Loss(oTrainingLoader)
-        dblTestLoss = Me.Loss(oTestLoader)
-        WriteLog "Log", "Name", TypeName(Me), _
-                 "Time", GetUtcTime(), _
-                 "Epoch", i, _
-                 "Total number of epochs", lNumEpochs, _
-                 "Learning rate", m_oOptimizer.LearningRate, _
-                 "Training loss", dblTrainingLoss, _
-                 "Test loss", dblTestLoss
-    Next i
-End Sub
-
-Public Function Predict(ByVal X As Tensor, _
+Public Function Forward(ByVal X As Tensor, _
                         Optional ByVal bIsTraining As Boolean) As Tensor
-    Const PROCEDURE_NAME As String = "Sequential.Predict"
+    Const PROCEDURE_NAME As String = "Sequential.Forward"
     Dim i As Long
-    
+
     If X Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If X.NumDimensions < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Input tensor must have at least one dimension."
-    End If
-    For i = 1 To m_lNumLayers
-        Set X = m_aoLayers(i).Forward(X, bIsTraining)
+    For i = 1 To m_oLayers.Count
+        Set X = m_oLayers(i).Forward(X, bIsTraining)
     Next i
-    Set Predict = X
+    Set Forward = X
 End Function
 
-Private Sub Backpropagate(ByVal X As Tensor, _
-                          ByVal T As Tensor)
+Public Function Backward(ByVal dLdY As Tensor) As Tensor
+    Const PROCEDURE_NAME As String = "Sequential.Backward"
     Dim i As Long
-    Dim Y As Tensor
-    Dim dLdY As Tensor
-    
-    Set Y = Me.Predict(X, True)
-    Set dLdY = m_oCriterion.Backward(Y, T)
-    For i = m_lNumLayers To 2 Step -1
-        Set dLdY = m_aoLayers(i).Backward(dLdY)
-        m_oOptimizer.Update m_aoLayers(i).LearnableParameters
+
+    If dLdY Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    For i = m_oLayers.Count To 1 Step -1
+        Set dLdY = m_oLayers(i).Backward(dLdY)
     Next i
-End Sub
-
-Public Function Loss(ByVal oDataLoader As DataLoader) As Double
-    Const PROCEDURE_NAME As String = "Sequential.Loss"
-    Dim lNumSamples As Long
-    Dim dblLoss As Double
-    Dim X As Tensor
-    Dim T As Tensor
-    Dim Y As Tensor
-    Dim oBatch As TensorDataset
-
-    If oDataLoader Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid DataLoader object is required."
-    End If
-    With oDataLoader
-        .Reset
-        Do While .NextBatch(oBatch)
-            Set X = oBatch.Tensor(1)
-            Set T = oBatch.Tensor(2)
-            Set Y = Predict(X)
-            dblLoss = dblLoss + m_oCriterion.Forward(Y, T).Sum
-            lNumSamples = lNumSamples + oBatch.NumSamples
-            If lNumSamples \ .BatchSize Mod 100 = 0 Then
-                Application.StatusBar = "Loss progress: " & Format(lNumSamples / .NumSamples, "0.0%")
-                DoEvents
-            End If
-        Loop
-    End With
-    If lNumSamples > 0 Then
-        Loss = dblLoss / lNumSamples
-    End If
+    Set Backward = dLdY
 End Function
-
-Private Sub FitOne(ByVal oTrainingLoader As DataLoader)
-    Dim lNumSamples As Long
-    Dim X As Tensor
-    Dim T As Tensor
-    Dim oBatch As TensorDataset
-
-    With oTrainingLoader
-        .Shuffle
-        Do While .NextBatch(oBatch)
-            Set X = oBatch.Tensor(1)
-            Set T = oBatch.Tensor(2)
-            Backpropagate X, T
-            lNumSamples = lNumSamples + oBatch.NumSamples
-            If lNumSamples \ .BatchSize Mod 100 = 0 Then
-                Application.StatusBar = "FitOne progress: " & Format(lNumSamples / .NumSamples, "0.0%")
-                DoEvents
-            End If
-        Loop
-    End With
-End Sub
 
 Private Sub Clear()
-    Set m_oCriterion = Nothing
-    Set m_oOptimizer = Nothing
-    m_lNumLayers = 0
-    Erase m_aoLayers
+    Set m_oLayers = New Collection
+    m_vLearnables = Array()
 End Sub
 
 Private Sub Save(ByVal oSerializer As Serializer)
@@ -197,50 +76,71 @@ Private Sub Save(ByVal oSerializer As Serializer)
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
     With oSerializer
-        .WriteLong m_lNumLayers
-        For i = 1 To m_lNumLayers
-            .WriteObject m_aoLayers(i)
+        .WriteLong m_oLayers.Count
+        For i = 1 To m_oLayers.Count
+            .WriteObject m_oLayers(i)
         Next i
-        .WriteObject m_oCriterion
-        .WriteObject m_oOptimizer
     End With
 End Sub
 
 Private Sub Load(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "Sequential.Load"
     Dim i As Long
+    Dim lNumLayers As Long
     
     If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
     Clear
     With oSerializer
-        m_lNumLayers = .ReadLong()
-        If m_lNumLayers > 0 Then
-            ReDim m_aoLayers(1 To m_lNumLayers)
-            For i = 1 To m_lNumLayers
-                Set m_aoLayers(i) = .ReadObject()
-            Next i
-        End If
-        Set m_oCriterion = .ReadObject()
-        Set m_oOptimizer = .ReadObject()
+        lNumLayers = .ReadLong()
+        For i = 1 To lNumLayers
+            Me.Add .ReadObject()
+        Next i
     End With
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
+    Private Property Get ILayer_Learnables() As Variant
+        ILayer_Learnables = Me.Learnables
+    End Property
+    
+    Private Function ILayer_Forward(ByVal X As Object, _
+                                    Optional ByVal bIsTraining As Boolean) As Object
+        Set ILayer_Forward = Me.Forward(X, bIsTraining)
+    End Function
+    
+    Private Function ILayer_Backward(ByVal dLdY As Object) As Object
+        Set ILayer_Backward = Me.Backward(dLdY)
+    End Function
+    
     Private Sub ISerializable_Save(ByVal oSerializer As Object)
         Save oSerializer
     End Sub
-
+    
     Private Sub ISerializable_Load(ByVal oSerializer As Object)
         Load oSerializer
     End Sub
 #Else
+    Private Property Get ILayer_Learnables() As Variant
+        ILayer_Learnables = Me.Learnables
+    End Property
+    
+    Private Function ILayer_Forward(ByVal X As Tensor, _
+                                    Optional ByVal bIsTraining As Boolean) As Tensor
+        Set ILayer_Forward = Me.Forward(X, bIsTraining)
+    End Function
+    
+    Private Function ILayer_Backward(ByVal dLdY As Tensor) As Tensor
+        Set ILayer_Backward = Me.Backward(dLdY)
+    End Function
+    
     Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
         Save oSerializer
     End Sub
-
+    
     Private Sub ISerializable_Load(ByVal oSerializer As Serializer)
         Load oSerializer
     End Sub
 #End If
+

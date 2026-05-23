@@ -12,7 +12,7 @@ Option Explicit
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
-    Public Property Get LearnableParameters() As Variant
+    Public Property Get Learnables() As Variant
         '
     End Property
     
@@ -25,7 +25,7 @@ Option Explicit
         '
     End Function
 #Else
-    Public Property Get LearnableParameters() As Variant
+    Public Property Get Learnables() As Variant
         '
     End Property
     
