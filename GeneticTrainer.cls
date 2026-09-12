@@ -242,8 +242,7 @@ Private Sub LoadGenome(ByVal oGenome As Object)
 
     For Each W In oGenome.Keys
         Set A = oGenome.Item(W)
-        'Set W.Tensor = A
-        W.Tensor.Copy A
+        Set W.Tensor = A
     Next W
 End Sub
 
