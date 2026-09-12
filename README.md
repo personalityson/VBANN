@@ -13,14 +13,14 @@ This project is licensed under the [Creative Commons Zero v1.0 Universal](LICENS
 ```vba
 Option Explicit
 
-Const MODEL_NAME As String = "MySequentialModel"
-Const TRAINER_NAME As String = "MyBackpropTrainer"
-
-Public Sub SetupAndTrain()
+Public Sub SetupAndTrainBackprop()
+    Const MODEL_NAME As String = "MySequentialModel"
+    Const TRAINER_NAME As String = "MyBackpropTrainer"
     Dim lBatchSize As Long
     Dim lNumEpochs As Long
     Dim lInputSize As Long
     Dim lLabelSize As Long
+    Dim Y As Tensor
     Dim oFullSet As TensorDataset
     Dim oTrainingSet As SubsetDataset
     Dim oTrainingLoader As DataLoader
@@ -43,7 +43,7 @@ Public Sub SetupAndTrain()
     Set oTestLoader = DataLoader(oTestSet, lBatchSize)
 
     Set oModel = Sequential()
-    oModel.Add InputNormalizationLayer(oTrainingLoader)
+    oModel.Add InputNormalizationLayer(oTrainingSet)
     oModel.Add FullyConnectedLayer(lInputSize, 32)
     oModel.Add LeakyReLULayer()
     oModel.Add DropoutLayer(0.2)
@@ -51,30 +51,96 @@ Public Sub SetupAndTrain()
     oModel.Add LeakyReLULayer()
     oModel.Add DropoutLayer(0.1)
     oModel.Add FullyConnectedLayer(16, lLabelSize)
-    
+
     Set oTrainer = BackpropTrainer(oModel, L2Loss(), SGDW(0.01, 0.9, 0.0001, 20))
     oTrainer.Fit oTrainingLoader, oTestLoader, lNumEpochs
-
-    'Compute test loss
+    
+    'Compute test loss.
     MsgBox oTrainer.Evaluate(oTestLoader)
 
-    'Save everything to worksheet, optimizer's internal state is also saved
+    'Save everything to worksheet, optimizer's internal state is also saved.
     Serialize TRAINER_NAME, oTrainer
 
-    'Load from worksheet
+    'Load trainer from worksheet. After deserialization oTrainer.Model is no longer same as oModel.
     Set oTrainer = Deserialize(TRAINER_NAME)
-
-    'Compute test loss again with deserialized model
+    
+    'Compute test loss again with deserialized model.
     MsgBox oTrainer.Evaluate(oTestLoader)
     
-    'Continue training
+    'Continue training.
+    oTrainer.Optimizer.LearningRate = 0.001
     oTrainer.Fit oTrainingLoader, oTestLoader, lNumEpochs
     
-    'Save everything to worksheet
-    Serialize TRAINER_NAME, oTrainer
+    'Save model only.
+    Serialize MODEL_NAME, oTrainer.Model
     
-    'Save model only
-    Serialize MODEL_NAME, oModel
+    'Load model.
+    Set oModel = Deserialize(MODEL_NAME)
+    
+    'Make a prediction using the first 5 samples in test set.
+    Set Y = oModel.Forward(oTestSet.Gather(Array(1, 2, 3, 4, 5)).Tensor(1))
+
+    Beep
+End Sub
+
+Public Sub SetupAndTrainGA()
+    Const MODEL_NAME As String = "MySequentialModel"
+    Const TRAINER_NAME As String = "MyGeneticTrainer"
+    Dim lNumGenerations As Long
+    Dim lInputSize As Long
+    Dim lLabelSize As Long
+    Dim Y As Tensor
+    Dim oFullSet As TensorDataset
+    Dim oTrainingSet As SubsetDataset
+    Dim oTestSet As SubsetDataset
+    Dim oModel As Sequential
+    Dim oTrainer As GeneticTrainer
+
+    Randomize Timer
+    
+    lInputSize = 8
+    lLabelSize = 1
+    lNumGenerations = 40
+
+    'Prepare training data
+    Set oFullSet = ImportDatasetFromWorksheet(ThisWorkbook, "Concrete", Array(lInputSize, lLabelSize), True)
+    SplitDataset oFullSet, 0.8, oTrainingSet, oTestSet, True
+    
+    Set oModel = Sequential()
+    oModel.Add InputNormalizationLayer(oTrainingSet)
+    oModel.Add FullyConnectedLayer(lInputSize, 32)
+    oModel.Add LeakyReLULayer()
+    oModel.Add FullyConnectedLayer(32, 16)
+    oModel.Add LeakyReLULayer()
+    oModel.Add FullyConnectedLayer(16, lLabelSize)
+    
+    Set oTrainer = GeneticTrainer(oModel, L2Loss(), 50, 2, 3, 0.9, 0.1, 0.1)
+    oTrainer.Fit oTrainingSet, oTestSet, lNumGenerations
+
+    'Compute test loss.
+    MsgBox oTrainer.Evaluate(oTestSet)
+
+    'Save everything to worksheet.
+    Serialize TRAINER_NAME, oTrainer
+
+    'Load trainer from worksheet. After deserialization oTrainer.Model is no longer same as oModel.
+    Set oTrainer = Deserialize(TRAINER_NAME)
+    
+    'Compute test loss again with deserialized model.
+    MsgBox oTrainer.Evaluate(oTestSet)
+    
+    'Continue training.
+    oTrainer.MutationSigma = 0.03
+    oTrainer.Fit oTrainingSet, oTestSet, lNumGenerations
+    
+    'Save model only.
+    Serialize MODEL_NAME, oTrainer.Model
+    
+    'Load model.
+    Set oModel = Deserialize(MODEL_NAME)
+    
+    'Make a prediction using the first 5 samples in test set.
+    Set Y = oModel.Forward(oTestSet.Gather(Array(1, 2, 3, 4, 5)).Tensor(1))
 
     Beep
 End Sub
@@ -162,9 +228,6 @@ Public Sub WorkingWithTensors()
     'Both return 0.
     MsgBox A_(1, 1, 1)
     MsgBox B_(1, 1)
-    
-    'This will fail.
-    ReDim B_(1 To 10)
 
     'Remove the aliases to avoid memory deallocation.
     A.RemoveAlias A_
@@ -204,10 +267,12 @@ Public Sub WorkingWithTensorOps()
     Dim A As Tensor
     Dim B As Tensor
     Dim C As Tensor
+    Dim V As Tensor
     Dim Y As Tensor
     Dim dblValue As Double
+    Dim bBlas As Boolean
 
-    'Two random vectors to work with.
+    'Two random vectors to work with
     Set A = Uniform(Array(5), 0, 1)
     Set B = Uniform(Array(5), 0, 1)
 
@@ -220,7 +285,7 @@ Public Sub WorkingWithTensorOps()
     'Element-wise binary (A and B must have the same NumElements).
     Set Y = VecAdd(A, B)        'Y = A + B
     Set Y = VecSub(A, B)        'Y = A - B
-    Set Y = VecMul(A, B)        'Y = A * B
+    Set Y = VecMul(A, B)        'Y = A * B  (not matrix multiply)
     Set Y = VecDiv(A, B)        'Y = A / B
 
     'Element-wise scalar.
@@ -247,19 +312,39 @@ Public Sub WorkingWithTensorOps()
     Set Y = VecLeakyReLU(A, 0.01)
     Set Y = VecLeakyReLUDerivative(A, 0.01)
 
+    'Linear combination: Y = alpha * A + beta * B.
+    Set Y = VecLinComb(0.99, A, 0.01, B)
+
+    'RMS-normalized division used by the optimizers. B must be non-negative.
+    'Y = A / (Sqrt(B + inner_epsilon) + outer_epsilon)
+    Set V = VecPow2(B)
+    Set Y = VecDivRms(A, V, 0, 0.00000001)  'AdamW style: epsilon outside the root
+    Set Y = VecDivRms(A, V, 0.00001, 0)     'Normalization style: epsilon inside the root
+
+    'VecWhere selects element-wise Y = IIf(C <> 0, A, B).
+    Set C = Bernoulli(Array(5), 0.5)
+    Set Y = VecWhere(C, A, B)
+
     'In-place A = 2 * A
     VecMulC_I A, 2
 
     'In-place A = A + B
     VecAdd_I A, B
 
+    'In-place A = A * B (element-wise)
+    VecMul_I A, B
+
     'In-place A = alpha * A + beta * B
-    VecLinComb_I 0.9, A, 0.1, B
+    VecLinComb_I 0.99, A, 0.01, B
 
     'Standard matrix product.
     Set A = Uniform(Array(3, 4))     '3x4
     Set B = Uniform(Array(4, 5))     '4x5
     Set Y = MatMul(A, B)             'Y is 3x5
+
+    'MatMul also transposes.
+    Set A = Uniform(Array(4, 3))     '4x3
+    Set Y = MatMul(A, B, True)       'Y = A' * B, so Y is 3x5
 
     'MatMul_I accumulates: C = C + A * B.
     Set A = Uniform(Array(3, 4))
