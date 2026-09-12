@@ -11,7 +11,7 @@ Option Explicit
 
 Implements IDataset
 
-#Const USE_LATE_BINDING_IN_INTERFACES = False
+#Const USE_LATE_BINDING_IN_INTERFACES = True
 
 'State
 Private m_lNumSamples As Long

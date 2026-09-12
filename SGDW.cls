@@ -12,7 +12,7 @@ Option Explicit
 Implements IOptimizer
 Implements ISerializable
 
-#Const USE_LATE_BINDING_IN_INTERFACES = False
+#Const USE_LATE_BINDING_IN_INTERFACES = True
 
 Private Const KEY_VELOCITY As String = "Velocity"
 

@@ -12,7 +12,7 @@ Option Explicit
 Implements ILayer
 Implements ISerializable
 
-#Const USE_LATE_BINDING_IN_INTERFACES = False
+#Const USE_LATE_BINDING_IN_INTERFACES = True
 
 Private Const ADAPT_BATCH_SIZE = 1024
 Private Const NORMALIZATION_EPSILON As Double = 0.00001

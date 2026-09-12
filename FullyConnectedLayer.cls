@@ -12,7 +12,7 @@ Option Explicit
 Implements ILayer
 Implements ISerializable
 
-#Const USE_LATE_BINDING_IN_INTERFACES = False
+#Const USE_LATE_BINDING_IN_INTERFACES = True
 
 'Dimensions
 Private m_lInputSize As Long

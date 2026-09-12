@@ -11,7 +11,7 @@ Option Explicit
 
 Implements ISerializable
 
-#Const USE_LATE_BINDING_IN_INTERFACES = False
+#Const USE_LATE_BINDING_IN_INTERFACES = True
 
 Private Const VARIANT_TYPE As Long = vbDouble
 Private Const ELEMENT_SIZE As Long = SIZEOF_DOUBLE
