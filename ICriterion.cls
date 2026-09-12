@@ -9,7 +9,7 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
+#Const USE_LATE_BINDING_IN_INTERFACES = False
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
     Public Function Forward(ByVal Y As Object, _

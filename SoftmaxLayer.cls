@@ -12,7 +12,7 @@ Option Explicit
 Implements ILayer
 Implements ISerializable
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
+#Const USE_LATE_BINDING_IN_INTERFACES = False
 
 'Forward/backward cache
 Private m_X As Tensor
@@ -59,23 +59,26 @@ Public Function Backward(ByVal dLdY As Tensor) As Tensor
     Set Backward = CalculateInputGradient(m_Y, dLdY)
 End Function
 
+Private Sub Clear()
+    Set m_X = Nothing
+    Set m_Y = Nothing
+End Sub
+
 Private Function CalculateOutput(ByVal X As Tensor) As Tensor
     Dim lNumClasses As Long
-    Dim oMaxPerClass As Tensor
     Dim oShifted As Tensor
     Dim oExpShifted As Tensor
     Dim oExpShiftedSum As Tensor
 
     lNumClasses = X.Size(1)
-    Set oMaxPerClass = X.Reduce(1, rtMax)
-    Set oShifted = VecSub(X, oMaxPerClass.Tile(1, lNumClasses))
+    Set oShifted = VecSub(X, X.Reduce(1, rtMax).Tile(1, lNumClasses))
     Set oExpShifted = VecExp(oShifted)
     Set oExpShiftedSum = oExpShifted.Reduce(1, rtSum)
     Set CalculateOutput = VecDiv(oExpShifted, oExpShiftedSum.Tile(1, lNumClasses))
 End Function
 
 Private Function CalculateInputGradient(ByVal Y As Tensor, _
-                                     ByVal dLdY As Tensor) As Tensor
+                                        ByVal dLdY As Tensor) As Tensor
     Dim lNumClasses As Long
     Dim oWeightedError As Tensor
     Dim oSumPerClass As Tensor
@@ -87,11 +90,6 @@ Private Function CalculateInputGradient(ByVal Y As Tensor, _
     Set oAdjustedError = VecSub(dLdY, oSumPerClass.Tile(1, lNumClasses))
     Set CalculateInputGradient = VecMul(Y, oAdjustedError)
 End Function
-
-Private Sub Clear()
-    Set m_X = Nothing
-    Set m_Y = Nothing
-End Sub
 
 Private Sub Save(ByVal oSerializer As Serializer)
     'Do nothing
@@ -114,7 +112,7 @@ End Sub
     Private Function ILayer_Backward(ByVal dLdY As Object) As Object
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
-    
+
     Private Sub ISerializable_Save(ByVal oSerializer As Object)
         Save oSerializer
     End Sub
@@ -135,7 +133,7 @@ End Sub
     Private Function ILayer_Backward(ByVal dLdY As Tensor) As Tensor
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
-    
+
     Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
         Save oSerializer
     End Sub

@@ -11,7 +11,7 @@ Option Explicit
 
 Implements ISerializable
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
+#Const USE_LATE_BINDING_IN_INTERFACES = False
 
 Private Const VARIANT_TYPE As Long = vbDouble
 Private Const ELEMENT_SIZE As Long = SIZEOF_DOUBLE
@@ -79,7 +79,7 @@ Public Function Clone() As Storage
     Set Clone = New Storage
     Clone.Resize m_lNumRows, m_lNumCols
     If m_lNumElements > 0 Then
-        CopyMemory ByVal Clone.Address, ByVal m_pAddress, m_lNumElements * ELEMENT_SIZE
+        CopyMemory ByVal Clone.Address, ByVal m_pAddress, CLngPtr(m_lNumElements) * ELEMENT_SIZE
     End If
 End Function
 
@@ -106,7 +106,7 @@ Public Sub FromArray(ByRef adblArray() As Double)
     If m_lNumElements > 0 Then
         CopyMemory pDescriptor, ByVal VarPtrArray(adblArray), SIZEOF_LONGPTR
         CopyMemory pData, ByVal pDescriptor + SA_OFFSET_pvData, SIZEOF_LONGPTR
-        CopyMemory ByVal m_pAddress, ByVal pData, m_lNumElements * ELEMENT_SIZE
+        CopyMemory ByVal m_pAddress, ByVal pData, CLngPtr(m_lNumElements) * ELEMENT_SIZE
     End If
 End Sub
 
@@ -239,3 +239,4 @@ End Sub
         Load oSerializer
     End Sub
 #End If
+

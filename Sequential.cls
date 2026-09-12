@@ -12,7 +12,7 @@ Option Explicit
 Implements ILayer
 Implements ISerializable
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
+#Const USE_LATE_BINDING_IN_INTERFACES = False
 
 'State
 Private m_oLayers As Collection
@@ -113,7 +113,7 @@ End Sub
     Private Function ILayer_Backward(ByVal dLdY As Object) As Object
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
-    
+
     Private Sub ISerializable_Save(ByVal oSerializer As Object)
         Save oSerializer
     End Sub
@@ -134,7 +134,7 @@ End Sub
     Private Function ILayer_Backward(ByVal dLdY As Tensor) As Tensor
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
-    
+
     Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
         Save oSerializer
     End Sub
@@ -143,4 +143,6 @@ End Sub
         Load oSerializer
     End Sub
 #End If
+
+
 

@@ -119,6 +119,10 @@ Public Function MaxDbl(ByVal A As Double, _
     End If
 End Function
 
+Public Function NormRand() As Double
+    NormRand = Sqr(-2 * Log(1 - Rnd())) * Cos(MATH_2PI * Rnd())
+End Function
+
 Private Function GetSafeArrayPtr(ByRef vArray As Variant, _
                                  ByRef pSafeArray As LongPtr) As Boolean
     Const VARIANT_OFFSET_parray As Long = 8
@@ -223,7 +227,7 @@ Public Function EnsureArray(ByVal vArray As Variant, _
     End If
 End Function
 
-Function EnsureIterable(ByVal vArray As Variant) As Variant
+Public Function EnsureIterable(ByVal vArray As Variant) As Variant
     Dim vIterator As Variant
     
     On Error GoTo ErrorHandler
@@ -235,7 +239,6 @@ Function EnsureIterable(ByVal vArray As Variant) As Variant
 ErrorHandler:
     EnsureIterable = EnsureArray(vArray)
 End Function
-
 
 Public Function Combine(ByVal vArrayA As Variant, _
                         ByVal vArrayB As Variant) As Variant
@@ -612,7 +615,6 @@ Public Function WorksheetExists(ByVal oWorkbook As Workbook, _
     End If
     On Error Resume Next
     WorksheetExists = Not oWorkbook.Worksheets(sName) Is Nothing
-    On Error GoTo 0
 End Function
 
 Public Function CreateWorksheet(ByVal oWorkbook As Workbook, _

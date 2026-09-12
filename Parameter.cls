@@ -11,7 +11,7 @@ Option Explicit
 
 Implements ISerializable
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
+#Const USE_LATE_BINDING_IN_INTERFACES = False
 
 'Hyperparameters
 Private m_dblLearningRateScale As Double
@@ -27,8 +27,38 @@ Public Property Get Tensor() As Tensor
     Set Tensor = m_oTensor
 End Property
 
+Public Property Set Tensor(ByVal oTensor As Tensor)
+    Const PROCEDURE_NAME As String = "Parameter.Tensor"
+    
+    If oTensor Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If m_oTensor Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Parameter has not been initialized."
+    End If
+    If Not oTensor.ShapeEquals(m_oTensor.Shape) Then
+        Err.Raise 5, PROCEDURE_NAME, "New tensor must have the same shape as the existing tensor."
+    End If
+    Set m_oTensor = oTensor
+End Property
+
 Public Property Get Gradient() As Tensor
     Set Gradient = m_oGradient
+End Property
+
+Public Property Set Gradient(ByVal oGradient As Tensor)
+    Const PROCEDURE_NAME As String = "Parameter.Gradient"
+    
+    If oGradient Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If m_oGradient Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Parameter has not been initialized."
+    End If
+    If Not oGradient.ShapeEquals(m_oGradient.Shape) Then
+        Err.Raise 5, PROCEDURE_NAME, "New gradient must have the same shape as the existing gradient."
+    End If
+    Set m_oGradient = oGradient
 End Property
 
 Public Property Get NumAccumulatedSamples() As Long
@@ -43,12 +73,24 @@ Public Property Get LearningRateScale() As Double
     LearningRateScale = m_dblLearningRateScale
 End Property
 
+Public Property Let LearningRateScale(ByVal dblLearningRateScale As Double)
+    m_dblLearningRateScale = dblLearningRateScale
+End Property
+
 Public Property Get WeightDecayScale() As Double
     WeightDecayScale = m_dblWeightDecayScale
 End Property
 
+Public Property Let WeightDecayScale(ByVal dblWeightDecayScale As Double)
+    m_dblWeightDecayScale = dblWeightDecayScale
+End Property
+
 Public Property Get UseGradientClipping() As Boolean
     UseGradientClipping = m_bUseGradientClipping
+End Property
+
+Public Property Let UseGradientClipping(ByVal bUseGradientClipping As Boolean)
+    m_bUseGradientClipping = bUseGradientClipping
 End Property
 
 Public Sub Init(ByVal oTensor As Tensor, _
@@ -133,3 +175,4 @@ End Sub
         Load oSerializer
     End Sub
 #End If
+

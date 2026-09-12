@@ -12,7 +12,7 @@ Option Explicit
 Implements ILayer
 Implements ISerializable
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
+#Const USE_LATE_BINDING_IN_INTERFACES = False
 
 'Dimensions
 Private m_lInputSize As Long
@@ -95,6 +95,15 @@ Public Function Backward(ByVal dLdY As Tensor) As Tensor
     Set Backward = CalculateInputGradient(dLdY)
 End Function
 
+Private Sub Clear()
+    m_lInputSize = 0
+    m_lOutputSize = 0
+    Set m_oWeights = Nothing
+    Set m_oBias = Nothing
+    Set m_X = Nothing
+    Set m_Y = Nothing
+End Sub
+
 'Y = W * X + b
 Private Function CalculateOutput(ByVal X As Tensor) As Tensor
     Dim lBatchSize As Long
@@ -123,15 +132,6 @@ Private Sub UpdateGradients(ByVal X As Tensor, _
     MatMul_I m_oBias.Gradient, dLdY, Ones(lBatchSize)
     m_oWeights.NumAccumulatedSamples = m_oWeights.NumAccumulatedSamples + lBatchSize
     m_oBias.NumAccumulatedSamples = m_oBias.NumAccumulatedSamples + lBatchSize
-End Sub
-
-Private Sub Clear()
-    m_lInputSize = 0
-    m_lOutputSize = 0
-    Set m_oWeights = Nothing
-    Set m_oBias = Nothing
-    Set m_X = Nothing
-    Set m_Y = Nothing
 End Sub
 
 Private Sub Save(ByVal oSerializer As Serializer)
@@ -176,7 +176,7 @@ End Sub
     Private Function ILayer_Backward(ByVal dLdY As Object) As Object
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
-    
+
     Private Sub ISerializable_Save(ByVal oSerializer As Object)
         Save oSerializer
     End Sub
@@ -197,7 +197,7 @@ End Sub
     Private Function ILayer_Backward(ByVal dLdY As Tensor) As Tensor
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
-    
+
     Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
         Save oSerializer
     End Sub

@@ -16,7 +16,8 @@ Private Const SERIALIZABLE_TYPE_NOTHING As String = "Nothing"
 Private m_oWorksheet As Worksheet
 
 'State
-Private m_oSerializedObjects As Collection
+Private m_lNumSerializedObjects As Long
+Private m_aoSerializedObjects() As ISerializable
 Private m_lCursor As Long
 Private m_lIndent As Long
 
@@ -127,14 +128,16 @@ Public Function ReadBooleanArray() As Boolean()
 End Function
 
 Private Sub Memoize(ByVal oObject As ISerializable)
-    m_oSerializedObjects.Add oObject
+    m_lNumSerializedObjects = m_lNumSerializedObjects + 1
+    ReDim Preserve m_aoSerializedObjects(1 To m_lNumSerializedObjects)
+    Set m_aoSerializedObjects(m_lNumSerializedObjects) = oObject
 End Sub
 
 Private Function IndexOf(ByVal oObject As ISerializable) As Long
     Dim i As Long
     
-    For i = 1 To m_oSerializedObjects.Count
-        If m_oSerializedObjects(i) Is oObject Then
+    For i = 1 To m_lNumSerializedObjects
+        If m_aoSerializedObjects(i) Is oObject Then
             IndexOf = i
             Exit Function
         End If
@@ -222,7 +225,7 @@ Private Function ReadMemo() As ISerializable
     m_lIndent = m_lIndent + 1
     lMemoIndex = ReadLong()
     m_lIndent = m_lIndent - 1
-    Set ReadMemo = m_oSerializedObjects(lMemoIndex)
+    Set ReadMemo = m_aoSerializedObjects(lMemoIndex)
 End Function
 
 Private Function ReadSerializable(ByVal sTypeName As String) As ISerializable
@@ -249,6 +252,8 @@ Private Function CreateInstance(ByVal sTypeName As String) As ISerializable
             Set CreateInstance = New DropoutLayer
         Case "FullyConnectedLayer"
             Set CreateInstance = New FullyConnectedLayer
+        Case "GeneticTrainer"
+            Set CreateInstance = New GeneticTrainer
         Case "InputNormalizationLayer"
             Set CreateInstance = New InputNormalizationLayer
         Case "L1Loss"
@@ -317,7 +322,8 @@ End Sub
 
 Private Sub Clear()
     Set m_oWorksheet = Nothing
-    Set m_oSerializedObjects = New Collection
+    m_lNumSerializedObjects = 0
+    Erase m_aoSerializedObjects()
     m_lCursor = 1
     m_lIndent = 1
 End Sub

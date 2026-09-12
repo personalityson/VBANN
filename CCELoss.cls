@@ -12,7 +12,7 @@ Option Explicit
 Implements ICriterion
 Implements ISerializable
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
+#Const USE_LATE_BINDING_IN_INTERFACES = False
 
 Private Const CCE_EPSILON As Double = 0.0000001
 
@@ -60,20 +60,20 @@ Private Function CalculateLoss(ByVal Y As Tensor, _
     Dim Y_() As Double
     Dim T_() As Double
     Dim L_() As Double
-    Dim L As Tensor
+    Dim l As Tensor
     
-    Set L = Zeros(Y.Shape)
-    Y.Flatten.CreateAlias Y_
-    T.Flatten.CreateAlias T_
-    L.Flatten.CreateAlias L_
+    Set l = Zeros(Y.Shape)
+    Y.CreateFlatAlias Y_
+    T.CreateFlatAlias T_
+    l.CreateFlatAlias L_
     For i = 1 To Y.NumElements
         dblY = MaxDbl(CCE_EPSILON, Y_(i))
         L_(i) = -T_(i) * Log(dblY)
     Next i
-    Y.Flatten.RemoveAlias Y_
-    T.Flatten.RemoveAlias T_
-    L.Flatten.RemoveAlias L_
-    Set CalculateLoss = L
+    Y.RemoveAlias Y_
+    T.RemoveAlias T_
+    l.RemoveAlias L_
+    Set CalculateLoss = l
 End Function
 
 'dLdY = -T / Y
@@ -87,16 +87,16 @@ Private Function CalculateGradient(ByVal Y As Tensor, _
     Dim dLdY As Tensor
     
     Set dLdY = Zeros(Y.Shape)
-    Y.Flatten.CreateAlias Y_
-    T.Flatten.CreateAlias T_
-    dLdY.Flatten.CreateAlias dLdY_
+    Y.CreateFlatAlias Y_
+    T.CreateFlatAlias T_
+    dLdY.CreateFlatAlias dLdY_
     For i = 1 To Y.NumElements
         dblY = MaxDbl(CCE_EPSILON, Y_(i))
         dLdY_(i) = -T_(i) / dblY
     Next i
-    Y.Flatten.RemoveAlias Y_
-    T.Flatten.RemoveAlias T_
-    dLdY.Flatten.RemoveAlias dLdY_
+    Y.RemoveAlias Y_
+    T.RemoveAlias T_
+    dLdY.RemoveAlias dLdY_
     Set CalculateGradient = dLdY
 End Function
 

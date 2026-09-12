@@ -11,11 +11,12 @@ Option Explicit
 
 Implements ISerializable
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
+#Const USE_LATE_BINDING_IN_INTERFACES = False
 
 Private Const MAX_DIMENSIONS As Long = 8
-Private Const WILDCARD As Long = -1
-Private Const ELLIPSIS As Long = -2
+Private Const FADF_STATIC As Integer = &H2
+Private Const FADF_FIXEDSIZE As Integer = &H10
+Private Const FADF_HAVEVARTYPE As Integer = &H80
 
 Private Type SAFEARRAYBOUND
     cElements As Long
@@ -41,6 +42,11 @@ Private Type SafeArrayDescriptorEx
     Descriptor As SAFEARRAY
 End Type
 
+Public Enum ShapePattern
+    spWildcard = -1
+    spEllipsis = -2
+End Enum
+
 Public Enum ReductionType
     rtSum
     rtProduct
@@ -58,10 +64,8 @@ Private m_lNumElements As Long
 
 'Storage
 Private m_uSafeArray As SafeArrayDescriptorEx
+Private m_uFlatSafeArray As SafeArrayDescriptorEx
 Private m_oData As Storage
-
-'View cache
-Private m_oFlatView As Tensor
 
 Public Property Get NumDimensions() As Long
     NumDimensions = m_lNumDimensions
@@ -99,15 +103,15 @@ Public Sub Resize(ByVal vShape As Variant, _
     Dim lNumElements As Long
 
     ParseVariantToLongArray vShape, lNumDimensions, alShape
+    If lNumDimensions > MAX_DIMENSIONS Then
+        Err.Raise 5, PROCEDURE_NAME, "Number of dimensions exceeds the maximum allowed (" & MAX_DIMENSIONS & ")."
+    End If
     For i = 1 To lNumDimensions
         If alShape(i) < 0 Then
             Err.Raise 5, PROCEDURE_NAME, "Dimension size must be >= 0."
         End If
     Next i
     CalculateStrides lNumDimensions, alShape, alInnerStrides, alOuterStrides, lNumElements
-    If lNumDimensions > MAX_DIMENSIONS Then
-        Err.Raise 5, PROCEDURE_NAME, "Number of dimensions exceeds the maximum allowed (" & MAX_DIMENSIONS & ")."
-    End If
     If Not oData Is Nothing Then
         If oData.NumElements <> lNumElements Then
             Err.Raise 5, PROCEDURE_NAME, "Number of elements in the data does not match the tensor's number of elements."
@@ -125,6 +129,7 @@ Public Sub Resize(ByVal vShape As Variant, _
         Set m_oData = oData
     End If
     AllocateDescriptor
+    AllocateFlatDescriptor
 End Sub
 
 Public Sub Reshape(ByVal vShape As Variant)
@@ -137,10 +142,7 @@ Public Function View(ByVal vShape As Variant) As Tensor
 End Function
 
 Public Function Flatten() As Tensor
-    If m_oFlatView Is Nothing Then
-        Set m_oFlatView = Me.View(m_lNumElements)
-    End If
-    Set Flatten = m_oFlatView
+    Set Flatten = Me.View(m_lNumElements)
 End Function
 
 Public Function Squeeze() As Tensor
@@ -149,7 +151,7 @@ Public Function Squeeze() As Tensor
     Dim alNewShape() As Long
 
     If m_lNumDimensions < 2 Then
-        Set Squeeze = Me
+        Set Squeeze = Me.View(m_lNumElements)
         Exit Function
     End If
     ReDim alNewShape(1 To m_lNumDimensions)
@@ -224,6 +226,9 @@ Public Function Tile(ByVal lDimension As Long, _
     If lDimension < 1 Or lDimension > m_lNumDimensions Then
         Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
     End If
+    If lNumRepeats < 0 Then
+        Err.Raise 5, PROCEDURE_NAME, "Number of repeats must be >= 0."
+    End If
     Set Tile = TileInternal(lDimension, lNumRepeats)
 End Function
 
@@ -289,7 +294,7 @@ Public Sub FromRange(ByVal oRange As Range, _
 End Sub
 
 Public Sub Fill(ByVal dblValue As Double)
-    TileMemory m_oData.Address, m_oData.NumElements * m_oData.ElementSize, VarPtr(dblValue), SIZEOF_DOUBLE
+    TileMemory m_oData.Address, CLngPtr(m_oData.NumElements) * m_oData.ElementSize, VarPtr(dblValue), SIZEOF_DOUBLE
 End Sub
 
 Public Sub Copy(ByVal oSource As Tensor)
@@ -298,10 +303,10 @@ Public Sub Copy(ByVal oSource As Tensor)
     If oSource Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If Not oSource.ShapeEquals(m_alShape) Then
-        Err.Raise 5, PROCEDURE_NAME, "Source tensor shape does not match the target tensor shape."
+    If oSource.NumElements <> m_lNumElements Then
+        Err.Raise 5, PROCEDURE_NAME, "Source tensor must have the same number of elements as the target tensor."
     End If
-    CopyMemory m_oData.Address, oSource.Address, m_lNumElements * m_oData.ElementSize
+    CopyMemory ByVal m_oData.Address, ByVal oSource.Address, CLngPtr(m_lNumElements) * m_oData.ElementSize
 End Sub
 
 Public Function Clone() As Tensor
@@ -319,7 +324,7 @@ Public Function ShapeEquals(ByVal vShape As Variant) As Boolean
 
     ParseVariantToLongArray vShape, lOtherNumDimensions, alOtherShape
     For i = 1 To lOtherNumDimensions
-        If alOtherShape(i) = ELLIPSIS Then
+        If alOtherShape(i) = spEllipsis Then
             If lEllipsisIndex > 0 Then
                 Err.Raise 5, "Tensor.ShapeEquals", "Shape can contain at most one ellipsis."
             End If
@@ -331,7 +336,7 @@ Public Function ShapeEquals(ByVal vShape As Variant) As Boolean
             Exit Function
         End If
         For i = 1 To lOtherNumDimensions
-            If alOtherShape(i) <> WILDCARD And alOtherShape(i) <> m_alShape(i) Then
+            If alOtherShape(i) <> spWildcard And alOtherShape(i) <> m_alShape(i) Then
                 Exit Function
             End If
         Next i
@@ -342,12 +347,12 @@ Public Function ShapeEquals(ByVal vShape As Variant) As Boolean
             Exit Function
         End If
         For i = 1 To lPrefix
-            If alOtherShape(i) <> WILDCARD And alOtherShape(i) <> m_alShape(i) Then
+            If alOtherShape(i) <> spWildcard And alOtherShape(i) <> m_alShape(i) Then
                 Exit Function
             End If
         Next i
         For i = 1 To lSuffix
-            If alOtherShape(lEllipsisIndex + i) <> WILDCARD And alOtherShape(lEllipsisIndex + i) <> m_alShape(m_lNumDimensions - lSuffix + i) Then
+            If alOtherShape(lEllipsisIndex + i) <> spWildcard And alOtherShape(lEllipsisIndex + i) <> m_alShape(m_lNumDimensions - lSuffix + i) Then
                 Exit Function
             End If
         Next i
@@ -357,6 +362,10 @@ End Function
 
 Public Sub CreateAlias(ByRef adblAlias() As Double)
     CopyMemory ByVal VarPtrArray(adblAlias), VarPtr(m_uSafeArray.Descriptor), SIZEOF_LONGPTR
+End Sub
+
+Public Sub CreateFlatAlias(ByRef adblAlias() As Double)
+    CopyMemory ByVal VarPtrArray(adblAlias), VarPtr(m_uFlatSafeArray.Descriptor), SIZEOF_LONGPTR
 End Sub
 
 Public Sub RemoveAlias(ByRef adblAlias() As Double)
@@ -369,15 +378,15 @@ End Sub
 
 Private Sub Clear()
     Dim uEmpty As SafeArrayDescriptorEx
-
+    
     m_lNumDimensions = 0
     Erase m_alShape
     Erase m_alInnerStrides
     Erase m_alOuterStrides
     m_lNumElements = 0
     m_uSafeArray = uEmpty
+    m_uFlatSafeArray = uEmpty
     Set m_oData = Nothing
-    Set m_oFlatView = Nothing
 End Sub
 
 Private Sub CalculateStrides(ByVal lNumDimensions As Long, _
@@ -421,9 +430,6 @@ Private Sub AllocateData()
 End Sub
 
 Private Sub AllocateDescriptor()
-    Const FADF_STATIC As Integer = &H2
-    Const FADF_FIXEDSIZE As Integer = &H10
-    Const FADF_HAVEVARTYPE As Integer = &H80
     Dim i As Long
 
     With m_uSafeArray
@@ -436,6 +442,18 @@ Private Sub AllocateDescriptor()
             .Descriptor.rgsabound(i).cElements = m_alShape(m_lNumDimensions - i + 1)
             .Descriptor.rgsabound(i).lLBound = 1
         Next i
+    End With
+End Sub
+
+Private Sub AllocateFlatDescriptor()
+    With m_uFlatSafeArray
+        .Header.VarType = m_oData.VarType
+        .Descriptor.cDims = 1
+        .Descriptor.fFeatures = FADF_STATIC Or FADF_FIXEDSIZE Or FADF_HAVEVARTYPE
+        .Descriptor.cbElements = m_oData.ElementSize
+        .Descriptor.pvData = m_oData.Address
+        .Descriptor.rgsabound(1).cElements = m_lNumElements
+        .Descriptor.rgsabound(1).lLBound = 1
     End With
 End Sub
 
@@ -489,7 +507,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
     Dim A_() As Double
     Dim R_() As Double
     Dim A As Tensor
-    Dim R As Tensor
+    Dim r As Tensor
     Dim oResult As Tensor
 
     lOldSize = m_alShape(lDimension)
@@ -501,63 +519,63 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
     lInnerStride = m_alInnerStrides(lDimension)
     lOuterStride = m_alOuterStrides(lDimension)
     Set A = Me.View(Array(lInnerStride, lOldSize, lOuterStride))
-    Set R = oResult.View(Array(lInnerStride, lNewSize, lOuterStride))
+    Set r = oResult.View(Array(lInnerStride, lNewSize, lOuterStride))
     A.CreateAlias A_
-    R.CreateAlias R_
+    r.CreateAlias R_
     Select Case eReduction
         Case rtSum
-            For i = 1 To lInnerStride
-                For k = 1 To lOuterStride
+            For k = 1 To lOuterStride
+                For i = 1 To lInnerStride
                     dblAcc = 0
                     For j = 1 To lOldSize
                         dblAcc = dblAcc + A_(i, j, k)
                     Next j
                     R_(i, 1, k) = dblAcc
-                Next k
-            Next i
+                Next i
+            Next k
         Case rtProduct
-            For i = 1 To lInnerStride
-                For k = 1 To lOuterStride
+            For k = 1 To lOuterStride
+                For i = 1 To lInnerStride
                     dblAcc = 1
                     For j = 1 To lOldSize
                         dblAcc = dblAcc * A_(i, j, k)
                     Next j
                     R_(i, 1, k) = dblAcc
-                Next k
-            Next i
+                Next i
+            Next k
         Case rtMin
-            For i = 1 To lInnerStride
-                For k = 1 To lOuterStride
+            For k = 1 To lOuterStride
+                For i = 1 To lInnerStride
                     dblAcc = A_(i, 1, k)
-                    For j = 2 To lOldSize
+                    For j = 1 To lOldSize
                         dblAcc = MinDbl(dblAcc, A_(i, j, k))
                     Next j
                     R_(i, 1, k) = dblAcc
-                Next k
-            Next i
+                Next i
+            Next k
         Case rtMax
-            For i = 1 To lInnerStride
-                For k = 1 To lOuterStride
+            For k = 1 To lOuterStride
+                For i = 1 To lInnerStride
                     dblAcc = A_(i, 1, k)
-                    For j = 2 To lOldSize
+                    For j = 1 To lOldSize
                         dblAcc = MaxDbl(dblAcc, A_(i, j, k))
                     Next j
                     R_(i, 1, k) = dblAcc
-                Next k
-            Next i
+                Next i
+            Next k
         Case rtMean
-            For i = 1 To lInnerStride
-                For k = 1 To lOuterStride
+            For k = 1 To lOuterStride
+                For i = 1 To lInnerStride
                     dblAcc = 0
                     For j = 1 To lOldSize
                         dblAcc = dblAcc + A_(i, j, k)
                     Next j
                     R_(i, 1, k) = dblAcc / lOldSize
-                Next k
-            Next i
+                Next i
+            Next k
     End Select
     A.RemoveAlias A_
-    R.RemoveAlias R_
+    r.RemoveAlias R_
     Set ReduceInternal = oResult
 End Function
 
@@ -693,4 +711,3 @@ End Sub
         Load oSerializer
     End Sub
 #End If
-

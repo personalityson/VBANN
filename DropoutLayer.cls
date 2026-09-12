@@ -12,7 +12,7 @@ Option Explicit
 Implements ILayer
 Implements ISerializable
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
+#Const USE_LATE_BINDING_IN_INTERFACES = False
 
 'Hyperparameters
 Private m_dblDropoutRate As Double
@@ -70,11 +70,6 @@ Public Function Backward(ByVal dLdY As Tensor) As Tensor
     Set Backward = ApplyDropoutMask(dLdY, m_oMask)
 End Function
 
-Private Function ApplyDropoutMask(ByVal X As Tensor, _
-                                  ByVal oMask As Tensor) As Tensor
-    Set ApplyDropoutMask = VecMulC(VecMul(X, oMask), 1 / (1 - m_dblDropoutRate))
-End Function
-
 Private Sub Clear()
     m_dblDropoutRate = 0
     Set m_oMask = Nothing
@@ -105,6 +100,11 @@ Private Sub Load(ByVal oSerializer As Serializer)
     End With
 End Sub
 
+Private Function ApplyDropoutMask(ByVal X As Tensor, _
+                                  ByVal oMask As Tensor) As Tensor
+    Set ApplyDropoutMask = VecMulC(VecMul(X, oMask), 1 / (1 - m_dblDropoutRate))
+End Function
+
 #If USE_LATE_BINDING_IN_INTERFACES Then
     Private Property Get ILayer_Learnables() As Variant
         ILayer_Learnables = Me.Learnables
@@ -118,7 +118,7 @@ End Sub
     Private Function ILayer_Backward(ByVal dLdY As Object) As Object
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
-    
+
     Private Sub ISerializable_Save(ByVal oSerializer As Object)
         Save oSerializer
     End Sub
@@ -139,7 +139,7 @@ End Sub
     Private Function ILayer_Backward(ByVal dLdY As Tensor) As Tensor
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
-    
+
     Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
         Save oSerializer
     End Sub

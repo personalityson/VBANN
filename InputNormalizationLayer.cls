@@ -12,8 +12,9 @@ Option Explicit
 Implements ILayer
 Implements ISerializable
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
+#Const USE_LATE_BINDING_IN_INTERFACES = False
 
+Private Const ADAPT_BATCH_SIZE = 1024
 Private Const NORMALIZATION_EPSILON As Double = 0.00001
 
 'Dimensions
@@ -31,14 +32,17 @@ Public Property Get Learnables() As Variant
     Learnables = Array()
 End Property
 
-Public Sub Init(ByVal oTrainingLoader As DataLoader)
+Public Sub Init(ByVal oTrainingSet As IDataset)
     Const PROCEDURE_NAME As String = "InputNormalizationLayer.Init"
 
-    If oTrainingLoader Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid DataLoader object is required."
+    If oTrainingSet Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid IDataset object is required."
+    End If
+    If oTrainingSet.NumSamples < 1 Then
+        Err.Raise 5, PROCEDURE_NAME, "Training dataset must contain at least one sample."
     End If
     Clear
-    Adapt oTrainingLoader
+    Adapt DataLoader(oTrainingSet, MinLng(ADAPT_BATCH_SIZE, oTrainingSet.NumSamples))
 End Sub
 
 Public Function Forward(ByVal X As Tensor, _
@@ -67,6 +71,14 @@ Public Function Backward(ByVal dLdY As Tensor) As Tensor
     End If
     Set Backward = CalculateInputGradient(dLdY)
 End Function
+
+Private Sub Clear()
+    Erase m_alInputShape
+    Set m_oMean = Nothing
+    Set m_oVariance = Nothing
+    Set m_X = Nothing
+    Set m_Y = Nothing
+End Sub
 
 'Y = (X - m) / Sqrt(v + Epsilon)
 Private Function CalculateOutput(ByVal X As Tensor) As Tensor
@@ -116,7 +128,7 @@ Private Sub Adapt(ByVal oTrainingLoader As DataLoader)
             Set oBatchM2 = VecPow2(VecSub(X, oBatchMean.Tile(lBatchDimension, lBatchSize))).Reduce(lBatchDimension, rtSum)
             If lNumSamples = 0 Then
                 m_alInputShape = X.Shape
-                m_alInputShape(lBatchDimension) = -1
+                m_alInputShape(lBatchDimension) = spWildcard
                 Set oMean = oBatchMean
                 Set oM2 = oBatchM2
                 lNumSamples = lBatchSize
@@ -137,14 +149,6 @@ Private Sub Adapt(ByVal oTrainingLoader As DataLoader)
         Set m_oMean = oMean
         Set m_oVariance = VecDivC(oM2, lNumSamples)
     End If
-End Sub
-
-Private Sub Clear()
-    Erase m_alInputShape
-    Set m_oMean = Nothing
-    Set m_oVariance = Nothing
-    Set m_X = Nothing
-    Set m_Y = Nothing
 End Sub
 
 Private Sub Save(ByVal oSerializer As Serializer)
@@ -187,7 +191,7 @@ End Sub
     Private Function ILayer_Backward(ByVal dLdY As Object) As Object
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
-    
+
     Private Sub ISerializable_Save(ByVal oSerializer As Object)
         Save oSerializer
     End Sub
@@ -208,7 +212,7 @@ End Sub
     Private Function ILayer_Backward(ByVal dLdY As Tensor) As Tensor
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
-    
+
     Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
         Save oSerializer
     End Sub

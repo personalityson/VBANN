@@ -12,7 +12,7 @@ Option Explicit
 Implements IOptimizer
 Implements ISerializable
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
+#Const USE_LATE_BINDING_IN_INTERFACES = False
 
 Private Const KEY_VELOCITY As String = "Velocity"
 
@@ -45,7 +45,7 @@ Public Sub Init(Optional ByVal dblLearningRate As Double = 0.01, _
     Const PROCEDURE_NAME As String = "SGDW.Init"
     
     If dblLearningRate <= 0 Then
-        Err.Raise 5, PROCEDURE_NAME, "Learning rate must be > 0."
+        Err.Raise 5, PROCEDURE_NAME, "LearningRate must be > 0."
     End If
     If dblMomentum < 0 Or dblMomentum >= 1 Then
         Err.Raise 5, PROCEDURE_NAME, "Momentum must be >= 0 and < 1."
@@ -81,56 +81,6 @@ Public Sub Update(ByVal vParameters As Variant)
     Next W
 End Sub
 
-'SGD with dampened momentum and decoupled weight decay
-'v = momentum * v + (1 - momentum) * (dW / NumAccumulatedSamples)
-'W = (1 - lr * wd) * W - lr * v
-Private Sub ApplyGradients(ByVal W As Parameter)
-    Dim dblLearningRate As Double
-    Dim dblWeightDecay As Double
-    Dim dblGradientScale As Double
-    Dim v As Tensor
-    
-    If W.NumAccumulatedSamples < 1 Then
-        Exit Sub
-    End If
-    GetStates W, v
-    dblLearningRate = W.LearningRateScale * m_dblLearningRate
-    dblWeightDecay = W.WeightDecayScale * m_dblWeightDecay
-    If W.UseGradientClipping And m_dblGradientThreshold < DOUBLE_MAX_ABS Then
-        dblGradientScale = m_dblGradientThreshold / MaxDbl(m_dblGradientThreshold, VecNorm2(W.Gradient) / W.NumAccumulatedSamples)
-    Else
-        dblGradientScale = 1
-    End If
-    VecLinComb_I m_dblMomentum, v, (1 - m_dblMomentum) * dblGradientScale / W.NumAccumulatedSamples, W.Gradient
-    VecLinComb_I 1 - dblLearningRate * dblWeightDecay, W.Tensor, -dblLearningRate, v
-    W.ResetGradient
-    'PutStates W, v
-End Sub
-
-Private Sub GetStates(ByVal W As Parameter, _
-                      ByRef v As Tensor)
-    With m_oStates
-        If Not .Exists(W) Then
-            PutStates W, Zeros(W.Tensor.Shape)
-        End If
-        With .Item(W)
-            Set v = .Item(KEY_VELOCITY)
-        End With
-    End With
-End Sub
-
-Private Sub PutStates(ByVal W As Parameter, _
-                      ByVal v As Tensor)
-    With m_oStates
-        If Not .Exists(W) Then
-            Set .Item(W) = CreateObject("Scripting.Dictionary")
-        End If
-        With .Item(W)
-            Set .Item(KEY_VELOCITY) = v
-        End With
-    End With
-End Sub
-
 Private Sub Clear()
     m_dblLearningRate = 0
     m_dblMomentum = 0
@@ -139,10 +89,60 @@ Private Sub Clear()
     Set m_oStates = CreateObject("Scripting.Dictionary")
 End Sub
 
+Private Sub GetStates(ByVal W As Parameter, _
+                      ByRef V As Tensor)
+    With m_oStates
+        If Not .Exists(W) Then
+            PutStates W, Zeros(W.Tensor.Shape)
+        End If
+        With .Item(W)
+            Set V = .Item(KEY_VELOCITY)
+        End With
+    End With
+End Sub
+
+Private Sub PutStates(ByVal W As Parameter, _
+                      ByVal V As Tensor)
+    With m_oStates
+        If Not .Exists(W) Then
+            Set .Item(W) = CreateObject("Scripting.Dictionary")
+        End If
+        With .Item(W)
+            Set .Item(KEY_VELOCITY) = V
+        End With
+    End With
+End Sub
+
+'SGD with dampened momentum and decoupled weight decay
+'v = momentum * v + (1 - momentum) * (dW / NumAccumulatedSamples)
+'W = (1 - lr * wd) * W - lr * v
+Private Sub ApplyGradients(ByVal W As Parameter)
+    Dim dblLearningRate As Double
+    Dim dblWeightDecay As Double
+    Dim dblGradientScale As Double
+    Dim V As Tensor
+    
+    If W.NumAccumulatedSamples < 1 Then
+        Exit Sub
+    End If
+    GetStates W, V
+    dblLearningRate = W.LearningRateScale * m_dblLearningRate
+    dblWeightDecay = W.WeightDecayScale * m_dblWeightDecay
+    If W.UseGradientClipping And m_dblGradientThreshold < DOUBLE_MAX_ABS Then
+        dblGradientScale = m_dblGradientThreshold / MaxDbl(m_dblGradientThreshold, VecNorm2(W.Gradient) / W.NumAccumulatedSamples)
+    Else
+        dblGradientScale = 1
+    End If
+    VecLinComb_I m_dblMomentum, V, (1 - m_dblMomentum) * dblGradientScale / W.NumAccumulatedSamples, W.Gradient
+    VecLinComb_I 1 - dblLearningRate * dblWeightDecay, W.Tensor, -dblLearningRate, V
+    W.ResetGradient
+    'PutStates W, v
+End Sub
+
 Private Sub Save(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "SGDW.Save"
     Dim W As Variant
-    Dim v As Tensor
+    Dim V As Tensor
     
     If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
@@ -154,9 +154,9 @@ Private Sub Save(ByVal oSerializer As Serializer)
         .WriteDouble m_dblGradientThreshold
         .WriteLong m_oStates.Count
         For Each W In m_oStates.Keys
-            GetStates W, v
+            GetStates W, V
             .WriteObject W
-            .WriteObject v
+            .WriteObject V
         Next W
     End With
 End Sub
@@ -166,7 +166,7 @@ Private Sub Load(ByVal oSerializer As Serializer)
     Dim lNumStates As Long
     Dim i As Long
     Dim W As Parameter
-    Dim v As Tensor
+    Dim V As Tensor
     
     If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
@@ -180,8 +180,8 @@ Private Sub Load(ByVal oSerializer As Serializer)
         lNumStates = .ReadLong()
         For i = 1 To lNumStates
             Set W = .ReadObject()
-            Set v = .ReadObject()
-            PutStates W, v
+            Set V = .ReadObject()
+            PutStates W, V
         Next i
     End With
 End Sub

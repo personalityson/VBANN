@@ -12,7 +12,7 @@ Option Explicit
 Implements ICriterion
 Implements ISerializable
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
+#Const USE_LATE_BINDING_IN_INTERFACES = False
 
 Public Sub Init()
     'Do nothing

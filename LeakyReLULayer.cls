@@ -12,7 +12,7 @@ Option Explicit
 Implements ILayer
 Implements ISerializable
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
+#Const USE_LATE_BINDING_IN_INTERFACES = False
 
 'Hyperparameters
 Private m_dblNegativeSlope As Double
@@ -57,6 +57,12 @@ Public Function Backward(ByVal dLdY As Tensor) As Tensor
     Set Backward = CalculateInputGradient(m_X, dLdY)
 End Function
 
+Private Sub Clear()
+    m_dblNegativeSlope = 0
+    Set m_X = Nothing
+    Set m_Y = Nothing
+End Sub
+
 Private Function CalculateOutput(ByVal X As Tensor) As Tensor
     Set CalculateOutput = VecLeakyReLU(X, m_dblNegativeSlope)
 End Function
@@ -65,12 +71,6 @@ Private Function CalculateInputGradient(ByVal X As Tensor, _
                                      ByVal dLdY As Tensor) As Tensor
     Set CalculateInputGradient = VecMul(dLdY, VecLeakyReLUDerivative(X, m_dblNegativeSlope))
 End Function
-
-Private Sub Clear()
-    m_dblNegativeSlope = 0
-    Set m_X = Nothing
-    Set m_Y = Nothing
-End Sub
 
 Private Sub Save(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "LeakyReLULayer.Save"
@@ -108,7 +108,7 @@ End Sub
     Private Function ILayer_Backward(ByVal dLdY As Object) As Object
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
-    
+
     Private Sub ISerializable_Save(ByVal oSerializer As Object)
         Save oSerializer
     End Sub
@@ -129,7 +129,7 @@ End Sub
     Private Function ILayer_Backward(ByVal dLdY As Tensor) As Tensor
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
-    
+
     Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
         Save oSerializer
     End Sub

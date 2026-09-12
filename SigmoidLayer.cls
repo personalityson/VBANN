@@ -12,7 +12,7 @@ Option Explicit
 Implements ILayer
 Implements ISerializable
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
+#Const USE_LATE_BINDING_IN_INTERFACES = False
 
 'Forward/backward cache
 Private m_X As Tensor
@@ -53,6 +53,11 @@ Public Function Backward(ByVal dLdY As Tensor) As Tensor
     Set Backward = CalculateInputGradient(m_Y, dLdY)
 End Function
 
+Private Sub Clear()
+    Set m_X = Nothing
+    Set m_Y = Nothing
+End Sub
+
 Private Function CalculateOutput(ByVal X As Tensor) As Tensor
     Set CalculateOutput = VecSigmoid(X)
 End Function
@@ -61,11 +66,6 @@ Private Function CalculateInputGradient(ByVal Y As Tensor, _
                                      ByVal dLdY As Tensor) As Tensor
     Set CalculateInputGradient = VecMul(dLdY, VecSigmoidDerivative(Y))
 End Function
-
-Private Sub Clear()
-    Set m_X = Nothing
-    Set m_Y = Nothing
-End Sub
 
 Private Sub Save(ByVal oSerializer As Serializer)
     'Do nothing
@@ -88,7 +88,7 @@ End Sub
     Private Function ILayer_Backward(ByVal dLdY As Object) As Object
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
-    
+
     Private Sub ISerializable_Save(ByVal oSerializer As Object)
         Save oSerializer
     End Sub
@@ -109,7 +109,7 @@ End Sub
     Private Function ILayer_Backward(ByVal dLdY As Tensor) As Tensor
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
-    
+
     Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
         Save oSerializer
     End Sub

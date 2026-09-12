@@ -46,9 +46,21 @@ Public Function FullyConnectedLayer(ByVal lInputSize As Long, _
     FullyConnectedLayer.Init lInputSize, lOutputSize
 End Function
 
-Public Function InputNormalizationLayer(ByVal oTrainingLoader As DataLoader) As InputNormalizationLayer
+Public Function GeneticTrainer(ByVal oModel As ILayer, _
+                               ByVal oLossFunction As ICriterion, _
+                               Optional ByVal lPopulationSize As Long = 50, _
+                               Optional ByVal lNumElites As Long = 2, _
+                               Optional ByVal lTournamentSize As Long = 3, _
+                               Optional ByVal dblCrossoverRate As Double = 0.9, _
+                               Optional ByVal dblMutationRate As Double = 0.1, _
+                               Optional ByVal dblMutationSigma As Double = 0.1) As GeneticTrainer
+    Set GeneticTrainer = New GeneticTrainer
+    GeneticTrainer.Init oModel, oLossFunction, lPopulationSize, lNumElites, lTournamentSize, dblCrossoverRate, dblMutationRate, dblMutationSigma
+End Function
+
+Public Function InputNormalizationLayer(ByVal oTrainingSet As IDataset) As InputNormalizationLayer
     Set InputNormalizationLayer = New InputNormalizationLayer
-    InputNormalizationLayer.Init oTrainingLoader
+    InputNormalizationLayer.Init oTrainingSet
 End Function
 
 Public Function L1Loss() As L1Loss
@@ -122,6 +134,11 @@ Public Sub Serialize(ByVal sName As String, _
 End Sub
 
 Public Function Deserialize(ByVal sName As String) As ISerializable
+    Const PROCEDURE_NAME As String = "MLFactory.Deserialize"
+    
+    If Not WorksheetExists(ThisWorkbook, sName) Then
+        Err.Raise 9, PROCEDURE_NAME, "Specified worksheet does not exist."
+    End If
     With New Serializer
         .Init sName, False
         Set Deserialize = .ReadObject()
@@ -161,7 +178,10 @@ Public Function ImportDatasetFromWorksheet(ByVal oWorkbook As Workbook, _
     Set oSource = oWorkbook.Sheets(sName)
     lFirstRow = GetFirstRow(oSource) + IIf(bHasHeaders, 1, 0)
     lFirstCol = GetFirstColumn(oSource)
-    lNumSamples = GetLastRow(oSource) - lFirstRow + 1
+    
+    'lNumSamples = GetLastRow(oSource) - lFirstRow + 1
+    lNumSamples = GetLastRow(oSource, 1) - lFirstRow + 1
+    
     ReDim aoTensors(1 To lNumSegments)
     Set oResult = New TensorDataset
     For i = 1 To lNumSegments

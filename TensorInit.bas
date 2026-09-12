@@ -47,11 +47,11 @@ Public Function Uniform(ByVal vShape As Variant, _
     Set Uniform = New Tensor
     With Uniform
         .Resize vShape
-        .Flatten.CreateAlias A_
+        .CreateFlatAlias A_
         For i = 1 To .NumElements
             A_(i) = dblLow + (dblHigh - dblLow) * Rnd()
         Next i
-        .Flatten.RemoveAlias A_
+        .RemoveAlias A_
     End With
 End Function
 
@@ -64,11 +64,11 @@ Public Function Normal(ByVal vShape As Variant, _
     Set Normal = New Tensor
     With Normal
         .Resize vShape
-        .Flatten.CreateAlias A_
+        .CreateFlatAlias A_
         For i = 1 To .NumElements
             A_(i) = dblMu + dblSigma * NormRand()
         Next i
-        .Flatten.RemoveAlias A_
+        .RemoveAlias A_
     End With
 End Function
 
@@ -80,11 +80,11 @@ Public Function Bernoulli(ByVal vShape As Variant, _
     Set Bernoulli = New Tensor
     With Bernoulli
         .Resize vShape
-        .Flatten.CreateAlias A_
+        .CreateFlatAlias A_
         For i = 1 To .NumElements
             A_(i) = -(Rnd() < dblProbability)
         Next i
-        .Flatten.RemoveAlias A_
+        .RemoveAlias A_
     End With
 End Function
 
@@ -135,8 +135,4 @@ End Function
 Public Function TensorFromArray(ByRef adblArray() As Double) As Tensor
     Set TensorFromArray = New Tensor
     TensorFromArray.FromArray adblArray
-End Function
-
-Private Function NormRand() As Double
-    NormRand = Sqr(-2 * Log(1 - Rnd())) * Cos(MATH_2PI * Rnd())
 End Function

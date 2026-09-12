@@ -11,7 +11,7 @@ Option Explicit
 
 Implements ISerializable
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
+#Const USE_LATE_BINDING_IN_INTERFACES = False
 
 'Dependencies
 Private m_oModel As ILayer
@@ -44,6 +44,7 @@ Public Sub Init(ByVal oModel As ILayer, _
     If oOptimizer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid IOptimizer object is required."
     End If
+    Clear
     Set m_oModel = oModel
     Set m_oLossFunction = oLossFunction
     Set m_oOptimizer = oOptimizer
@@ -52,7 +53,7 @@ End Sub
 Public Sub Fit(ByVal oTrainingLoader As DataLoader, _
                ByVal oTestLoader As DataLoader, _
                ByVal lNumEpochs As Long)
-    Const PROCEDURE_NAME As String = "BackpropTrainer.Train"
+    Const PROCEDURE_NAME As String = "BackpropTrainer.Fit"
     Dim i As Long
     Dim dblTrainingLoss As Double
     Dim dblTestLoss As Double
@@ -62,6 +63,12 @@ Public Sub Fit(ByVal oTrainingLoader As DataLoader, _
     End If
     If oTestLoader Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid DataLoader object is required."
+    End If
+    If oTrainingLoader.NumBatches < 1 Then
+        Err.Raise 5, PROCEDURE_NAME, "Training dataloader must contain at least one batch."
+    End If
+    If oTestLoader.NumBatches < 1 Then
+        Err.Raise 5, PROCEDURE_NAME, "Test dataloader must contain at least one batch."
     End If
     If lNumEpochs < 1 Then
         Err.Raise 5, PROCEDURE_NAME, "Number of epochs must be >= 1."
@@ -92,6 +99,9 @@ Public Function Evaluate(ByVal oDataLoader As DataLoader) As Double
     If oDataLoader Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid DataLoader object is required."
     End If
+    If oDataLoader.NumBatches < 1 Then
+        Err.Raise 5, PROCEDURE_NAME, "Dataloader must contain at least one batch."
+    End If
     With oDataLoader
         .Reset
         Do While .NextBatch(oBatch)
@@ -106,10 +116,25 @@ Public Function Evaluate(ByVal oDataLoader As DataLoader) As Double
             End If
         Loop
     End With
-    If lNumSamples > 0 Then
-        Evaluate = dblLoss / lNumSamples
-    End If
+    Evaluate = dblLoss / lNumSamples
 End Function
+
+Private Sub Clear()
+    Set m_oModel = Nothing
+    Set m_oLossFunction = Nothing
+    Set m_oOptimizer = Nothing
+End Sub
+
+Private Sub Backpropagate(ByVal X As Tensor, _
+                          ByVal T As Tensor)
+    Dim Y As Tensor
+    Dim dLdY As Tensor
+
+    Set Y = m_oModel.Forward(X, True)
+    Set dLdY = m_oLossFunction.Backward(Y, T)
+    m_oModel.Backward dLdY
+    m_oOptimizer.Update m_oModel.Learnables
+End Sub
 
 Private Sub FitOne(ByVal oTrainingLoader As DataLoader)
     Dim lNumSamples As Long
@@ -132,17 +157,6 @@ Private Sub FitOne(ByVal oTrainingLoader As DataLoader)
     End With
 End Sub
 
-Private Sub Backpropagate(ByVal X As Tensor, _
-                          ByVal T As Tensor)
-    Dim Y As Tensor
-    Dim dLdY As Tensor
-
-    Set Y = m_oModel.Forward(X, True)
-    Set dLdY = m_oLossFunction.Backward(Y, T)
-    m_oModel.Backward dLdY
-    m_oOptimizer.Update m_oModel.Learnables
-End Sub
-
 Private Sub Save(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "BackpropTrainer.Save"
 
@@ -162,6 +176,7 @@ Private Sub Load(ByVal oSerializer As Serializer)
     If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
     End If
+    Clear
     With oSerializer
         Set m_oModel = .ReadObject()
         Set m_oLossFunction = .ReadObject()
@@ -186,4 +201,3 @@ End Sub
         Load oSerializer
     End Sub
 #End If
-

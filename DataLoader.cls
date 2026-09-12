@@ -28,6 +28,14 @@ Public Property Get BatchSize() As Long
     BatchSize = m_lBatchSize
 End Property
 
+Public Property Get NumBatches() As Long
+    If m_bDropRemainder Then
+        NumBatches = m_oDataset.NumSamples \ m_lBatchSize
+    Else
+        NumBatches = (m_oDataset.NumSamples + m_lBatchSize - 1) \ m_lBatchSize
+    End If
+End Property
+
 Public Sub Init(ByVal oDataset As IDataset, _
                 ByVal lBatchSize As Long, _
                 Optional ByVal bDropRemainder As Boolean)

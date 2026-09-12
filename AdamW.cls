@@ -12,7 +12,7 @@ Option Explicit
 Implements IOptimizer
 Implements ISerializable
 
-#Const USE_LATE_BINDING_IN_INTERFACES = True
+#Const USE_LATE_BINDING_IN_INTERFACES = False
 
 Private Const KEY_STEP As String = "Step"
 Private Const KEY_1ST_MOMENT As String = "Mean"
@@ -95,6 +95,48 @@ Public Sub Update(ByVal vParameters As Variant)
     Next W
 End Sub
 
+Private Sub Clear()
+    m_dblLearningRate = 0
+    m_dblBeta1 = 0
+    m_dblBeta2 = 0
+    m_dblEpsilon = 0
+    m_dblWeightDecay = 0
+    m_dblGradientThreshold = 0
+    Set m_oStates = CreateObject("Scripting.Dictionary")
+End Sub
+
+Private Sub GetStates(ByVal W As Parameter, _
+                      ByRef lStep As Long, _
+                      ByRef m As Tensor, _
+                      ByRef V As Tensor)
+    With m_oStates
+        If Not .Exists(W) Then
+            PutStates W, 0&, Zeros(W.Tensor.Shape), Zeros(W.Tensor.Shape)
+        End If
+        With .Item(W)
+            lStep = .Item(KEY_STEP)
+            Set m = .Item(KEY_1ST_MOMENT)
+            Set V = .Item(KEY_2ND_MOMENT)
+        End With
+    End With
+End Sub
+
+Private Sub PutStates(ByVal W As Parameter, _
+                      ByVal lStep As Long, _
+                      ByVal m As Tensor, _
+                      ByVal V As Tensor)
+    With m_oStates
+        If Not .Exists(W) Then
+            Set .Item(W) = CreateObject("Scripting.Dictionary")
+        End If
+        With .Item(W)
+            .Item(KEY_STEP) = lStep
+            Set .Item(KEY_1ST_MOMENT) = m
+            Set .Item(KEY_2ND_MOMENT) = V
+        End With
+    End With
+End Sub
+
 'Adam with decoupled weight decay
 'm = beta1 * m + (1 - beta1) * (dW / NumAccumulatedSamples)
 'v = beta2 * v + (1 - beta2) * (dW / NumAccumulatedSamples)^2
@@ -107,12 +149,12 @@ Private Sub ApplyGradients(ByVal W As Parameter)
     Dim dblWeightDecay As Double
     Dim dblGradientScale As Double
     Dim m As Tensor
-    Dim v As Tensor
+    Dim V As Tensor
 
     If W.NumAccumulatedSamples < 1 Then
         Exit Sub
     End If
-    GetStates W, lStep, m, v
+    GetStates W, lStep, m, V
     lStep = lStep + 1
     dblLearningRate = W.LearningRateScale * m_dblLearningRate
     dblAlpha = dblLearningRate * Sqr(1 - m_dblBeta2 ^ lStep) / (1 - m_dblBeta1 ^ lStep)
@@ -123,52 +165,10 @@ Private Sub ApplyGradients(ByVal W As Parameter)
         dblGradientScale = 1
     End If
     VecLinComb_I m_dblBeta1, m, (1 - m_dblBeta1) * dblGradientScale / W.NumAccumulatedSamples, W.Gradient
-    VecLinComb_I m_dblBeta2, v, (1 - m_dblBeta2) * dblGradientScale * dblGradientScale / W.NumAccumulatedSamples / W.NumAccumulatedSamples, VecPow2(W.Gradient)
-    VecLinComb_I 1 - dblLearningRate * dblWeightDecay, W.Tensor, -dblAlpha, VecDivRms(m, v, 0, m_dblEpsilon)
+    VecLinComb_I m_dblBeta2, V, (1 - m_dblBeta2) * dblGradientScale * dblGradientScale / W.NumAccumulatedSamples / W.NumAccumulatedSamples, VecPow2(W.Gradient)
+    VecLinComb_I 1 - dblLearningRate * dblWeightDecay, W.Tensor, -dblAlpha, VecDivRms(m, V, 0, m_dblEpsilon)
     W.ResetGradient
-    PutStates W, lStep, m, v
-End Sub
-
-Private Sub GetStates(ByVal W As Parameter, _
-                      ByRef lStep As Long, _
-                      ByRef m As Tensor, _
-                      ByRef v As Tensor)
-    With m_oStates
-        If Not .Exists(W) Then
-            PutStates W, 0&, Zeros(W.Tensor.Shape), Zeros(W.Tensor.Shape)
-        End If
-        With .Item(W)
-            lStep = .Item(KEY_STEP)
-            Set m = .Item(KEY_1ST_MOMENT)
-            Set v = .Item(KEY_2ND_MOMENT)
-        End With
-    End With
-End Sub
-
-Private Sub PutStates(ByVal W As Parameter, _
-                      ByVal lStep As Long, _
-                      ByVal m As Tensor, _
-                      ByVal v As Tensor)
-    With m_oStates
-        If Not .Exists(W) Then
-            Set .Item(W) = CreateObject("Scripting.Dictionary")
-        End If
-        With .Item(W)
-            .Item(KEY_STEP) = lStep
-            Set .Item(KEY_1ST_MOMENT) = m
-            Set .Item(KEY_2ND_MOMENT) = v
-        End With
-    End With
-End Sub
-
-Private Sub Clear()
-    m_dblLearningRate = 0
-    m_dblBeta1 = 0
-    m_dblBeta2 = 0
-    m_dblEpsilon = 0
-    m_dblWeightDecay = 0
-    m_dblGradientThreshold = 0
-    Set m_oStates = CreateObject("Scripting.Dictionary")
+    PutStates W, lStep, m, V
 End Sub
 
 Private Sub Save(ByVal oSerializer As Serializer)
@@ -176,7 +176,7 @@ Private Sub Save(ByVal oSerializer As Serializer)
     Dim W As Variant
     Dim lStep As Long
     Dim m As Tensor
-    Dim v As Tensor
+    Dim V As Tensor
     
     If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
@@ -190,11 +190,11 @@ Private Sub Save(ByVal oSerializer As Serializer)
         .WriteDouble m_dblGradientThreshold
         .WriteLong m_oStates.Count
         For Each W In m_oStates.Keys
-            GetStates W, lStep, m, v
+            GetStates W, lStep, m, V
             .WriteObject W
             .WriteLong lStep
             .WriteObject m
-            .WriteObject v
+            .WriteObject V
         Next W
     End With
 End Sub
@@ -206,7 +206,7 @@ Private Sub Load(ByVal oSerializer As Serializer)
     Dim W As Parameter
     Dim lStep As Long
     Dim m As Tensor
-    Dim v As Tensor
+    Dim V As Tensor
     
     If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
@@ -224,8 +224,8 @@ Private Sub Load(ByVal oSerializer As Serializer)
             Set W = .ReadObject()
             lStep = .ReadLong()
             Set m = .ReadObject()
-            Set v = .ReadObject()
-            PutStates W, lStep, m, v
+            Set V = .ReadObject()
+            PutStates W, lStep, m, V
         Next i
     End With
 End Sub
