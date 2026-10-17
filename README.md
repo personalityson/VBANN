@@ -87,7 +87,7 @@ Public Sub SetupAndTrainBackprop()
 End Sub
 
 'Gradient boosted trees on the Binance sheet.
-Public Sub SetupAndTrainXGBoot()
+Public Sub SetupAndTrainXGBoost()
     Const MODEL_NAME As String = "MyXGBoostModel"
     Dim lInputSize As Long
     Dim lLabelSize As Long
