@@ -15,12 +15,12 @@ Option Explicit
     Public Property Get Learnables() As Variant
         '
     End Property
-    
+
     Public Function Forward(ByVal X As Object, _
                             Optional ByVal bIsTraining As Boolean) As Object
         '
     End Function
-    
+
     Public Function Backward(ByVal dLdY As Object) As Object
         '
     End Function
@@ -28,12 +28,12 @@ Option Explicit
     Public Property Get Learnables() As Variant
         '
     End Property
-    
+
     Public Function Forward(ByVal X As Tensor, _
                             Optional ByVal bIsTraining As Boolean) As Tensor
         '
     End Function
-    
+
     Public Function Backward(ByVal dLdY As Tensor) As Tensor
         '
     End Function

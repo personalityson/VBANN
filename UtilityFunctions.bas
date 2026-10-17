@@ -119,6 +119,18 @@ Public Function MaxDbl(ByVal A As Double, _
     End If
 End Function
 
+Public Function ClampDbl(ByVal dblValue As Double, _
+                         ByVal dblMin As Double, _
+                         ByVal dblMax As Double) As Double
+    If dblValue < dblMin Then
+        ClampDbl = dblMin
+    ElseIf dblValue > dblMax Then
+        ClampDbl = dblMax
+    Else
+        ClampDbl = dblValue
+    End If
+End Function
+
 Public Function NormRand() As Double
     NormRand = Sqr(-2 * Log(1 - Rnd())) * Cos(MATH_2PI * Rnd())
 End Function
@@ -234,7 +246,11 @@ Public Function EnsureIterable(ByVal vArray As Variant) As Variant
     For Each vIterator In vArray
         Exit For
     Next vIterator
-    EnsureIterable = vArray
+    If IsObject(vArray) Then
+        Set EnsureIterable = vArray
+    Else
+        EnsureIterable = vArray
+    End If
     Exit Function
 ErrorHandler:
     EnsureIterable = EnsureArray(vArray)
@@ -319,7 +335,7 @@ Public Sub ParseVariantToDoubleArray(ByVal vArray As Variant, _
     End If
 End Sub
 
-Public Function GetIdentityPermutationArray(ByVal lNumElements As Long) As Long()
+Public Function GetIdentityPermutation(ByVal lNumElements As Long) As Long()
     Dim i As Long
     Dim alResult() As Long
 
@@ -330,10 +346,10 @@ Public Function GetIdentityPermutationArray(ByVal lNumElements As Long) As Long(
     For i = 1 To lNumElements
         alResult(i) = i
     Next i
-    GetIdentityPermutationArray = alResult
+    GetIdentityPermutation = alResult
 End Function
 
-Public Function GetRandomPermutationArray(ByVal lNumElements As Long) As Long()
+Public Function GetRandomPermutation(ByVal lNumElements As Long) As Long()
     Dim i As Long
     Dim j As Long
     Dim alResult() As Long
@@ -347,8 +363,45 @@ Public Function GetRandomPermutationArray(ByVal lNumElements As Long) As Long()
         alResult(i) = alResult(j)
         alResult(j) = i
     Next i
-    GetRandomPermutationArray = alResult
+    GetRandomPermutation = alResult
 End Function
+
+Public Sub QuickSortDoubles(ByRef adblValues() As Double, _
+                            ByVal lStart As Long, _
+                            ByVal lEnd As Long)
+    Dim i As Long
+    Dim j As Long
+    Dim dblTemp As Double
+    Dim dblPivotValue As Double
+
+    If lStart >= lEnd Then
+        Exit Sub
+    End If
+    dblPivotValue = adblValues(lStart + (lEnd - lStart) \ 2)
+    i = lStart
+    j = lEnd
+    Do
+        Do While adblValues(i) < dblPivotValue
+            i = i + 1
+        Loop
+        Do While adblValues(j) > dblPivotValue
+            j = j - 1
+        Loop
+        If i <= j Then
+            dblTemp = adblValues(i)
+            adblValues(i) = adblValues(j)
+            adblValues(j) = dblTemp
+            i = i + 1
+            j = j - 1
+        End If
+    Loop While i <= j
+    If lStart < j Then
+        QuickSortDoubles adblValues, lStart, j
+    End If
+    If i < lEnd Then
+        QuickSortDoubles adblValues, i, lEnd
+    End If
+End Sub
 
 Public Function GetFirstRow(ByVal oWorksheet As Worksheet, _
                             Optional ByVal lColumn As Long) As Long
@@ -465,7 +518,7 @@ Public Function SanitizeFileName(ByVal sName As String) As String
         sBaseName = sName
         sExtension = ""
     End If
-    If s_oReservedNames.Test(sBaseName) Then
+    If s_oReservedNames.TEst(sBaseName) Then
         sBaseName = "_" & sBaseName
     End If
     If Len(sExtension) < MAX_LENGTH Then
@@ -678,31 +731,69 @@ Public Function ConvertTimestampToDate(ByVal lTimestamp As Long) As Date
     ConvertTimestampToDate = DateAdd("s", lTimestamp, DateSerial(1970, 1, 1))
 End Function
 
+Public Function MatchLiteral(ByVal vNeedle As Variant, _
+                             ByRef vHaystack As Variant) As Long
+    Dim vResult As Variant
+    
+    Select Case VarType(vNeedle)
+        Case vbString
+            vNeedle = Replace(vNeedle, "~", "~~")
+            vNeedle = Replace(vNeedle, "*", "~*")
+            vNeedle = Replace(vNeedle, "?", "~?")
+        Case vbDate, vbCurrency
+            vNeedle = CDbl(vNeedle)
+    End Select
+    vResult = Application.Match(vNeedle, vHaystack, 0)
+    If IsNumeric(vResult) Then
+        MatchLiteral = CLng(vResult)
+    End If
+End Function
+
+Public Sub WriteRange(ByVal oCell As Range, _
+                      ByVal vValue As Variant)
+    Const PROCEDURE_NAME As String = "UtilityFunctions.WriteCell"
+    
+    Select Case VarType(vValue)
+        Case vbEmpty
+            oCell.ClearContents
+        Case vbInteger, vbLong, vbSingle, vbDouble, vbCurrency, vbDate, vbBoolean, vbDecimal, vbByte, vbLongLong
+            oCell.Value = vValue
+        Case vbString
+            oCell.Value = "'" & vValue
+        Case Else
+            Err.Raise 5, PROCEDURE_NAME, "Unsupported value type for writing to worksheet."
+    End Select
+End Sub
+
 Public Sub WriteLog(ByVal sName As String, _
+                    ByVal bNewRow As Boolean, _
                     ParamArray avArgs() As Variant)
+    Const PROCEDURE_NAME As String = "UtilityFunctions.WriteLog"
     Dim i As Long
     Dim lLastRow As Long
-    Dim vHeader As Variant
-    Dim vHeaderCol As Variant
+    Dim lHeaderCol As Long
     Dim bWorksheetIsNew As Boolean
     Dim oLog As Worksheet
-    
+        
     Set oLog = CreateWorksheet(ThisWorkbook, sName, False, bWorksheetIsNew)
     lLastRow = MaxLng(1, GetLastRow(oLog))
+    If bNewRow Or lLastRow < 2 Then
+        lLastRow = lLastRow + 1
+    End If
     With oLog
-        On Error Resume Next
         For i = 0 To UBound(avArgs) - 1 Step 2
-            vHeader = avArgs(i)
-            vHeaderCol = Application.Match(vHeader, .Rows(1), 0)
-            If IsError(vHeaderCol) Then
-                vHeaderCol = GetLastColumn(oLog) + 1
-                .Cells(1, vHeaderCol) = vHeader
+            If IsEmpty(avArgs(i)) Then
+                Err.Raise 5, PROCEDURE_NAME, "Header cannot be empty."
             End If
-            .Cells(lLastRow + 1, vHeaderCol) = avArgs(i + 1)
-            Application.GoTo .Cells(lLastRow + 1, vHeaderCol)
+            lHeaderCol = MatchLiteral(avArgs(i), .Rows(1))
+            If lHeaderCol = 0 Then
+                lHeaderCol = GetLastColumn(oLog) + 1
+                WriteRange .Cells(1, lHeaderCol), avArgs(i)
+            End If
+            WriteRange .Cells(lLastRow, lHeaderCol), avArgs(i + 1)
+            Application.Goto .Cells(lLastRow, lHeaderCol)
             DoEvents
         Next i
-        On Error GoTo 0
         If bWorksheetIsNew Then
             .Activate
             .Cells(2, 1).Select

@@ -18,6 +18,19 @@ Implements ISerializable
 Private m_oLayers As Collection
 Private m_vLearnables As Variant
 
+Public Property Get NumLayers() As Long
+    NumLayers = m_oLayers.Count
+End Property
+
+Public Property Get Layers(ByVal lIndex As Long) As ILayer
+    Const PROCEDURE_NAME As String = "Sequential.Layers"
+
+    If lIndex < 1 Or lIndex > m_oLayers.Count Then
+        Err.Raise 9, PROCEDURE_NAME, "Layer index is out of range."
+    End If
+    Set Layers = m_oLayers(lIndex)
+End Property
+
 Public Property Get Learnables() As Variant
     Learnables = m_vLearnables
 End Property
@@ -28,7 +41,7 @@ End Sub
 
 Public Sub Add(ByVal oLayer As ILayer)
     Const PROCEDURE_NAME As String = "Sequential.Add"
-
+    
     If oLayer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid ILayer object is required."
     End If
@@ -143,6 +156,4 @@ End Sub
         Load oSerializer
     End Sub
 #End If
-
-
 

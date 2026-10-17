@@ -20,7 +20,7 @@ Private m_bUseGradientClipping As Boolean
 
 'State
 Private m_oTensor As Tensor
-Private m_oGradient As Tensor
+Private m_Gradient As Tensor
 Private m_lNumAccumulatedSamples As Long
 
 Public Property Get Tensor() As Tensor
@@ -43,7 +43,7 @@ Public Property Set Tensor(ByVal oTensor As Tensor)
 End Property
 
 Public Property Get Gradient() As Tensor
-    Set Gradient = m_oGradient
+    Set Gradient = m_Gradient
 End Property
 
 Public Property Set Gradient(ByVal oGradient As Tensor)
@@ -52,13 +52,13 @@ Public Property Set Gradient(ByVal oGradient As Tensor)
     If oGradient Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If m_oGradient Is Nothing Then
+    If m_Gradient Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Parameter has not been initialized."
     End If
-    If Not oGradient.ShapeEquals(m_oGradient.Shape) Then
+    If Not oGradient.ShapeEquals(m_Gradient.Shape) Then
         Err.Raise 5, PROCEDURE_NAME, "New gradient must have the same shape as the existing gradient."
     End If
-    Set m_oGradient = oGradient
+    Set m_Gradient = oGradient
 End Property
 
 Public Property Get NumAccumulatedSamples() As Long
@@ -104,7 +104,7 @@ Public Sub Init(ByVal oTensor As Tensor, _
     End If
     Clear
     Set m_oTensor = oTensor
-    Set m_oGradient = Zeros(m_oTensor.Shape)
+    Set m_Gradient = Zeros(m_oTensor.Shape)
     m_lNumAccumulatedSamples = 0
     m_dblLearningRateScale = dblLearningRateScale
     m_dblWeightDecayScale = dblWeightDecayScale
@@ -112,13 +112,13 @@ Public Sub Init(ByVal oTensor As Tensor, _
 End Sub
 
 Public Sub ResetGradient()
-    m_oGradient.Fill 0
+    m_Gradient.Fill 0
     m_lNumAccumulatedSamples = 0
 End Sub
 
 Private Sub Clear()
     Set m_oTensor = Nothing
-    Set m_oGradient = Nothing
+    Set m_Gradient = Nothing
     m_lNumAccumulatedSamples = 0
     m_dblLearningRateScale = 0
     m_dblWeightDecayScale = 0
@@ -133,7 +133,7 @@ Private Sub Save(ByVal oSerializer As Serializer)
     End If
     With oSerializer
         .WriteObject m_oTensor
-        .WriteObject m_oGradient
+        .WriteObject m_Gradient
         .WriteLong m_lNumAccumulatedSamples
         .WriteDouble m_dblLearningRateScale
         .WriteDouble m_dblWeightDecayScale
@@ -150,7 +150,7 @@ Private Sub Load(ByVal oSerializer As Serializer)
     Clear
     With oSerializer
         Set m_oTensor = .ReadObject()
-        Set m_oGradient = .ReadObject()
+        Set m_Gradient = .ReadObject()
         m_lNumAccumulatedSamples = .ReadLong()
         m_dblLearningRateScale = .ReadDouble()
         m_dblWeightDecayScale = .ReadDouble()

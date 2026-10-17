@@ -21,27 +21,21 @@ Public Property Get NumSamples() As Long
     NumSamples = m_lNumSamples
 End Property
 
-Public Property Get Cache() As TensorDataset
-    Set Cache = Me
-End Property
-
 Public Property Get NumTensors() As Long
     NumTensors = m_oTensors.Count
 End Property
 
-Public Property Get Tensor(ByVal lTensorIndex As Long) As Tensor
-    Const PROCEDURE_NAME As String = "TensorDataset.Item"
+Public Property Get Tensors(ByVal lIndex As Long) As Tensor
+    Const PROCEDURE_NAME As String = "TensorDataset.Tensors"
 
-    If lTensorIndex < 1 Or lTensorIndex > m_oTensors.Count Then
+    If lIndex < 1 Or lIndex > m_oTensors.Count Then
         Err.Raise 9, PROCEDURE_NAME, "Tensor index is out of range."
     End If
-    Set Tensor = m_oTensors(lTensorIndex)
+    Set Tensors = m_oTensors(lIndex)
 End Property
 
 Public Sub Init(ByVal vTensors As Variant)
     Const PROCEDURE_NAME As String = "TensorDataset.Init"
-    Dim i As Long
-    Dim lNumTensors As Long
     Dim lNumSamples As Long
     Dim X As Variant
     Dim oTensors As Collection
@@ -107,31 +101,39 @@ End Sub
         IDataset_NumSamples = Me.NumSamples
     End Property
     
-    Private Property Get IDataset_Cache() As Object
-        Set IDataset_Cache = Me.Cache()
+    Private Property Get IDataset_NumTensors() As Long
+        IDataset_NumTensors = Me.NumTensors
     End Property
     
-    Private Function IDataset_Gather(ByVal vSampleIndices As Variant) As Object
-        Set IDataset_Gather = Me.Gather(vSampleIndices)
+    Private Property Get IDataset_Tensors(ByVal lIndex As Long) As Object
+        Set IDataset_Tensors = Me.Tensors(lIndex)
+    End Property
+    
+    Private Function IDataset_Gather(ByVal vIndices As Variant) As Object
+        Set IDataset_Gather = Me.Gather(vIndices)
     End Function
     
-    Private Function IDataset_Subset(ByVal vSampleIndices As Variant) As Object
-        Set IDataset_Subset = Me.Subset(vSampleIndices)
+    Private Function IDataset_Subset(ByVal vIndices As Variant) As Object
+        Set IDataset_Subset = Me.Subset(vIndices)
     End Function
 #Else
     Private Property Get IDataset_NumSamples() As Long
         IDataset_NumSamples = Me.NumSamples
     End Property
     
-    Private Property Get IDataset_Cache() As TensorDataset
-        Set IDataset_Cache = Me.Cache()
+    Private Property Get IDataset_NumTensors() As Long
+        IDataset_NumTensors = Me.NumTensors
     End Property
     
-    Private Function IDataset_Gather(ByVal vSampleIndices As Variant) As TensorDataset
-        Set IDataset_Gather = Me.Gather(vSampleIndices)
+    Private Property Get IDataset_Tensors(ByVal lIndex As Long) As Tensor
+        Set IDataset_Tensors = Me.Tensors(lIndex)
+    End Property
+    
+    Private Function IDataset_Gather(ByVal vIndices As Variant) As TensorDataset
+        Set IDataset_Gather = Me.Gather(vIndices)
     End Function
     
-    Private Function IDataset_Subset(ByVal vSampleIndices As Variant) As SubsetDataset
-        Set IDataset_Subset = Me.Subset(vSampleIndices)
+    Private Function IDataset_Subset(ByVal vIndices As Variant) As SubsetDataset
+        Set IDataset_Subset = Me.Subset(vIndices)
     End Function
 #End If

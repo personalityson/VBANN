@@ -3,13 +3,13 @@ Option Explicit
 
 Public Function Zeros(ByVal vShape As Variant) As Tensor
     Set Zeros = New Tensor
-    Zeros.Resize vShape
+    Zeros.Init vShape
 End Function
 
 Public Function Ones(ByVal vShape As Variant) As Tensor
     Set Ones = New Tensor
     With Ones
-        .Resize vShape
+        .Init vShape
         .Fill 1
     End With
 End Function
@@ -18,7 +18,7 @@ Public Function Full(ByVal vShape As Variant, _
                      ByVal dblValue As Double) As Tensor
     Set Full = New Tensor
     With Full
-        .Resize vShape
+        .Init vShape
         .Fill dblValue
     End With
 End Function
@@ -29,7 +29,7 @@ Public Function Eye(ByVal lSize As Long) As Tensor
     
     Set Eye = New Tensor
     With Eye
-        .Resize Array(lSize, lSize)
+        .Init Array(lSize, lSize)
         .CreateAlias A_
         For i = 1 To lSize
             A_(i, i) = 1
@@ -46,7 +46,7 @@ Public Function Uniform(ByVal vShape As Variant, _
     
     Set Uniform = New Tensor
     With Uniform
-        .Resize vShape
+        .Init vShape
         .CreateFlatAlias A_
         For i = 1 To .NumElements
             A_(i) = dblLow + (dblHigh - dblLow) * Rnd()
@@ -63,7 +63,7 @@ Public Function Normal(ByVal vShape As Variant, _
     
     Set Normal = New Tensor
     With Normal
-        .Resize vShape
+        .Init vShape
         .CreateFlatAlias A_
         For i = 1 To .NumElements
             A_(i) = dblMu + dblSigma * NormRand()
@@ -79,7 +79,7 @@ Public Function Bernoulli(ByVal vShape As Variant, _
     
     Set Bernoulli = New Tensor
     With Bernoulli
-        .Resize vShape
+        .Init vShape
         .CreateFlatAlias A_
         For i = 1 To .NumElements
             A_(i) = -(Rnd() < dblProbability)

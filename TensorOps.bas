@@ -88,18 +88,22 @@ End Function
 'VecSqrt                Y = Sqrt(A)
 'VecExp                 Y = Exp(A)
 'VecLog                 Y = Log(A)
+'VecClamp               Y = Min(Max(A, dblMin), dblMax)
+'VecWhere               Y = IIf(C, A, B)
 'VecLeakyReLU           Y = If A > 0 Then A Else dblNegativeSlope * A
 'VecLeakyReLUDerivative Y = If A > 0 Then 1 Else dblNegativeSlope
 'VecSigmoid             Y = 1 / (1 + Exp(-A))
 'VecSigmoidDerivative   Y = A * (1 - A)
+'VecSoftplus            Y = Log(1 + Exp(A))
 'VecTanh                Y = Tanh(A)
 'VecTanhDerivative      Y = 1 - A^2
 'VecLinComb             Y = alpha * A + beta * B
 'VecLinComb_I           A = alpha * A + beta * B (In-place)
-'VecWhere               Y = IIf(C, A, B)
 'MatMul                 Y = A * B
 'MatMul_I               C = C + A * B (In-place)
-'MatTranspose           Y = A^T
+'Softmax                Y = Exp(A) / Sum(Exp(A))
+'LogSoftmax             Y = A - Log(Sum(Exp(A)))
+'Transpose              Y = A^T
 
 'Y = Sum(A * B)
 Public Function VecDot(ByVal A As Tensor, _
@@ -112,8 +116,8 @@ Public Function VecDot(ByVal A As Tensor, _
     If B Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If A.NumElements <> B.NumElements Then
-        Err.Raise 5, PROCEDURE_NAME, "Tensors A and B must have the same number of elements."
+    If Not TryBroadcast(A, B) Then
+        Err.Raise 5, PROCEDURE_NAME, "Shapes of tensors A and B cannot be broadcast."
     End If
     If IsBlasAvailable() Then
         VecDot = VecDotBlas(A, B)
@@ -147,8 +151,8 @@ Public Function VecAdd(ByVal A As Tensor, _
     If B Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If A.NumElements <> B.NumElements Then
-        Err.Raise 5, PROCEDURE_NAME, "Tensors A and B must have the same number of elements."
+    If Not TryBroadcast(A, B) Then
+        Err.Raise 5, PROCEDURE_NAME, "Shapes of tensors A and B cannot be broadcast."
     End If
     If IsBlasAvailable() Then
         Set VecAdd = VecLinCombBlas(1, A, 1, B)
@@ -168,8 +172,8 @@ Public Sub VecAdd_I(ByVal A As Tensor, _
     If B Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If A.NumElements <> B.NumElements Then
-        Err.Raise 5, PROCEDURE_NAME, "Tensors A and B must have the same number of elements."
+    If Not TryBroadcast(A, B, True) Then
+        Err.Raise 5, PROCEDURE_NAME, "Tensor B cannot be broadcast to the shape of tensor A."
     End If
     If IsBlasAvailable() Then
         VecLinCombBlas_I 1, A, 1, B
@@ -200,8 +204,8 @@ Public Function VecSub(ByVal A As Tensor, _
     If B Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If A.NumElements <> B.NumElements Then
-        Err.Raise 5, PROCEDURE_NAME, "Tensors A and B must have the same number of elements."
+    If Not TryBroadcast(A, B) Then
+        Err.Raise 5, PROCEDURE_NAME, "Shapes of tensors A and B cannot be broadcast."
     End If
     If IsBlasAvailable() Then
         Set VecSub = VecLinCombBlas(1, A, -1, B)
@@ -243,8 +247,8 @@ Public Function VecMul(ByVal A As Tensor, _
     If B Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If A.NumElements <> B.NumElements Then
-        Err.Raise 5, PROCEDURE_NAME, "Tensors A and B must have the same number of elements."
+    If Not TryBroadcast(A, B) Then
+        Err.Raise 5, PROCEDURE_NAME, "Shapes of tensors A and B cannot be broadcast."
     End If
     Set VecMul = VecMulNaive(A, B)
 End Function
@@ -260,8 +264,8 @@ Public Sub VecMul_I(ByVal A As Tensor, _
     If B Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If A.NumElements <> B.NumElements Then
-        Err.Raise 5, PROCEDURE_NAME, "Tensors A and B must have the same number of elements."
+    If Not TryBroadcast(A, B, True) Then
+        Err.Raise 5, PROCEDURE_NAME, "Tensor B cannot be broadcast to the shape of tensor A."
     End If
     VecMulNaive_I A, B
 End Sub
@@ -307,8 +311,8 @@ Public Function VecDiv(ByVal A As Tensor, _
     If B Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If A.NumElements <> B.NumElements Then
-        Err.Raise 5, PROCEDURE_NAME, "Tensors A and B must have the same number of elements."
+    If Not TryBroadcast(A, B) Then
+        Err.Raise 5, PROCEDURE_NAME, "Shapes of tensors A and B cannot be broadcast."
     End If
     Set VecDiv = VecDivNaive(A, B)
 End Function
@@ -343,14 +347,14 @@ Public Function VecDivRms(ByVal A As Tensor, _
     If B Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If A.NumElements <> B.NumElements Then
-        Err.Raise 5, PROCEDURE_NAME, "Tensors A and B must have the same number of elements."
-    End If
     If dblInnerEpsilon < 0 Then
         Err.Raise 5, PROCEDURE_NAME, "Inner epsilon must be >= 0."
     End If
     If dblOuterEpsilon < 0 Then
         Err.Raise 5, PROCEDURE_NAME, "Outer epsilon must be >= 0."
+    End If
+    If Not TryBroadcast(A, B) Then
+        Err.Raise 5, PROCEDURE_NAME, "Shapes of tensors A and B cannot be broadcast."
     End If
     Set VecDivRms = VecDivRmsNaive(A, B, dblInnerEpsilon, dblOuterEpsilon)
 End Function
@@ -377,7 +381,12 @@ End Function
 
 'Y = A^2
 Public Function VecPow2(ByVal A As Tensor) As Tensor
-    Set VecPow2 = VecMul(A, A)
+    Const PROCEDURE_NAME As String = "TensorOps.VecPow2"
+    
+    If A Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    Set VecPow2 = VecMulNaive(A, A)
 End Function
 
 'Y = Sqrt(A)
@@ -408,6 +417,47 @@ Public Function VecLog(ByVal A As Tensor) As Tensor
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
     Set VecLog = VecLogNaive(A)
+End Function
+
+'Y = Min(Max(A, dblMin), dblMax)
+Public Function VecClamp(ByVal A As Tensor, _
+                         ByVal dblMin As Double, _
+                         ByVal dblMax As Double) As Tensor
+    Const PROCEDURE_NAME As String = "TensorOps.VecClamp"
+
+    If A Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If dblMin > dblMax Then
+        Err.Raise 5, PROCEDURE_NAME, "Lower bound must be <= upper bound."
+    End If
+    Set VecClamp = VecClampNaive(A, dblMin, dblMax)
+End Function
+
+'Y(i) = IIf(C, A, B)
+Public Function VecWhere(ByVal C As Tensor, _
+                         ByVal A As Tensor, _
+                         ByVal B As Tensor) As Tensor
+    Const PROCEDURE_NAME As String = "TensorOps.VecWhere"
+
+    If C Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If A Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If B Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If Not TryBroadcast(A, B) Then
+        Err.Raise 5, PROCEDURE_NAME, "Shapes of tensors A and B cannot be broadcast."
+    End If
+    If Not TryBroadcast(C, A) Then
+        Err.Raise 5, PROCEDURE_NAME, "Shape of the mask cannot be broadcast with the input tensors."
+    End If
+    'If the mask widened A, B catches up. This cannot fail, as B already matched A.
+    TryBroadcast A, B, True
+    Set VecWhere = VecWhereNaive(C, A, B)
 End Function
 
 'Y = If A > 0 Then A Else dblNegativeSlope * A
@@ -452,6 +502,16 @@ Public Function VecSigmoidDerivative(ByVal A As Tensor) As Tensor
     Set VecSigmoidDerivative = VecSigmoidDerivativeNaive(A)
 End Function
 
+'Y = Log(1 + Exp(A))
+Public Function VecSoftplus(ByVal A As Tensor) As Tensor
+    Const PROCEDURE_NAME As String = "TensorOps.VecSoftplus"
+
+    If A Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    Set VecSoftplus = VecSoftplusNaive(A)
+End Function
+
 'Y = Tanh(A)
 Public Function VecTanh(ByVal A As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "TensorOps.VecTanh"
@@ -485,8 +545,8 @@ Public Function VecLinComb(ByVal dblAlpha As Double, _
     If B Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If A.NumElements <> B.NumElements Then
-        Err.Raise 5, PROCEDURE_NAME, "Tensors A and B must have the same number of elements."
+    If Not TryBroadcast(A, B) Then
+        Err.Raise 5, PROCEDURE_NAME, "Shapes of tensors A and B cannot be broadcast."
     End If
     If IsBlasAvailable() Then
         Set VecLinComb = VecLinCombBlas(dblAlpha, A, dblBeta, B)
@@ -508,8 +568,8 @@ Public Sub VecLinComb_I(ByVal dblAlpha As Double, _
     If B Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If A.NumElements <> B.NumElements Then
-        Err.Raise 5, PROCEDURE_NAME, "Tensors A and B must have the same number of elements."
+    If Not TryBroadcast(A, B, True) Then
+        Err.Raise 5, PROCEDURE_NAME, "Tensor B cannot be broadcast to the shape of tensor A."
     End If
     If IsBlasAvailable() Then
         VecLinCombBlas_I dblAlpha, A, dblBeta, B
@@ -517,30 +577,6 @@ Public Sub VecLinComb_I(ByVal dblAlpha As Double, _
         VecLinCombNaive_I dblAlpha, A, dblBeta, B
     End If
 End Sub
-
-'Y(i) = IIf(C, A, B)
-Public Function VecWhere(ByVal C As Tensor, _
-                         ByVal A As Tensor, _
-                         ByVal B As Tensor) As Tensor
-    Const PROCEDURE_NAME As String = "TensorOps.VecWhere"
-
-    If C Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
-    End If
-    If A Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
-    End If
-    If B Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
-    End If
-    If A.NumElements <> B.NumElements Then
-        Err.Raise 5, PROCEDURE_NAME, "Tensors A and B must have the same number of elements."
-    End If
-    If C.NumElements <> A.NumElements Then
-        Err.Raise 5, PROCEDURE_NAME, "Mask must have the same number of elements as the input tensors."
-    End If
-    Set VecWhere = VecWhereNaive(C, A, B)
-End Function
 
 'Y = A * B
 Public Function MatMul(ByVal A As Tensor, _
@@ -642,20 +678,85 @@ Public Sub MatMul_I(ByVal C As Tensor, _
     End If
 End Sub
 
-Public Function MatTranspose(ByVal A As Tensor) As Tensor
-    Const PROCEDURE_NAME As String = "TensorOps.MatTranspose"
+Public Function Softmax(ByVal A As Tensor, _
+                        Optional ByVal lDimension As Long = 1) As Tensor
+    Const PROCEDURE_NAME As String = "TensorOps.Softmax"
+    Dim oExp As Tensor
+
+    If A Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If lDimension < 1 Or lDimension > A.NumDimensions Then
+        Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
+    End If
+    Set oExp = VecExp(VecSub(A, A.Reduce(lDimension, rtMax)))
+    Set Softmax = VecDiv(oExp, oExp.Reduce(lDimension, rtSum))
+End Function
+
+Public Function LogSoftmax(ByVal A As Tensor, _
+                           Optional ByVal lDimension As Long = 1) As Tensor
+    Const PROCEDURE_NAME As String = "TensorOps.LogSoftmax"
+    Dim oShifted As Tensor
+
+    If A Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If lDimension < 1 Or lDimension > A.NumDimensions Then
+        Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
+    End If
+    Set oShifted = VecSub(A, A.Reduce(lDimension, rtMax))
+    Set LogSoftmax = VecSub(oShifted, VecLog(VecExp(oShifted).Reduce(lDimension, rtSum)))
+End Function
+
+Public Function Transpose(ByVal A As Tensor, _
+                          Optional ByVal lDimension1 As Long = 1, _
+                          Optional ByVal lDimension2 As Long = 2) As Tensor
+    Const PROCEDURE_NAME As String = "TensorOps.Transpose"
     
     If A Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If A.NumDimensions <> 2 Then
-        Err.Raise 5, PROCEDURE_NAME, "Tensor must be two-dimensional."
+    If lDimension1 < 1 Or lDimension1 > A.NumDimensions Then
+        Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
     End If
-    If IsBlasAvailable() Then
-        Set MatTranspose = MatTransposeBlas(A)
-    Else
-        Set MatTranspose = MatTransposeNaive(A)
+    If lDimension2 < 1 Or lDimension2 > A.NumDimensions Then
+        Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
     End If
+    Select Case True
+        Case lDimension1 = lDimension2
+            Set Transpose = A
+        Case IsBlasAvailable() And A.NumDimensions = 2
+            Set Transpose = TransposeBlas(A)
+        Case Else
+            Set Transpose = TransposeNaive(A, MinLng(lDimension1, lDimension2), MaxLng(lDimension1, lDimension2))
+    End Select
+End Function
+
+'Broadcasts A and B to a common shape, shapes align from dimension 1 from left to right
+Private Function TryBroadcast(ByRef A As Tensor, _
+                              ByRef B As Tensor, _
+                              Optional ByVal bInPlace As Boolean) As Boolean
+    Dim i As Long
+    Dim lMaxDimensions As Long
+
+    If Not A.IsConformable(B) Then
+        lMaxDimensions = MaxLng(A.NumDimensions, B.NumDimensions)
+        Set A = A.Expand(lMaxDimensions)
+        Set B = B.Expand(lMaxDimensions)
+        For i = 1 To lMaxDimensions
+            Select Case True
+                Case A.Size(i) = B.Size(i)
+                    'Do nothing
+                Case B.Size(i) = 1
+                    Set B = B.Tile(i, A.Size(i))
+                Case A.Size(i) = 1 And Not bInPlace
+                    Set A = A.Tile(i, B.Size(i))
+                Case Else
+                    Exit Function
+            End Select
+        Next i
+    End If
+    TryBroadcast = True
 End Function
 
 Private Function SafeSigmoid(ByVal dblValue As Double) As Double
@@ -664,6 +765,10 @@ Private Function SafeSigmoid(ByVal dblValue As Double) As Double
     Else
         SafeSigmoid = 1 / (1 + Exp(-dblValue))
     End If
+End Function
+
+Private Function SafeSoftplus(ByVal dblValue As Double) As Double
+    SafeSoftplus = MaxDbl(dblValue, 0) + Log(1 + Exp(-Abs(dblValue)))
 End Function
 
 Private Function SafeTanh(ByVal dblValue As Double) As Double
@@ -1055,6 +1160,64 @@ Private Sub VecLogNaive_I(ByVal A As Tensor)
     A.RemoveAlias A_
 End Sub
 
+Private Function VecClampNaive(ByVal A As Tensor, _
+                               ByVal dblMin As Double, _
+                               ByVal dblMax As Double) As Tensor
+    Dim Y As Tensor
+
+    Set Y = A.Clone
+    VecClampNaive_I Y, dblMin, dblMax
+    Set VecClampNaive = Y
+End Function
+
+Private Sub VecClampNaive_I(ByVal A As Tensor, _
+                            ByVal dblMin As Double, _
+                            ByVal dblMax As Double)
+    Dim i As Long
+    Dim A_() As Double
+
+    A.CreateFlatAlias A_
+    For i = 1 To A.NumElements
+        If A_(i) < dblMin Then
+            A_(i) = dblMin
+        ElseIf A_(i) > dblMax Then
+            A_(i) = dblMax
+        End If
+    Next i
+    A.RemoveAlias A_
+End Sub
+
+Private Function VecWhereNaive(ByVal C As Tensor, _
+                               ByVal A As Tensor, _
+                               ByVal B As Tensor) As Tensor
+    Dim Y As Tensor
+
+    Set Y = A.Clone
+    VecWhereNaive_I C, Y, B
+    Set VecWhereNaive = Y
+End Function
+
+Private Sub VecWhereNaive_I(ByVal C As Tensor, _
+                            ByVal A As Tensor, _
+                            ByVal B As Tensor)
+    Dim i As Long
+    Dim C_() As Double
+    Dim A_() As Double
+    Dim B_() As Double
+
+    C.CreateFlatAlias C_
+    A.CreateFlatAlias A_
+    B.CreateFlatAlias B_
+    For i = 1 To A.NumElements
+        If C_(i) = 0 Then
+            A_(i) = B_(i)
+        End If
+    Next i
+    C.RemoveAlias C_
+    A.RemoveAlias A_
+    B.RemoveAlias B_
+End Sub
+
 Private Function VecLeakyReLUNaive(ByVal A As Tensor, _
                                    ByVal dblNegativeSlope As Double) As Tensor
     Dim Y As Tensor
@@ -1094,10 +1257,10 @@ Private Sub VecLeakyReLUDerivativeNaive_I(ByVal A As Tensor, _
     
     A.CreateFlatAlias A_
     For i = 1 To A.NumElements
-        If A_(i) < 0 Then
-            A_(i) = dblNegativeSlope
-        Else
+        If A_(i) > 0 Then
             A_(i) = 1
+        Else
+            A_(i) = dblNegativeSlope
         End If
     Next i
     A.RemoveAlias A_
@@ -1137,6 +1300,25 @@ Private Sub VecSigmoidDerivativeNaive_I(ByVal A As Tensor)
     A.CreateFlatAlias A_
     For i = 1 To A.NumElements
         A_(i) = A_(i) * (1 - A_(i))
+    Next i
+    A.RemoveAlias A_
+End Sub
+
+Private Function VecSoftplusNaive(ByVal A As Tensor) As Tensor
+    Dim Y As Tensor
+
+    Set Y = A.Clone
+    VecSoftplusNaive_I Y
+    Set VecSoftplusNaive = Y
+End Function
+
+Private Sub VecSoftplusNaive_I(ByVal A As Tensor)
+    Dim i As Long
+    Dim A_() As Double
+
+    A.CreateFlatAlias A_
+    For i = 1 To A.NumElements
+        A_(i) = SafeSoftplus(A_(i))
     Next i
     A.RemoveAlias A_
 End Sub
@@ -1223,37 +1405,6 @@ Private Sub VecLinCombBlas_I(ByVal dblAlpha As Double, _
                              ByVal dblBeta As Double, _
                              ByVal B As Tensor)
     daxpby A.NumElements, dblBeta, B.Address, 1&, dblAlpha, A.Address, 1&
-End Sub
-
-Private Function VecWhereNaive(ByVal C As Tensor, _
-                               ByVal A As Tensor, _
-                               ByVal B As Tensor) As Tensor
-    Dim Y As Tensor
-
-    Set Y = A.Clone
-    VecWhereNaive_I C, Y, B
-    Set VecWhereNaive = Y
-End Function
-
-Private Sub VecWhereNaive_I(ByVal C As Tensor, _
-                            ByVal A As Tensor, _
-                            ByVal B As Tensor)
-    Dim i As Long
-    Dim C_() As Double
-    Dim A_() As Double
-    Dim B_() As Double
-
-    C.CreateFlatAlias C_
-    A.CreateFlatAlias A_
-    B.CreateFlatAlias B_
-    For i = 1 To A.NumElements
-        If C_(i) = 0 Then
-            A_(i) = B_(i)
-        End If
-    Next i
-    C.RemoveAlias C_
-    A.RemoveAlias A_
-    B.RemoveAlias B_
 End Sub
 
 Private Function MatMulNaive(ByVal A As Tensor, _
@@ -1374,31 +1525,65 @@ Private Sub MatMulBlas_I(ByVal C As Tensor, _
     dgemm sTransposeA, sTransposeB, m, n, k, 1#, A.Address, A.Size(1), B.Address, B.Size(1), 1#, C.Address, m
 End Sub
 
-Private Function MatTransposeNaive(ByVal A As Tensor) As Tensor
+Private Function TransposeNaive(ByVal A As Tensor, _
+                                ByVal lDimension1 As Long, _
+                                ByVal lDimension2 As Long) As Tensor
     Dim i As Long
     Dim j As Long
+    Dim p As Long
+    Dim q As Long
+    Dim s As Long
     Dim m As Long
     Dim n As Long
-    Dim A_() As Double
+    Dim lBefore As Long
+    Dim lBetween As Long
+    Dim lAfter As Long
+    Dim alNewShape() As Long
+    Dim X_() As Double
     Dim Y_() As Double
+    Dim X As Tensor
     Dim Y As Tensor
-    
-    m = A.Size(1)
-    n = A.Size(2)
-    Set Y = Zeros(Array(n, m))
-    A.CreateAlias A_
+    Dim R As Tensor
+
+    lBefore = 1
+    For i = 1 To lDimension1 - 1
+        lBefore = lBefore * A.Size(i)
+    Next i
+    lBetween = 1
+    For i = lDimension1 + 1 To lDimension2 - 1
+        lBetween = lBetween * A.Size(i)
+    Next i
+    lAfter = 1
+    For i = lDimension2 + 1 To A.NumDimensions
+        lAfter = lAfter * A.Size(i)
+    Next i
+    m = A.Size(lDimension1)
+    n = A.Size(lDimension2)
+    alNewShape = A.Shape
+    alNewShape(lDimension1) = n
+    alNewShape(lDimension2) = m
+    Set R = Zeros(alNewShape)
+    Set X = A.View(Array(lBefore, m, lBetween, n, lAfter))
+    Set Y = R.View(Array(lBefore, n, lBetween, m, lAfter))
+    X.CreateAlias X_
     Y.CreateAlias Y_
-    For j = 1 To m
-        For i = 1 To n
-            Y_(i, j) = A_(j, i)
+    For s = 1 To lAfter
+        For i = 1 To m
+            For q = 1 To lBetween
+                For j = 1 To n
+                    For p = 1 To lBefore
+                        Y_(p, j, q, i, s) = X_(p, i, q, j, s)
+                    Next p
+                Next j
+            Next q
         Next i
-    Next j
-    A.RemoveAlias A_
+    Next s
+    X.RemoveAlias X_
     Y.RemoveAlias Y_
-    Set MatTransposeNaive = Y
+    Set TransposeNaive = R
 End Function
 
-Private Function MatTransposeBlas(ByVal A As Tensor) As Tensor
+Private Function TransposeBlas(ByVal A As Tensor) As Tensor
     Dim m As Long
     Dim n As Long
     Dim Y As Tensor
@@ -1407,5 +1592,7 @@ Private Function MatTransposeBlas(ByVal A As Tensor) As Tensor
     n = A.Size(2)
     Set Y = Zeros(Array(n, m))
     domatcopy "C", "T", m, n, 1#, A.Address, m, Y.Address, n
-    Set MatTransposeBlas = Y
+    Set TransposeBlas = Y
 End Function
+
+

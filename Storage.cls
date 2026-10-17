@@ -55,9 +55,9 @@ Public Property Get Address() As LongPtr
     Address = m_pAddress
 End Property
 
-Public Sub Resize(ByVal lNumRows As Long, _
-                  ByVal lNumCols As Long)
-    Const PROCEDURE_NAME As String = "Storage.Resize"
+Public Sub Init(ByVal lNumRows As Long, _
+                ByVal lNumCols As Long)
+    Const PROCEDURE_NAME As String = "Storage.Init"
     
     If lNumRows < 0 Then
         Err.Raise 5, PROCEDURE_NAME, "Number of rows must be >= 0."
@@ -77,7 +77,7 @@ End Sub
 
 Public Function Clone() As Storage
     Set Clone = New Storage
-    Clone.Resize m_lNumRows, m_lNumCols
+    Clone.Init m_lNumRows, m_lNumCols
     If m_lNumElements > 0 Then
         CopyMemory ByVal Clone.Address, ByVal m_pAddress, CLngPtr(m_lNumElements) * ELEMENT_SIZE
     End If
@@ -102,7 +102,7 @@ Public Sub FromArray(ByRef adblArray() As Double)
         lNumRows = lNumRows * lNumCols
         lNumCols = UBound(adblArray, i) - LBound(adblArray, i) + 1
     Next i
-    Resize lNumRows, lNumCols
+    Me.Init lNumRows, lNumCols
     If m_lNumElements > 0 Then
         CopyMemory pDescriptor, ByVal VarPtrArray(adblArray), SIZEOF_LONGPTR
         CopyMemory pData, ByVal pDescriptor + SA_OFFSET_pvData, SIZEOF_LONGPTR
@@ -151,9 +151,9 @@ Public Sub FromRange(ByVal oRange As Range, _
     lNumRows = lMaxRow - lMinRow + 1
     lNumCols = lMaxCol - lMinCol + 1
     If bTranspose Then
-        Resize lNumCols, lNumRows
+        Me.Init lNumCols, lNumRows
     Else
-        Resize lNumRows, lNumCols
+        Me.Init lNumRows, lNumCols
     End If
     For Each oArea In oRange.Areas
         lRowOffset = oArea.Row - lMinRow

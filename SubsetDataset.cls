@@ -14,44 +14,48 @@ Implements IDataset
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
 'Dependencies
-Private m_oDataset As IDataset
+Private m_oSource As IDataset
 
 'State
 Private m_lNumSamples As Long
 Private m_alIndices() As Long
 
-'Gather cache
-Private m_oGatherCache As TensorDataset
+'Cache
+Private m_oCache As TensorDataset
 
 Public Property Get NumSamples() As Long
     NumSamples = m_lNumSamples
 End Property
 
-Public Property Get Cache() As TensorDataset
-    If m_oGatherCache Is Nothing Then
-        Set m_oGatherCache = m_oDataset.Gather(m_alIndices)
-    End If
-    Set Cache = m_oGatherCache
+Public Property Get NumTensors() As Long
+    NumTensors = m_oSource.NumTensors
 End Property
 
-Public Sub Init(ByVal oDataset As IDataset, _
+Public Property Get Tensors(ByVal lIndex As Long) As Tensor
+    If m_oCache Is Nothing Then
+        Set m_oCache = m_oSource.Gather(m_alIndices)
+    End If
+    Set Tensors = m_oCache.Tensors(lIndex)
+End Property
+
+Public Sub Init(ByVal oSource As IDataset, _
                 ByVal vIndices As Variant)
     Const PROCEDURE_NAME As String = "SubsetDataset.Init"
     Dim i As Long
     Dim lNumIndices As Long
     Dim alIndices() As Long
     
-    If oDataset Is Nothing Then
+    If oSource Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid IDataset object is required."
     End If
     ParseVariantToLongArray vIndices, lNumIndices, alIndices
     For i = 1 To lNumIndices
-        If alIndices(i) < 1 Or alIndices(i) > oDataset.NumSamples Then
+        If alIndices(i) < 1 Or alIndices(i) > oSource.NumSamples Then
             Err.Raise 9, PROCEDURE_NAME, "Sample index is out of range."
         End If
     Next i
     Clear
-    Set m_oDataset = oDataset
+    Set m_oSource = oSource
     m_lNumSamples = lNumIndices
     m_alIndices = alIndices
 End Sub
@@ -60,14 +64,14 @@ Public Function Gather(ByVal vIndices As Variant) As TensorDataset
     Dim alIndices() As Long
     
     alIndices = MapLogicalToPhysical(vIndices)
-    Set Gather = m_oDataset.Gather(alIndices)
+    Set Gather = m_oSource.Gather(alIndices)
 End Function
 
 Public Function Subset(ByVal vIndices As Variant) As SubsetDataset
     Dim alIndices() As Long
     
     alIndices = MapLogicalToPhysical(vIndices)
-    Set Subset = m_oDataset.Subset(alIndices)
+    Set Subset = m_oSource.Subset(alIndices)
 End Function
 
 Private Function MapLogicalToPhysical(ByVal vIndices As Variant) As Long()
@@ -87,10 +91,10 @@ Private Function MapLogicalToPhysical(ByVal vIndices As Variant) As Long()
 End Function
 
 Private Sub Clear()
-    Set m_oDataset = Nothing
+    Set m_oSource = Nothing
     m_lNumSamples = 0
     Erase m_alIndices
-    Set m_oGatherCache = Nothing
+    Set m_oCache = Nothing
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
@@ -98,8 +102,12 @@ End Sub
         IDataset_NumSamples = Me.NumSamples
     End Property
     
-    Private Property Get IDataset_Cache() As Object
-        Set IDataset_Cache = Me.Cache()
+    Private Property Get IDataset_NumTensors() As Long
+        IDataset_NumTensors = Me.NumTensors
+    End Property
+    
+    Private Property Get IDataset_Tensors(ByVal lIndex As Long) As Object
+        Set IDataset_Tensors = Me.Tensors(lIndex)
     End Property
     
     Private Function IDataset_Gather(ByVal vIndices As Variant) As Object
@@ -114,8 +122,12 @@ End Sub
         IDataset_NumSamples = Me.NumSamples
     End Property
     
-    Private Property Get IDataset_Cache() As TensorDataset
-        Set IDataset_Cache = Me.Cache()
+    Private Property Get IDataset_NumTensors() As Long
+        IDataset_NumTensors = Me.NumTensors
+    End Property
+    
+    Private Property Get IDataset_Tensors(ByVal lIndex As Long) As Tensor
+        Set IDataset_Tensors = Me.Tensors(lIndex)
     End Property
     
     Private Function IDataset_Gather(ByVal vIndices As Variant) As TensorDataset

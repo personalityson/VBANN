@@ -12,20 +12,20 @@ Public Function AdamW(Optional ByVal dblLearningRate As Double = 0.001, _
 End Function
 
 Public Function BackpropTrainer(ByVal oModel As ILayer, _
-                                ByVal oLossFunction As ICriterion, _
+                                ByVal oLossFunction As ILossFunction, _
                                 ByVal oOptimizer As IOptimizer) As BackpropTrainer
     Set BackpropTrainer = New BackpropTrainer
     BackpropTrainer.Init oModel, oLossFunction, oOptimizer
 End Function
 
-Public Function BCELoss() As BCELoss
+Public Function BCELoss(Optional ByVal bFromLogits As Boolean) As BCELoss
     Set BCELoss = New BCELoss
-    BCELoss.Init
+    BCELoss.Init bFromLogits
 End Function
 
-Public Function CCELoss() As CCELoss
+Public Function CCELoss(Optional ByVal bFromLogits As Boolean) As CCELoss
     Set CCELoss = New CCELoss
-    CCELoss.Init
+    CCELoss.Init bFromLogits
 End Function
 
 Public Function DataLoader(ByVal oDataset As IDataset, _
@@ -46,21 +46,11 @@ Public Function FullyConnectedLayer(ByVal lInputSize As Long, _
     FullyConnectedLayer.Init lInputSize, lOutputSize
 End Function
 
-Public Function GeneticTrainer(ByVal oModel As ILayer, _
-                               ByVal oLossFunction As ICriterion, _
-                               Optional ByVal lPopulationSize As Long = 50, _
-                               Optional ByVal lNumElites As Long = 2, _
-                               Optional ByVal lTournamentSize As Long = 3, _
-                               Optional ByVal dblCrossoverRate As Double = 0.9, _
-                               Optional ByVal dblMutationRate As Double = 0.1, _
-                               Optional ByVal dblMutationSigma As Double = 0.1) As GeneticTrainer
-    Set GeneticTrainer = New GeneticTrainer
-    GeneticTrainer.Init oModel, oLossFunction, lPopulationSize, lNumElites, lTournamentSize, dblCrossoverRate, dblMutationRate, dblMutationSigma
-End Function
-
-Public Function InputNormalizationLayer(ByVal oTrainingSet As IDataset) As InputNormalizationLayer
-    Set InputNormalizationLayer = New InputNormalizationLayer
-    InputNormalizationLayer.Init oTrainingSet
+Public Function NormalizationLayer(ByVal oTrainingSet As IDataset, _
+                                   ByVal lIndex As Long, _
+                                   Optional ByVal bInvert As Boolean) As NormalizationLayer
+    Set NormalizationLayer = New NormalizationLayer
+    NormalizationLayer.Init oTrainingSet, lIndex, bInvert
 End Function
 
 Public Function L1Loss() As L1Loss
@@ -76,6 +66,15 @@ End Function
 Public Function LeakyReLULayer(Optional ByVal dblNegativeSlope As Double = 0.01) As LeakyReLULayer
     Set LeakyReLULayer = New LeakyReLULayer
     LeakyReLULayer.Init dblNegativeSlope
+End Function
+
+Public Function OpenES(ByVal oModel As ILayer, _
+                       ByVal oLossFunction As ILossFunction, _
+                       ByVal oOptimizer As IOptimizer, _
+                       Optional ByVal lPopulationSize As Long = 50, _
+                       Optional ByVal dblMutationSigma As Double = 0.02) As OpenES
+    Set OpenES = New OpenES
+    OpenES.Init oModel, oLossFunction, oOptimizer, lPopulationSize, dblMutationSigma
 End Function
 
 Public Function Parameter(ByVal oTensor As Tensor, _
@@ -125,6 +124,19 @@ Public Function TensorDataset(ByVal vTensors As Variant) As TensorDataset
     TensorDataset.Init vTensors
 End Function
 
+Public Function XGBoost(ByVal oLossFunction As ILossFunction, _
+                        Optional ByVal dblLearningRate As Double = 0.1, _
+                        Optional ByVal lMaxDepth As Long = 6, _
+                        Optional ByVal dblLambda As Double = 1, _
+                        Optional ByVal dblGamma As Double = 0, _
+                        Optional ByVal dblMinChildWeight As Double = 1, _
+                        Optional ByVal dblSubsample As Double = 1, _
+                        Optional ByVal dblColsample As Double = 1, _
+                        Optional ByVal lNumBins As Long = 256) As XGBoost
+    Set XGBoost = New XGBoost
+    XGBoost.Init oLossFunction, dblLearningRate, lMaxDepth, dblLambda, dblGamma, dblMinChildWeight, dblSubsample, dblColsample, lNumBins
+End Function
+
 Public Sub Serialize(ByVal sName As String, _
                      ByVal oObject As ISerializable)
     With New Serializer
@@ -153,6 +165,7 @@ Public Function ImportDatasetFromWorksheet(ByVal oWorkbook As Workbook, _
     Dim i As Long
     Dim lNumSegments As Long
     Dim alSegmentSizes() As Long
+    Dim lLastRow As Long
     Dim lFirstRow As Long
     Dim lFirstCol As Long
     Dim lNumSamples As Long
@@ -168,20 +181,20 @@ Public Function ImportDatasetFromWorksheet(ByVal oWorkbook As Workbook, _
     End If
     ParseVariantToLongArray vSegmentSizes, lNumSegments, alSegmentSizes
     If lNumSegments < 1 Then
-        Err.Raise 9, PROCEDURE_NAME, "Dataset must have at least one segment."
+        Err.Raise 5, PROCEDURE_NAME, "Dataset must have at least one segment."
     End If
     For i = 1 To lNumSegments
         If alSegmentSizes(i) < 1 Then
             Err.Raise 5, PROCEDURE_NAME, "Segment size must be >= 1."
         End If
     Next i
-    Set oSource = oWorkbook.Sheets(sName)
-    lFirstRow = GetFirstRow(oSource) + IIf(bHasHeaders, 1, 0)
-    lFirstCol = GetFirstColumn(oSource)
-    
-    'lNumSamples = GetLastRow(oSource) - lFirstRow + 1
-    lNumSamples = GetLastRow(oSource, 1) - lFirstRow + 1
-    
+    Set oSource = oWorkbook.Worksheets(sName)
+    lLastRow = GetLastRow(oSource)
+    If lLastRow > 0 Then
+        lFirstRow = GetFirstRow(oSource) + IIf(bHasHeaders, 1, 0)
+        lFirstCol = GetFirstColumn(oSource)
+        lNumSamples = MaxLng(0, lLastRow - lFirstRow + 1)
+    End If
     ReDim aoTensors(1 To lNumSegments)
     Set oResult = New TensorDataset
     For i = 1 To lNumSegments
@@ -215,9 +228,9 @@ Public Sub SplitDataset(ByVal oDataset As IDataset, _
         Err.Raise 5, PROCEDURE_NAME, "Fraction must be >= 0 and <= 1."
     End If
     If bRandomize Then
-        alFullIndices = GetRandomPermutationArray(oDataset.NumSamples)
+        alFullIndices = GetRandomPermutation(oDataset.NumSamples)
     Else
-        alFullIndices = GetIdentityPermutationArray(oDataset.NumSamples)
+        alFullIndices = GetIdentityPermutation(oDataset.NumSamples)
     End If
     lSizeA = Int(dblAt * oDataset.NumSamples + 0.5)
     lSizeB = oDataset.NumSamples - lSizeA

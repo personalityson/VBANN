@@ -106,13 +106,10 @@ End Sub
 
 'Y = W * X + b
 Private Function CalculateOutput(ByVal X As Tensor) As Tensor
-    Dim lBatchSize As Long
     Dim Y As Tensor
 
-    lBatchSize = X.Size(2)
-    Set Y = Zeros(Array(m_lOutputSize, lBatchSize))
-    MatMul_I Y, m_oWeights.Tensor, X
-    MatMul_I Y, m_oBias.Tensor, Ones(lBatchSize), True, True
+    Set Y = MatMul(m_oWeights.Tensor, X)
+    VecAdd_I Y, m_oBias.Tensor
     Set CalculateOutput = Y
 End Function
 
@@ -129,7 +126,7 @@ Private Sub UpdateGradients(ByVal X As Tensor, _
 
     lBatchSize = X.Size(2)
     MatMul_I m_oWeights.Gradient, dLdY, X, , True
-    MatMul_I m_oBias.Gradient, dLdY, Ones(lBatchSize)
+    VecAdd_I m_oBias.Gradient, dLdY.Reduce(2, rtSum)
     m_oWeights.NumAccumulatedSamples = m_oWeights.NumAccumulatedSamples + lBatchSize
     m_oBias.NumAccumulatedSamples = m_oBias.NumAccumulatedSamples + lBatchSize
 End Sub

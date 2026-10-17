@@ -29,24 +29,25 @@ End Sub
 Public Function Forward(ByVal X As Tensor, _
                         Optional ByVal bIsTraining As Boolean) As Tensor
     Const PROCEDURE_NAME As String = "SoftmaxLayer.Forward"
-    
+
     If X Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If X.NumDimensions <> 2 Then
-        Err.Raise 5, PROCEDURE_NAME, "Input tensor must have two dimensions."
+    If X.NumDimensions < 1 Then
+        Err.Raise 5, PROCEDURE_NAME, "Input tensor must have a class dimension."
     End If
     If X.Size(1) < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Softmax requires at least one class."
+        Err.Raise 5, PROCEDURE_NAME, "Input tensor must have at least one class."
     End If
     Set m_X = X
-    Set m_Y = CalculateOutput(X)
+    Set m_Y = Softmax(X, 1)
     Set Forward = m_Y
 End Function
 
+'dL/dX = Y * (dL/dY - Sum(Y * dL/dY)), summed over the classes of each sample
 Public Function Backward(ByVal dLdY As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "SoftmaxLayer.Backward"
-    
+
     If m_Y Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Forward pass must be executed before the backward pass."
     End If
@@ -54,42 +55,15 @@ Public Function Backward(ByVal dLdY As Tensor) As Tensor
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
     If Not dLdY.ShapeEquals(m_Y.Shape) Then
-        Err.Raise 5, PROCEDURE_NAME, "Gradient tensor does not match the expected shape for backward pass."
+        Err.Raise 5, PROCEDURE_NAME, "Gradient tensor does not match the shape of the output from the forward pass."
     End If
-    Set Backward = CalculateInputGradient(m_Y, dLdY)
+    Set Backward = VecMul(m_Y, VecSub(dLdY, VecMul(m_Y, dLdY).Reduce(1, rtSum)))
 End Function
 
 Private Sub Clear()
     Set m_X = Nothing
     Set m_Y = Nothing
 End Sub
-
-Private Function CalculateOutput(ByVal X As Tensor) As Tensor
-    Dim lNumClasses As Long
-    Dim oShifted As Tensor
-    Dim oExpShifted As Tensor
-    Dim oExpShiftedSum As Tensor
-
-    lNumClasses = X.Size(1)
-    Set oShifted = VecSub(X, X.Reduce(1, rtMax).Tile(1, lNumClasses))
-    Set oExpShifted = VecExp(oShifted)
-    Set oExpShiftedSum = oExpShifted.Reduce(1, rtSum)
-    Set CalculateOutput = VecDiv(oExpShifted, oExpShiftedSum.Tile(1, lNumClasses))
-End Function
-
-Private Function CalculateInputGradient(ByVal Y As Tensor, _
-                                        ByVal dLdY As Tensor) As Tensor
-    Dim lNumClasses As Long
-    Dim oWeightedError As Tensor
-    Dim oSumPerClass As Tensor
-    Dim oAdjustedError As Tensor
-
-    lNumClasses = Y.Size(1)
-    Set oWeightedError = VecMul(Y, dLdY)
-    Set oSumPerClass = oWeightedError.Reduce(1, rtSum)
-    Set oAdjustedError = VecSub(dLdY, oSumPerClass.Tile(1, lNumClasses))
-    Set CalculateInputGradient = VecMul(Y, oAdjustedError)
-End Function
 
 Private Sub Save(ByVal oSerializer As Serializer)
     'Do nothing
@@ -103,12 +77,12 @@ End Sub
     Private Property Get ILayer_Learnables() As Variant
         ILayer_Learnables = Me.Learnables
     End Property
-    
+
     Private Function ILayer_Forward(ByVal X As Object, _
                                     Optional ByVal bIsTraining As Boolean) As Object
         Set ILayer_Forward = Me.Forward(X, bIsTraining)
     End Function
-    
+
     Private Function ILayer_Backward(ByVal dLdY As Object) As Object
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
@@ -116,7 +90,7 @@ End Sub
     Private Sub ISerializable_Save(ByVal oSerializer As Object)
         Save oSerializer
     End Sub
-    
+
     Private Sub ISerializable_Load(ByVal oSerializer As Object)
         Load oSerializer
     End Sub
@@ -124,12 +98,12 @@ End Sub
     Private Property Get ILayer_Learnables() As Variant
         ILayer_Learnables = Me.Learnables
     End Property
-    
+
     Private Function ILayer_Forward(ByVal X As Tensor, _
                                     Optional ByVal bIsTraining As Boolean) As Tensor
         Set ILayer_Forward = Me.Forward(X, bIsTraining)
     End Function
-    
+
     Private Function ILayer_Backward(ByVal dLdY As Tensor) As Tensor
         Set ILayer_Backward = Me.Backward(dLdY)
     End Function
@@ -137,7 +111,7 @@ End Sub
     Private Sub ISerializable_Save(ByVal oSerializer As Serializer)
         Save oSerializer
     End Sub
-    
+
     Private Sub ISerializable_Load(ByVal oSerializer As Serializer)
         Load oSerializer
     End Sub

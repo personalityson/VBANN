@@ -77,6 +77,11 @@ Private Sub Clear()
     Set m_Y = Nothing
 End Sub
 
+Private Function ApplyDropoutMask(ByVal X As Tensor, _
+                                  ByVal oMask As Tensor) As Tensor
+    Set ApplyDropoutMask = VecMulC(VecMul(X, oMask), 1 / (1 - m_dblDropoutRate))
+End Function
+
 Private Sub Save(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "DropoutLayer.Save"
     
@@ -99,11 +104,6 @@ Private Sub Load(ByVal oSerializer As Serializer)
         m_dblDropoutRate = .ReadDouble()
     End With
 End Sub
-
-Private Function ApplyDropoutMask(ByVal X As Tensor, _
-                                  ByVal oMask As Tensor) As Tensor
-    Set ApplyDropoutMask = VecMulC(VecMul(X, oMask), 1 / (1 - m_dblDropoutRate))
-End Function
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
     Private Property Get ILayer_Learnables() As Variant

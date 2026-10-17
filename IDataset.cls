@@ -16,7 +16,11 @@ Option Explicit
         '
     End Property
     
-    Public Property Get Cache() As Object
+    Public Property Get NumTensors() As Long
+        '
+    End Property
+    
+    Public Property Get Tensors(ByVal lIndex As Long) As Object
         '
     End Property
     
@@ -32,7 +36,11 @@ Option Explicit
         '
     End Property
     
-    Public Property Get Cache() As TensorDataset
+    Public Property Get NumTensors() As Long
+        '
+    End Property
+    
+    Public Property Get Tensors(ByVal lIndex As Long) As Tensor
         '
     End Property
     
@@ -44,3 +52,4 @@ Option Explicit
         '
     End Function
 #End If
+

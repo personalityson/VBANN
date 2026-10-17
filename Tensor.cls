@@ -53,6 +53,7 @@ Public Enum ReductionType
     rtMin
     rtMax
     rtMean
+    rtMedian
 End Enum
 
 'Dimensions
@@ -92,30 +93,42 @@ Public Property Get Address() As LongPtr
     Address = m_oData.Address
 End Property
 
-Public Sub Resize(ByVal vShape As Variant, _
-                  Optional ByVal oData As Storage)
-    Const PROCEDURE_NAME As String = "Tensor.Resize"
-    Dim i As Long
+Public Sub Init(ByVal vShape As Variant)
     Dim lNumDimensions As Long
     Dim alShape() As Long
     Dim alInnerStrides() As Long
     Dim alOuterStrides() As Long
     Dim lNumElements As Long
 
-    ParseVariantToLongArray vShape, lNumDimensions, alShape
-    If lNumDimensions > MAX_DIMENSIONS Then
-        Err.Raise 5, PROCEDURE_NAME, "Number of dimensions exceeds the maximum allowed (" & MAX_DIMENSIONS & ")."
-    End If
-    For i = 1 To lNumDimensions
-        If alShape(i) < 0 Then
-            Err.Raise 5, PROCEDURE_NAME, "Dimension size must be >= 0."
-        End If
-    Next i
+    ParseShape vShape, lNumDimensions, alShape
     CalculateStrides lNumDimensions, alShape, alInnerStrides, alOuterStrides, lNumElements
-    If Not oData Is Nothing Then
-        If oData.NumElements <> lNumElements Then
-            Err.Raise 5, PROCEDURE_NAME, "Number of elements in the data does not match the tensor's number of elements."
-        End If
+    Clear
+    m_lNumDimensions = lNumDimensions
+    m_alShape = alShape
+    m_alInnerStrides = alInnerStrides
+    m_alOuterStrides = alOuterStrides
+    m_lNumElements = lNumElements
+    AllocateData
+    AllocateDescriptor
+    AllocateFlatDescriptor
+End Sub
+
+Friend Sub Wrap(ByVal vShape As Variant, _
+                ByVal oData As Storage)
+    Const PROCEDURE_NAME As String = "Tensor.Wrap"
+    Dim lNumDimensions As Long
+    Dim alShape() As Long
+    Dim alInnerStrides() As Long
+    Dim alOuterStrides() As Long
+    Dim lNumElements As Long
+
+    If oData Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Storage object is required."
+    End If
+    ParseShape vShape, lNumDimensions, alShape
+    CalculateStrides lNumDimensions, alShape, alInnerStrides, alOuterStrides, lNumElements
+    If oData.NumElements <> lNumElements Then
+        Err.Raise 5, PROCEDURE_NAME, "Number of elements in the data does not match the tensor's number of elements."
     End If
     Clear
     m_lNumDimensions = lNumDimensions
@@ -123,48 +136,39 @@ Public Sub Resize(ByVal vShape As Variant, _
     m_alInnerStrides = alInnerStrides
     m_alOuterStrides = alOuterStrides
     m_lNumElements = lNumElements
-    If oData Is Nothing Then
-        AllocateData
-    Else
-        Set m_oData = oData
-    End If
+    Set m_oData = oData
     AllocateDescriptor
     AllocateFlatDescriptor
 End Sub
 
-Public Sub Reshape(ByVal vShape As Variant)
-    Me.Resize vShape, m_oData
-End Sub
-
 Public Function View(ByVal vShape As Variant) As Tensor
     Set View = New Tensor
-    View.Resize vShape, m_oData
+    View.Wrap vShape, m_oData
 End Function
 
 Public Function Flatten() As Tensor
     Set Flatten = Me.View(m_lNumElements)
 End Function
 
-Public Function Squeeze() As Tensor
+Public Function Expand(ByVal lNumDimensions As Long) As Tensor
+    Const PROCEDURE_NAME As String = "Tensor.Expand"
     Dim i As Long
-    Dim lNewNumDimensions As Long
     Dim alNewShape() As Long
 
-    If m_lNumDimensions < 2 Then
-        Set Squeeze = Me.View(m_lNumElements)
-        Exit Function
+    If m_lNumDimensions < 1 Then
+        Err.Raise 5, PROCEDURE_NAME, "Tensor must have at least one dimension."
     End If
-    ReDim alNewShape(1 To m_lNumDimensions)
-    For i = 1 To m_lNumDimensions
-        If m_alShape(i) <> 1 Or (i = m_lNumDimensions And lNewNumDimensions = 0) Then
-            lNewNumDimensions = lNewNumDimensions + 1
-            alNewShape(lNewNumDimensions) = m_alShape(i)
-        End If
-    Next i
-    If lNewNumDimensions < m_lNumDimensions Then
-        ReDim Preserve alNewShape(1 To lNewNumDimensions)
+    If lNumDimensions < 1 Or lNumDimensions > MAX_DIMENSIONS Then
+        Err.Raise 5, PROCEDURE_NAME, "Number of dimensions must be between 1 and " & MAX_DIMENSIONS & "."
     End If
-    Set Squeeze = Me.View(alNewShape)
+    alNewShape = m_alShape
+    If lNumDimensions > m_lNumDimensions Then
+        ReDim Preserve alNewShape(1 To lNumDimensions)
+        For i = m_lNumDimensions + 1 To lNumDimensions
+            alNewShape(i) = 1
+        Next i
+    End If
+    Set Expand = Me.View(alNewShape)
 End Function
 
 Public Function Gather(ByVal lDimension As Long, _
@@ -195,7 +199,7 @@ Public Function Reduce(ByVal lDimension As Long, _
     End If
     If m_alShape(lDimension) = 0 Then
         Select Case eReduction
-            Case rtMin, rtMax, rtMean
+            Case rtMin, rtMax, rtMean, rtMedian
                 Err.Raise 5, PROCEDURE_NAME, "Reducing over an empty dimension is not allowed."
         End Select
     End If
@@ -233,23 +237,27 @@ Public Function Tile(ByVal lDimension As Long, _
 End Function
 
 Public Function Sum() As Double
-    Sum = AggregateAll(rtSum)
+    Sum = ReduceAll(rtSum)
 End Function
 
 Public Function Product() As Double
-    Product = AggregateAll(rtProduct)
+    Product = ReduceAll(rtProduct)
 End Function
 
 Public Function Min() As Double
-    Min = AggregateAll(rtMin)
+    Min = ReduceAll(rtMin)
 End Function
 
 Public Function Max() As Double
-    Max = AggregateAll(rtMax)
+    Max = ReduceAll(rtMax)
 End Function
 
 Public Function Mean() As Double
-    Mean = AggregateAll(rtMean)
+    Mean = ReduceAll(rtMean)
+End Function
+
+Public Function Median() As Double
+    Median = ReduceAll(rtMedian)
 End Function
 
 Public Sub FromArray(ByRef adblArray() As Double)
@@ -260,7 +268,7 @@ Public Sub FromArray(ByRef adblArray() As Double)
 
     lNumDimensions = GetRank(adblArray)
     If lNumDimensions < 1 Then
-        Me.Resize Array()
+        Me.Init Array()
         Exit Sub
     End If
     ReDim alShape(1 To lNumDimensions)
@@ -269,7 +277,7 @@ Public Sub FromArray(ByRef adblArray() As Double)
     Next i
     Set oData = New Storage
     oData.FromArray adblArray
-    Me.Resize alShape, oData
+    Me.Wrap alShape, oData
 End Sub
 
 Public Function ToArray() As Double()
@@ -285,12 +293,12 @@ Public Sub FromRange(ByVal oRange As Range, _
     Dim oData As Storage
 
     If oRange Is Nothing Then
-        Me.Resize Array()
+        Me.Init Array()
         Exit Sub
     End If
     Set oData = New Storage
     oData.FromRange oRange, bTranspose
-    Me.Resize Array(oData.NumRows, oData.NumCols), oData
+    Me.Wrap Array(oData.NumRows, oData.NumCols), oData
 End Sub
 
 Public Sub Fill(ByVal dblValue As Double)
@@ -311,7 +319,35 @@ End Sub
 
 Public Function Clone() As Tensor
     Set Clone = New Tensor
-    Clone.Resize m_alShape, m_oData.Clone
+    Clone.Wrap m_alShape, m_oData.Clone
+End Function
+
+Public Function IsConformable(ByVal A As Tensor) As Boolean
+    Const PROCEDURE_NAME As String = "Tensor.IsConformable"
+    Dim i As Long
+
+    If A Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If A.NumElements <> m_lNumElements Then
+        Exit Function
+    End If
+    For i = 1 To MinLng(m_lNumDimensions, A.NumDimensions)
+        If A.Size(i) <> m_alShape(i) Then
+            Exit Function
+        End If
+    Next i
+    For i = A.NumDimensions + 1 To m_lNumDimensions
+        If m_alShape(i) <> 1 Then
+            Exit Function
+        End If
+    Next i
+    For i = m_lNumDimensions + 1 To A.NumDimensions
+        If A.Size(i) <> 1 Then
+            Exit Function
+        End If
+    Next i
+    IsConformable = True
 End Function
 
 Public Function ShapeEquals(ByVal vShape As Variant) As Boolean
@@ -378,7 +414,7 @@ End Sub
 
 Private Sub Clear()
     Dim uEmpty As SafeArrayDescriptorEx
-    
+
     m_lNumDimensions = 0
     Erase m_alShape
     Erase m_alInnerStrides
@@ -387,6 +423,23 @@ Private Sub Clear()
     m_uSafeArray = uEmpty
     m_uFlatSafeArray = uEmpty
     Set m_oData = Nothing
+End Sub
+
+Private Sub ParseShape(ByVal vShape As Variant, _
+                       ByRef lNumDimensions As Long, _
+                       ByRef alShape() As Long)
+    Const PROCEDURE_NAME As String = "Tensor.ParseShape"
+    Dim i As Long
+
+    ParseVariantToLongArray vShape, lNumDimensions, alShape
+    If lNumDimensions > MAX_DIMENSIONS Then
+        Err.Raise 5, PROCEDURE_NAME, "Number of dimensions exceeds the maximum allowed (" & MAX_DIMENSIONS & ")."
+    End If
+    For i = 1 To lNumDimensions
+        If alShape(i) < 0 Then
+            Err.Raise 5, PROCEDURE_NAME, "Dimension size must be >= 0."
+        End If
+    Next i
 End Sub
 
 Private Sub CalculateStrides(ByVal lNumDimensions As Long, _
@@ -425,7 +478,7 @@ Private Sub AllocateData()
     If m_lNumDimensions > 0 Then
         lNumRows = m_alInnerStrides(m_lNumDimensions)
         lNumCols = m_alShape(m_lNumDimensions)
-        m_oData.Resize lNumRows, lNumCols
+        m_oData.Init lNumRows, lNumCols
     End If
 End Sub
 
@@ -475,7 +528,7 @@ Private Function GatherInternal(ByVal lDimension As Long, _
     alNewShape = m_alShape
     alNewShape(lDimension) = lNewSize
     Set oResult = New Tensor
-    oResult.Resize alNewShape
+    oResult.Init alNewShape
     lInnerStrideBytes = m_alInnerStrides(lDimension) * m_oData.ElementSize
     lOuterStride = m_alOuterStrides(lDimension)
     For i = 1 To lOuterStride
@@ -504,10 +557,11 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
     Dim lInnerStride As Long
     Dim lOuterStride As Long
     Dim dblAcc As Double
+    Dim adblValues() As Double
     Dim A_() As Double
     Dim R_() As Double
     Dim A As Tensor
-    Dim r As Tensor
+    Dim R As Tensor
     Dim oResult As Tensor
 
     lOldSize = m_alShape(lDimension)
@@ -515,13 +569,13 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
     alNewShape = m_alShape
     alNewShape(lDimension) = lNewSize
     Set oResult = New Tensor
-    oResult.Resize alNewShape
+    oResult.Init alNewShape
     lInnerStride = m_alInnerStrides(lDimension)
     lOuterStride = m_alOuterStrides(lDimension)
     Set A = Me.View(Array(lInnerStride, lOldSize, lOuterStride))
-    Set r = oResult.View(Array(lInnerStride, lNewSize, lOuterStride))
+    Set R = oResult.View(Array(lInnerStride, lNewSize, lOuterStride))
     A.CreateAlias A_
-    r.CreateAlias R_
+    R.CreateAlias R_
     Select Case eReduction
         Case rtSum
             For k = 1 To lOuterStride
@@ -573,10 +627,24 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
                     R_(i, 1, k) = dblAcc / lOldSize
                 Next i
             Next k
+        Case rtMedian
+            For k = 1 To lOuterStride
+                For i = 1 To lInnerStride
+                    ReDim adblValues(1 To lOldSize)
+                    For j = 1 To lOldSize
+                        adblValues(j) = A_(i, j, k)
+                    Next j
+                    R_(i, 1, k) = MedianInPlace(adblValues, lOldSize)
+                Next i
+            Next k
     End Select
     A.RemoveAlias A_
-    r.RemoveAlias R_
+    R.RemoveAlias R_
     Set ReduceInternal = oResult
+End Function
+
+Private Function ReduceAll(ByVal eReduction As ReductionType) As Double
+    ReduceAll = Me.Flatten.Reduce(1, eReduction).ToArray()(1)
 End Function
 
 Private Function SliceInternal(ByVal lDimension As Long, _
@@ -595,7 +663,7 @@ Private Function SliceInternal(ByVal lDimension As Long, _
     alNewShape = m_alShape
     alNewShape(lDimension) = lNewSize
     Set oResult = New Tensor
-    oResult.Resize alNewShape
+    oResult.Init alNewShape
     lInnerStrideBytes = m_alInnerStrides(lDimension) * m_oData.ElementSize
     lOuterStride = m_alOuterStrides(lDimension)
     For i = 1 To lOuterStride
@@ -621,7 +689,7 @@ Private Function TileInternal(ByVal lDimension As Long, _
     alNewShape = m_alShape
     alNewShape(lDimension) = lNewSize
     Set oResult = New Tensor
-    oResult.Resize alNewShape
+    oResult.Init alNewShape
     lInnerStrideBytes = m_alInnerStrides(lDimension) * m_oData.ElementSize
     lOuterStride = m_alOuterStrides(lDimension)
     For i = 1 To lOuterStride
@@ -631,10 +699,6 @@ Private Function TileInternal(ByVal lDimension As Long, _
                    lOldSize * lInnerStrideBytes
     Next i
     Set TileInternal = oResult
-End Function
-
-Private Function AggregateAll(ByVal eReduction As ReductionType) As Double
-    AggregateAll = Me.Flatten.Reduce(1, eReduction).ToArray()(1)
 End Function
 
 Private Sub TileMemory(ByVal pTarget As LongPtr, _
@@ -667,6 +731,60 @@ Private Sub TileMemory(ByVal pTarget As LongPtr, _
     Loop
 End Sub
 
+'Wirth's method for median reduction
+Private Function MedianInPlace(ByRef adblValues() As Double, _
+                               ByVal lNumValues As Long) As Double
+    Dim i As Long
+    Dim j As Long
+    Dim k As Long
+    Dim lLeft As Long
+    Dim lRight As Long
+    Dim dblPivot As Double
+    Dim dblTemp As Double
+    Dim dblUpper As Double
+
+    k = (lNumValues + 1) \ 2
+    lLeft = 1
+    lRight = lNumValues
+    Do While lLeft < lRight
+        dblPivot = adblValues(k)
+        i = lLeft
+        j = lRight
+        Do
+            Do While adblValues(i) < dblPivot
+                i = i + 1
+            Loop
+            Do While dblPivot < adblValues(j)
+                j = j - 1
+            Loop
+            If i <= j Then
+                dblTemp = adblValues(i)
+                adblValues(i) = adblValues(j)
+                adblValues(j) = dblTemp
+                i = i + 1
+                j = j - 1
+            End If
+        Loop While i <= j
+        If j < k Then
+            lLeft = i
+        End If
+        If k < i Then
+            lRight = j
+        End If
+    Loop
+    If lNumValues Mod 2 = 1 Then
+        MedianInPlace = adblValues(k)
+    Else
+        dblUpper = adblValues(k + 1)
+        For i = k + 2 To lNumValues
+            If adblValues(i) < dblUpper Then
+                dblUpper = adblValues(i)
+            End If
+        Next i
+        MedianInPlace = (adblValues(k) + dblUpper) / 2
+    End If
+End Function
+
 Private Sub Save(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "Tensor.Save"
 
@@ -691,7 +809,11 @@ Private Sub Load(ByVal oSerializer As Serializer)
         alShape = .ReadLongArray()
         Set oData = .ReadObject()
     End With
-    Me.Resize alShape, oData
+    If oData Is Nothing Then
+        Me.Init alShape
+    Else
+        Me.Wrap alShape, oData
+    End If
 End Sub
 
 #If USE_LATE_BINDING_IN_INTERFACES Then
@@ -711,3 +833,4 @@ End Sub
         Load oSerializer
     End Sub
 #End If
+

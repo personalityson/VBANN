@@ -20,20 +20,16 @@ Private m_bDropRemainder As Boolean
 Private m_alIndices() As Long
 Private m_lCursor As Long
 
+Public Property Get NumTensors() As Long
+    NumTensors = m_oDataset.NumTensors
+End Property
+
 Public Property Get NumSamples() As Long
     NumSamples = m_oDataset.NumSamples
 End Property
 
 Public Property Get BatchSize() As Long
     BatchSize = m_lBatchSize
-End Property
-
-Public Property Get NumBatches() As Long
-    If m_bDropRemainder Then
-        NumBatches = m_oDataset.NumSamples \ m_lBatchSize
-    Else
-        NumBatches = (m_oDataset.NumSamples + m_lBatchSize - 1) \ m_lBatchSize
-    End If
 End Property
 
 Public Sub Init(ByVal oDataset As IDataset, _
@@ -55,12 +51,12 @@ Public Sub Init(ByVal oDataset As IDataset, _
 End Sub
 
 Public Sub Reset()
-    m_alIndices = GetIdentityPermutationArray(m_oDataset.NumSamples)
+    m_alIndices = GetIdentityPermutation(m_oDataset.NumSamples)
     m_lCursor = 1
 End Sub
 
 Public Sub Shuffle()
-    m_alIndices = GetRandomPermutationArray(m_oDataset.NumSamples)
+    m_alIndices = GetRandomPermutation(m_oDataset.NumSamples)
     m_lCursor = 1
 End Sub
 

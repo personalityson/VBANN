@@ -34,7 +34,7 @@ Public Function Forward(ByVal X As Tensor, _
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
     Set m_X = X
-    Set m_Y = CalculateOutput(X)
+    Set m_Y = VecSigmoid(X)
     Set Forward = m_Y
 End Function
 
@@ -50,22 +50,13 @@ Public Function Backward(ByVal dLdY As Tensor) As Tensor
     If Not dLdY.ShapeEquals(m_Y.Shape) Then
         Err.Raise 5, PROCEDURE_NAME, "Gradient tensor does not match the expected shape for backward pass."
     End If
-    Set Backward = CalculateInputGradient(m_Y, dLdY)
+    Set Backward = VecMul(dLdY, VecSigmoidDerivative(m_Y))
 End Function
 
 Private Sub Clear()
     Set m_X = Nothing
     Set m_Y = Nothing
 End Sub
-
-Private Function CalculateOutput(ByVal X As Tensor) As Tensor
-    Set CalculateOutput = VecSigmoid(X)
-End Function
-
-Private Function CalculateInputGradient(ByVal Y As Tensor, _
-                                     ByVal dLdY As Tensor) As Tensor
-    Set CalculateInputGradient = VecMul(dLdY, VecSigmoidDerivative(Y))
-End Function
 
 Private Sub Save(ByVal oSerializer As Serializer)
     'Do nothing

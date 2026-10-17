@@ -38,7 +38,7 @@ Public Function Forward(ByVal X As Tensor, _
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
     Set m_X = X
-    Set m_Y = CalculateOutput(X)
+    Set m_Y = VecLeakyReLU(X, m_dblNegativeSlope)
     Set Forward = m_Y
 End Function
 
@@ -54,7 +54,7 @@ Public Function Backward(ByVal dLdY As Tensor) As Tensor
     If Not dLdY.ShapeEquals(m_X.Shape) Then
         Err.Raise 5, PROCEDURE_NAME, "Gradient tensor does not match the expected shape for backward pass."
     End If
-    Set Backward = CalculateInputGradient(m_X, dLdY)
+    Set Backward = VecMul(dLdY, VecLeakyReLUDerivative(m_X, m_dblNegativeSlope))
 End Function
 
 Private Sub Clear()
@@ -62,15 +62,6 @@ Private Sub Clear()
     Set m_X = Nothing
     Set m_Y = Nothing
 End Sub
-
-Private Function CalculateOutput(ByVal X As Tensor) As Tensor
-    Set CalculateOutput = VecLeakyReLU(X, m_dblNegativeSlope)
-End Function
-
-Private Function CalculateInputGradient(ByVal X As Tensor, _
-                                     ByVal dLdY As Tensor) As Tensor
-    Set CalculateInputGradient = VecMul(dLdY, VecLeakyReLUDerivative(X, m_dblNegativeSlope))
-End Function
 
 Private Sub Save(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "LeakyReLULayer.Save"

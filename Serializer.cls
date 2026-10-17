@@ -32,14 +32,14 @@ Public Sub Init(ByVal sName As String, _
 End Sub
 
 Public Sub WriteObject(ByVal oObject As ISerializable)
-    Dim lMemoIndex As Long
+    Dim lIndex As Long
     
     If oObject Is Nothing Then
         WriteNothing
     Else
-        lMemoIndex = IndexOf(oObject)
-        If lMemoIndex > 0 Then
-            WriteMemo lMemoIndex
+        lIndex = IndexOf(oObject)
+        If lIndex > 0 Then
+            WriteMemo lIndex
         Else
             WriteSerializable oObject
         End If
@@ -65,7 +65,7 @@ End Sub
 Public Sub WriteString(ByVal sValue As String)
     With GetCell()
         .NumberFormat = "@"
-        .value = sValue
+        .Value = sValue
     End With
 End Sub
 
@@ -167,10 +167,10 @@ Private Sub WriteNothing()
     WriteString SERIALIZABLE_TYPE_NOTHING
 End Sub
 
-Private Sub WriteMemo(ByVal lMemoIndex As Long)
+Private Sub WriteMemo(ByVal lIndex As Long)
     WriteString SERIALIZABLE_TYPE_MEMO
     m_lIndent = m_lIndent + 1
-    WriteLong lMemoIndex
+    WriteLong lIndex
     m_lIndent = m_lIndent - 1
 End Sub
 
@@ -211,7 +211,7 @@ Private Sub WriteArray(ByVal vArray As Variant)
         If (VarType(vArray) And Not vbArray) = vbString Then
             .NumberFormat = "@"
         End If
-        .value = vArray
+        .Value = vArray
     End With
 End Sub
 
@@ -220,12 +220,12 @@ Private Function ReadNothing() As ISerializable
 End Function
 
 Private Function ReadMemo() As ISerializable
-    Dim lMemoIndex As Long
+    Dim lIndex As Long
     
     m_lIndent = m_lIndent + 1
-    lMemoIndex = ReadLong()
+    lIndex = ReadLong()
     m_lIndent = m_lIndent - 1
-    Set ReadMemo = m_aoSerializedObjects(lMemoIndex)
+    Set ReadMemo = m_aoSerializedObjects(lIndex)
 End Function
 
 Private Function ReadSerializable(ByVal sTypeName As String) As ISerializable
@@ -252,16 +252,16 @@ Private Function CreateInstance(ByVal sTypeName As String) As ISerializable
             Set CreateInstance = New DropoutLayer
         Case "FullyConnectedLayer"
             Set CreateInstance = New FullyConnectedLayer
-        Case "GeneticTrainer"
-            Set CreateInstance = New GeneticTrainer
-        Case "InputNormalizationLayer"
-            Set CreateInstance = New InputNormalizationLayer
         Case "L1Loss"
             Set CreateInstance = New L1Loss
         Case "L2Loss"
             Set CreateInstance = New L2Loss
         Case "LeakyReLULayer"
             Set CreateInstance = New LeakyReLULayer
+        Case "NormalizationLayer"
+            Set CreateInstance = New NormalizationLayer
+        Case "OpenES"
+            Set CreateInstance = New OpenES
         Case "Parameter"
             Set CreateInstance = New Parameter
         Case "Sequential"
@@ -278,6 +278,10 @@ Private Function CreateInstance(ByVal sTypeName As String) As ISerializable
             Set CreateInstance = New TanhLayer
         Case "Tensor"
             Set CreateInstance = New Tensor
+        Case "XGBoost"
+            Set CreateInstance = New XGBoost
+        Case "XGBoostTree"
+            Set CreateInstance = New XGBoostTree
         Case Else
             Err.Raise 5, PROCEDURE_NAME, "Unsupported serializable type."
     End Select

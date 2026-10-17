@@ -80,7 +80,7 @@ End Sub
 Public Sub Update(ByVal vParameters As Variant)
     Const PROCEDURE_NAME As String = "AdamW.Update"
     Dim W As Variant
-    
+
     For Each W In EnsureIterable(vParameters)
         If Not IsObject(W) Then
             Err.Raise 5, PROCEDURE_NAME, "Valid Parameter object is required."
@@ -108,7 +108,7 @@ End Sub
 Private Sub GetStates(ByVal W As Parameter, _
                       ByRef lStep As Long, _
                       ByRef m As Tensor, _
-                      ByRef V As Tensor)
+                      ByRef v As Tensor)
     With m_oStates
         If Not .Exists(W) Then
             PutStates W, 0&, Zeros(W.Tensor.Shape), Zeros(W.Tensor.Shape)
@@ -116,7 +116,7 @@ Private Sub GetStates(ByVal W As Parameter, _
         With .Item(W)
             lStep = .Item(KEY_STEP)
             Set m = .Item(KEY_1ST_MOMENT)
-            Set V = .Item(KEY_2ND_MOMENT)
+            Set v = .Item(KEY_2ND_MOMENT)
         End With
     End With
 End Sub
@@ -124,7 +124,7 @@ End Sub
 Private Sub PutStates(ByVal W As Parameter, _
                       ByVal lStep As Long, _
                       ByVal m As Tensor, _
-                      ByVal V As Tensor)
+                      ByVal v As Tensor)
     With m_oStates
         If Not .Exists(W) Then
             Set .Item(W) = CreateObject("Scripting.Dictionary")
@@ -132,7 +132,7 @@ Private Sub PutStates(ByVal W As Parameter, _
         With .Item(W)
             .Item(KEY_STEP) = lStep
             Set .Item(KEY_1ST_MOMENT) = m
-            Set .Item(KEY_2ND_MOMENT) = V
+            Set .Item(KEY_2ND_MOMENT) = v
         End With
     End With
 End Sub
@@ -149,12 +149,12 @@ Private Sub ApplyGradients(ByVal W As Parameter)
     Dim dblWeightDecay As Double
     Dim dblGradientScale As Double
     Dim m As Tensor
-    Dim V As Tensor
+    Dim v As Tensor
 
     If W.NumAccumulatedSamples < 1 Then
         Exit Sub
     End If
-    GetStates W, lStep, m, V
+    GetStates W, lStep, m, v
     lStep = lStep + 1
     dblLearningRate = W.LearningRateScale * m_dblLearningRate
     dblAlpha = dblLearningRate * Sqr(1 - m_dblBeta2 ^ lStep) / (1 - m_dblBeta1 ^ lStep)
@@ -165,10 +165,10 @@ Private Sub ApplyGradients(ByVal W As Parameter)
         dblGradientScale = 1
     End If
     VecLinComb_I m_dblBeta1, m, (1 - m_dblBeta1) * dblGradientScale / W.NumAccumulatedSamples, W.Gradient
-    VecLinComb_I m_dblBeta2, V, (1 - m_dblBeta2) * dblGradientScale * dblGradientScale / W.NumAccumulatedSamples / W.NumAccumulatedSamples, VecPow2(W.Gradient)
-    VecLinComb_I 1 - dblLearningRate * dblWeightDecay, W.Tensor, -dblAlpha, VecDivRms(m, V, 0, m_dblEpsilon)
+    VecLinComb_I m_dblBeta2, v, (1 - m_dblBeta2) * dblGradientScale * dblGradientScale / W.NumAccumulatedSamples / W.NumAccumulatedSamples, VecPow2(W.Gradient)
+    VecLinComb_I 1 - dblLearningRate * dblWeightDecay, W.Tensor, -dblAlpha, VecDivRms(m, v, 0, m_dblEpsilon)
     W.ResetGradient
-    PutStates W, lStep, m, V
+    PutStates W, lStep, m, v
 End Sub
 
 Private Sub Save(ByVal oSerializer As Serializer)
@@ -176,7 +176,7 @@ Private Sub Save(ByVal oSerializer As Serializer)
     Dim W As Variant
     Dim lStep As Long
     Dim m As Tensor
-    Dim V As Tensor
+    Dim v As Tensor
     
     If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
@@ -190,11 +190,11 @@ Private Sub Save(ByVal oSerializer As Serializer)
         .WriteDouble m_dblGradientThreshold
         .WriteLong m_oStates.Count
         For Each W In m_oStates.Keys
-            GetStates W, lStep, m, V
+            GetStates W, lStep, m, v
             .WriteObject W
             .WriteLong lStep
             .WriteObject m
-            .WriteObject V
+            .WriteObject v
         Next W
     End With
 End Sub
@@ -206,7 +206,7 @@ Private Sub Load(ByVal oSerializer As Serializer)
     Dim W As Parameter
     Dim lStep As Long
     Dim m As Tensor
-    Dim V As Tensor
+    Dim v As Tensor
     
     If oSerializer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Serializer object is required."
@@ -224,8 +224,8 @@ Private Sub Load(ByVal oSerializer As Serializer)
             Set W = .ReadObject()
             lStep = .ReadLong()
             Set m = .ReadObject()
-            Set V = .ReadObject()
-            PutStates W, lStep, m, V
+            Set v = .ReadObject()
+            PutStates W, lStep, m, v
         Next i
     End With
 End Sub

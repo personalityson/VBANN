@@ -15,15 +15,15 @@ Implements ISerializable
 
 'Dependencies
 Private m_oModel As ILayer
-Private m_oLossFunction As ICriterion
+Private m_oLossFunction As ILossFunction
 Private m_oOptimizer As IOptimizer
 
 Public Property Get Model() As ILayer
     Set Model = m_oModel
 End Property
 
-Public Property Get Criterion() As ICriterion
-    Set Criterion = m_oLossFunction
+Public Property Get LossFunction() As ILossFunction
+    Set LossFunction = m_oLossFunction
 End Property
 
 Public Property Get Optimizer() As IOptimizer
@@ -31,7 +31,7 @@ Public Property Get Optimizer() As IOptimizer
 End Property
 
 Public Sub Init(ByVal oModel As ILayer, _
-                ByVal oLossFunction As ICriterion, _
+                ByVal oLossFunction As ILossFunction, _
                 ByVal oOptimizer As IOptimizer)
     Const PROCEDURE_NAME As String = "BackpropTrainer.Init"
 
@@ -39,7 +39,7 @@ Public Sub Init(ByVal oModel As ILayer, _
         Err.Raise 5, PROCEDURE_NAME, "Valid ILayer object is required."
     End If
     If oLossFunction Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid ICriterion object is required."
+        Err.Raise 5, PROCEDURE_NAME, "Valid ILossFunction object is required."
     End If
     If oOptimizer Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid IOptimizer object is required."
@@ -51,39 +51,38 @@ Public Sub Init(ByVal oModel As ILayer, _
 End Sub
 
 Public Sub Fit(ByVal oTrainingLoader As DataLoader, _
-               ByVal oTestLoader As DataLoader, _
-               ByVal lNumEpochs As Long)
+               ByVal lNumEpochs As Long, _
+               Optional ByVal bVerbose As Boolean, _
+               Optional ByVal oValidationLoader As DataLoader)
     Const PROCEDURE_NAME As String = "BackpropTrainer.Fit"
     Dim i As Long
     Dim dblTrainingLoss As Double
-    Dim dblTestLoss As Double
+    Dim dblValidationLoss As Double
 
     If oTrainingLoader Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid DataLoader object is required."
     End If
-    If oTestLoader Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid DataLoader object is required."
-    End If
-    If oTrainingLoader.NumBatches < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Training dataloader must contain at least one batch."
-    End If
-    If oTestLoader.NumBatches < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Test dataloader must contain at least one batch."
+    If oTrainingLoader.NumTensors < 2 Then
+        Err.Raise 5, PROCEDURE_NAME, "Data loader must contain an input tensor and a target tensor."
     End If
     If lNumEpochs < 1 Then
         Err.Raise 5, PROCEDURE_NAME, "Number of epochs must be >= 1."
     End If
     For i = 1 To lNumEpochs
         FitOne oTrainingLoader
-        dblTrainingLoss = Evaluate(oTrainingLoader)
-        dblTestLoss = Evaluate(oTestLoader)
-        WriteLog "Log", "Name", TypeName(Me), _
-                 "Time", GetUtcTime(), _
-                 "Epoch", i, _
-                 "Total number of epochs", lNumEpochs, _
-                 "Learning rate", m_oOptimizer.LearningRate, _
-                 "Training loss", dblTrainingLoss, _
-                 "Test loss", dblTestLoss
+        If bVerbose Then
+            dblTrainingLoss = Me.Evaluate(oTrainingLoader)
+            WriteLog "Log", True, "Name", TypeName(Me), _
+                     "Time", GetUtcTime(), _
+                     "Iteration", i, _
+                     "Total number of iterations", lNumEpochs, _
+                     "Learning rate", m_oOptimizer.LearningRate, _
+                     "Training loss", dblTrainingLoss
+            If Not oValidationLoader Is Nothing Then
+                dblValidationLoss = Me.Evaluate(oValidationLoader)
+                WriteLog "Log", False, "Validation loss", dblValidationLoss
+            End If
+        End If
     Next i
 End Sub
 
@@ -99,24 +98,24 @@ Public Function Evaluate(ByVal oDataLoader As DataLoader) As Double
     If oDataLoader Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid DataLoader object is required."
     End If
-    If oDataLoader.NumBatches < 1 Then
-        Err.Raise 5, PROCEDURE_NAME, "Dataloader must contain at least one batch."
+    If oDataLoader.NumTensors < 2 Then
+        Err.Raise 5, PROCEDURE_NAME, "Data loader must contain an input tensor and a target tensor."
     End If
     With oDataLoader
         .Reset
         Do While .NextBatch(oBatch)
-            Set X = oBatch.Tensor(1)
-            Set T = oBatch.Tensor(2)
+            Set X = oBatch.Tensors(1)
+            Set T = oBatch.Tensors(2)
             Set Y = m_oModel.Forward(X)
-            dblLoss = dblLoss + m_oLossFunction.Forward(Y, T).Sum
+            dblLoss = dblLoss + m_oLossFunction.Loss(Y, T).Sum
             lNumSamples = lNumSamples + oBatch.NumSamples
-            If lNumSamples \ .BatchSize Mod 100 = 0 Then
-                Application.StatusBar = "Evaluate progress: " & Format(lNumSamples / .NumSamples, "0.0%")
-                DoEvents
-            End If
+            Application.StatusBar = "Evaluate progress: " & Format(lNumSamples / .NumSamples, "0.0%")
+            DoEvents
         Loop
     End With
-    Evaluate = dblLoss / lNumSamples
+    If lNumSamples > 0 Then
+        Evaluate = dblLoss / lNumSamples
+    End If
 End Function
 
 Private Sub Clear()
@@ -131,7 +130,7 @@ Private Sub Backpropagate(ByVal X As Tensor, _
     Dim dLdY As Tensor
 
     Set Y = m_oModel.Forward(X, True)
-    Set dLdY = m_oLossFunction.Backward(Y, T)
+    Set dLdY = m_oLossFunction.Gradient(Y, T)
     m_oModel.Backward dLdY
     m_oOptimizer.Update m_oModel.Learnables
 End Sub
@@ -145,14 +144,12 @@ Private Sub FitOne(ByVal oTrainingLoader As DataLoader)
     With oTrainingLoader
         .Shuffle
         Do While .NextBatch(oBatch)
-            Set X = oBatch.Tensor(1)
-            Set T = oBatch.Tensor(2)
+            Set X = oBatch.Tensors(1)
+            Set T = oBatch.Tensors(2)
             Backpropagate X, T
             lNumSamples = lNumSamples + oBatch.NumSamples
-            If lNumSamples \ .BatchSize Mod 100 = 0 Then
-                Application.StatusBar = "FitOne progress: " & Format(lNumSamples / .NumSamples, "0.0%")
-                DoEvents
-            End If
+            Application.StatusBar = "FitOne progress: " & Format(lNumSamples / .NumSamples, "0.0%")
+            DoEvents
         Loop
     End With
 End Sub
