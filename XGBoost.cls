@@ -309,7 +309,7 @@ Private Function BuildTree(ByVal lOutput As Long, _
     Set oTree = New XGBoostTree
     oTree.Init CLng(2 ^ (m_lMaxDepth + 1)) - 1
     BuildHistogram auHist, alIndex, 1, lNumDrawnSamples, alFeatures, lNumDrawnFeatures, G_, H_, lOutput
-    BuildNode oTree, auHist, alIndex, 1, lNumDrawnSamples, alFeatures, lNumDrawnFeatures, Y_, G_, H_, lOutput, 1
+    BuildNode oTree, auHist, alIndex, 1, lNumDrawnSamples, alFeatures, lNumDrawnFeatures, Y_, G_, H_, lOutput, 0
     oTree.Complete
     ScoreHeldOutRows oTree, X_, Y_, alIndex, lNumSamples, lNumDrawnSamples, lOutput
     Set BuildTree = oTree
