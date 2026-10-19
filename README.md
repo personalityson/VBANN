@@ -34,4 +34,4 @@ oModel.Add NormalizationLayer(oTrainingSet, lIndex:=2, bInvert:=True)
 Set oTrainer = BackpropTrainer(oModel, L2Loss(), AdamW())
 oTrainer.Fit DataLoader(oTrainingSet, lBatchSize:=16), lNumEpochs:=20, bVerbose:=True
 ```
-
+Check out full [Examples.bas](Examples.bas).
