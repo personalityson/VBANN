@@ -10,14 +10,13 @@ VBANN can be sped up 6-10x by downloading and linking to [a prebuilt OpenBLAS dl
 This project is licensed under the [Creative Commons Zero v1.0 Universal](LICENSE.txt).
 
 ### Quick example
-
 Gradient-boosted trees:
 ```vba
 Set oFullSet = ImportDatasetFromWorksheet(ThisWorkbook, "Concrete", Array(8, 1), bHasHeaders:=True)
 SplitDataset oFullSet, 0.8, oTrainingSet, oValidationSet, bRandomize:=True
 
 Set oModel = XGBoost(L2Loss(), dblLearningRate:=0.1, lMaxDepth:=6)
-oModel.Fit oTrainingSet, 40, True, oValidationSet
+oModel.Fit oTrainingSet, lNumRounds:=40, bVerbose:=True, oValidationSet:=oValidationSet
 
 MsgBox oModel.Evaluate(oValidationSet)
 Serialize "MyXGBoostModel", oModel
@@ -33,6 +32,6 @@ oModel.Add FullyConnectedLayer(32, 1)
 oModel.Add NormalizationLayer(oTrainingSet, lIndex:=2, bInvert:=True)
 
 Set oTrainer = BackpropTrainer(oModel, L2Loss(), AdamW())
-oTrainer.Fit DataLoader(oTrainingSet, 16), 20, True
+oTrainer.Fit DataLoader(oTrainingSet, lBatchSize:=16), lNumEpochs:=20, bVerbose:=True
 ```
 
