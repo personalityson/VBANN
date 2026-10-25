@@ -1,10 +1,10 @@
 ## VBANN
 
 ### What is VBANN?
-- VBANN is a small PyTorch-style machine learning framework implemented in pure VBA, which can be used to set up neural networks and gradient-boosted trees inside Excel. I'm writing this project to deepen my understanding of neural networks.<br/>
-- VBANN is designed to store everything in the same file. No installs, no add-ins, no admin rights needed -- the whole stack, including data, model, trainer and optimizer state, lives in one .xlsm file. Models, trainers and optimizer state are saved to a worksheet, so you can reload them and continue training.<br/>
+- VBANN is a small PyTorch-style machine learning framework implemented in pure VBA, which can be used to set up neural networks and gradient-boosted trees inside Excel.<br/>
+- VBANN is designed to store everything in the same file. No installs, no add-ins, no admin rights needed -- the whole stack, including data, model, trainer and optimizer state, lives in one .xlsm file. Models are saved to a worksheet, so you can reload them and continue training.<br/>
 - VBANN is modular and extensible. You can add your own layer classes.<br/>
-- VBANN can be sped up 6-10x by downloading and linking to [a prebuilt OpenBLAS dll](https://github.com/OpenMathLib/OpenBLAS/releases) inside the [TensorOps](TensorOps.bas) module.
+- VBANN can be sped up x6-10 by downloading and linking to [a prebuilt OpenBLAS dll](https://github.com/OpenMathLib/OpenBLAS/releases) inside the [TensorOps](TensorOps.bas) module.
 
 ### License
 This project is licensed under the [Creative Commons Zero v1.0 Universal](LICENSE.txt).
