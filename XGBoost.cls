@@ -128,7 +128,6 @@ Public Sub Fit(ByVal oTrainingSet As IDataset, _
                Optional ByVal oValidationSet As IDataset)
     Const PROCEDURE_NAME As String = "XGBoost.Fit"
     Dim i As Long
-    Dim lNumSamples As Long
     Dim dblTrainingLoss As Double
     Dim dblValidationLoss As Double
     Dim X As Tensor
@@ -146,23 +145,40 @@ Public Sub Fit(ByVal oTrainingSet As IDataset, _
     If X.NumDimensions <> 2 Then
         Err.Raise 5, PROCEDURE_NAME, "Input tensor must have 2 dimensions."
     End If
+    If X.Size(1) < 1 Then
+        Err.Raise 5, PROCEDURE_NAME, "Input tensor must have at least one feature."
+    End If
+    If X.Size(2) < 1 Then
+        Err.Raise 5, PROCEDURE_NAME, "Input tensor must have at least one sample."
+    End If
     If T.NumDimensions <> 2 Then
         Err.Raise 5, PROCEDURE_NAME, "Target tensor must have 2 dimensions."
+    End If
+    If T.Size(1) < 1 Then
+        Err.Raise 5, PROCEDURE_NAME, "Target tensor must have at least one output."
     End If
     If lNumRounds < 1 Then
         Err.Raise 5, PROCEDURE_NAME, "Number of rounds must be >= 1."
     End If
-    m_lNumFeatures = X.Size(1)
-    m_lNumOutputs = T.Size(1)
-    m_lNumRounds = 0
-    Set m_oBaseScore = m_oLossFunction.Intercept(T)
-    ReDim m_aoTrees(1 To m_lNumOutputs, 1 To lNumRounds)
+    If m_lNumRounds > 0 Then
+        If X.Size(1) <> m_lNumFeatures Then
+            Err.Raise 5, PROCEDURE_NAME, "Input tensor is not compatible with the trained model."
+        End If
+        If T.Size(1) <> m_lNumOutputs Then
+            Err.Raise 5, PROCEDURE_NAME, "Target tensor is not compatible with the trained model."
+        End If
+        Set Y = PredictRaw(X)
+    Else
+        m_lNumFeatures = X.Size(1)
+        m_lNumOutputs = T.Size(1)
+        Set m_oBaseScore = m_oLossFunction.Intercept(T)
+        Set Y = m_oBaseScore.Tile(2, X.Size(2))
+    End If
+    ReDim Preserve m_aoTrees(1 To m_lNumOutputs, 1 To m_lNumRounds + lNumRounds)
     BuildBins X
-    lNumSamples = X.Size(2)
-    Set Y = m_oBaseScore.Tile(2, lNumSamples)
     For i = 1 To lNumRounds
-        FitOne i, X, Y, T
-        m_lNumRounds = i
+        FitOne m_lNumRounds + 1, X, Y, T
+        m_lNumRounds = m_lNumRounds + 1
         If bVerbose Then
             dblTrainingLoss = Me.Evaluate(oTrainingSet)
             WriteLog "Log", True, "Name", TypeName(Me), _
@@ -201,18 +217,19 @@ Public Function Evaluate(ByVal oDataset As IDataset) As Double
     If X.NumDimensions <> 2 Then
         Err.Raise 5, PROCEDURE_NAME, "Input tensor must have 2 dimensions."
     End If
-    If T.NumDimensions <> 2 Then
-        Err.Raise 5, PROCEDURE_NAME, "Target tensor must have 2 dimensions."
-    End If
     If X.Size(1) <> m_lNumFeatures Then
         Err.Raise 5, PROCEDURE_NAME, "Input tensor is not compatible with the trained model."
+    End If
+    If X.Size(2) < 1 Then
+        Exit Function
+    End If
+    If T.NumDimensions <> 2 Then
+        Err.Raise 5, PROCEDURE_NAME, "Target tensor must have 2 dimensions."
     End If
     If T.Size(1) <> m_lNumOutputs Then
         Err.Raise 5, PROCEDURE_NAME, "Target tensor is not compatible with the trained model."
     End If
-    If X.Size(2) > 0 Then
-        Evaluate = m_oLossFunction.Loss(PredictRaw(X), T).Sum / X.Size(2)
-    End If
+    Evaluate = m_oLossFunction.Loss(PredictRaw(X), T).Sum / X.Size(2)
 End Function
 
 Public Function Predict(ByVal X As Tensor) As Tensor
@@ -751,5 +768,4 @@ End Sub
         Load oSerializer
     End Sub
 #End If
-
 

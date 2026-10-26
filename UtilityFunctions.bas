@@ -518,7 +518,7 @@ Public Function SanitizeFileName(ByVal sName As String) As String
         sBaseName = sName
         sExtension = ""
     End If
-    If s_oReservedNames.TEst(sBaseName) Then
+    If s_oReservedNames.Test(sBaseName) Then
         sBaseName = "_" & sBaseName
     End If
     If Len(sExtension) < MAX_LENGTH Then

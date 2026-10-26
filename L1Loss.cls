@@ -14,9 +14,6 @@ Implements ISerializable
 
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
-'Absolute error. The transform is the identity, so the raw score and the
-'prediction are the same thing and bFromLogits has no effect.
-
 Public Property Get FromLogits() As Boolean
     FromLogits = True
 End Property
@@ -27,8 +24,7 @@ End Sub
 
 'L = Abs(Y - T)
 Public Function Loss(ByVal Y As Tensor, _
-                     ByVal T As Tensor, _
-                     Optional ByVal bFromLogits As Boolean) As Tensor
+                     ByVal T As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "L1Loss.Loss"
     
     If Y Is Nothing Then
@@ -45,8 +41,7 @@ End Function
 
 'dL/dY = Sign(Y - T)
 Public Function Gradient(ByVal Y As Tensor, _
-                         ByVal T As Tensor, _
-                         Optional ByVal bFromLogits As Boolean) As Tensor
+                         ByVal T As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "L1Loss.Gradient"
     
     If Y Is Nothing Then
@@ -63,8 +58,7 @@ End Function
 
 'd2L/dY2 = 1 for XGBoost, the true second derivative is 0
 Public Function Hessian(ByVal Y As Tensor, _
-                        ByVal T As Tensor, _
-                        Optional ByVal bFromLogits As Boolean) As Tensor
+                        ByVal T As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "L1Loss.Hessian"
     
     If Y Is Nothing Then

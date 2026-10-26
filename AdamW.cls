@@ -15,8 +15,8 @@ Implements ISerializable
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
 Private Const KEY_STEP As String = "Step"
-Private Const KEY_1ST_MOMENT As String = "Mean"
-Private Const KEY_2ND_MOMENT As String = "Variance"
+Private Const KEY_MOMENT1 As String = "Moment1"
+Private Const KEY_MOMENT2 As String = "Moment2"
 
 'Hyperparameters
 Private m_dblLearningRate As Double
@@ -115,8 +115,8 @@ Private Sub GetStates(ByVal W As Parameter, _
         End If
         With .Item(W)
             lStep = .Item(KEY_STEP)
-            Set m = .Item(KEY_1ST_MOMENT)
-            Set v = .Item(KEY_2ND_MOMENT)
+            Set m = .Item(KEY_MOMENT1)
+            Set v = .Item(KEY_MOMENT2)
         End With
     End With
 End Sub
@@ -131,8 +131,8 @@ Private Sub PutStates(ByVal W As Parameter, _
         End If
         With .Item(W)
             .Item(KEY_STEP) = lStep
-            Set .Item(KEY_1ST_MOMENT) = m
-            Set .Item(KEY_2ND_MOMENT) = v
+            Set .Item(KEY_MOMENT1) = m
+            Set .Item(KEY_MOMENT2) = v
         End With
     End With
 End Sub

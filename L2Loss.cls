@@ -24,8 +24,7 @@ End Sub
 
 'L = 0.5 * (Y - T) ^ 2
 Public Function Loss(ByVal Y As Tensor, _
-                     ByVal T As Tensor, _
-                     Optional ByVal bFromLogits As Boolean) As Tensor
+                     ByVal T As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "L2Loss.Loss"
     
     If Y Is Nothing Then
@@ -42,8 +41,7 @@ End Function
 
 'dL/dY = Y - T
 Public Function Gradient(ByVal Y As Tensor, _
-                         ByVal T As Tensor, _
-                         Optional ByVal bFromLogits As Boolean) As Tensor
+                         ByVal T As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "L2Loss.Gradient"
     
     If Y Is Nothing Then
@@ -60,8 +58,7 @@ End Function
 
 'd2L/dY2 = 1
 Public Function Hessian(ByVal Y As Tensor, _
-                        ByVal T As Tensor, _
-                        Optional ByVal bFromLogits As Boolean) As Tensor
+                        ByVal T As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "L2Loss.Hessian"
     
     If Y Is Nothing Then

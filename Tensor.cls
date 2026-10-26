@@ -601,7 +601,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
             For k = 1 To lOuterStride
                 For i = 1 To lInnerStride
                     dblAcc = A_(i, 1, k)
-                    For j = 1 To lOldSize
+                    For j = 2 To lOldSize
                         dblAcc = MinDbl(dblAcc, A_(i, j, k))
                     Next j
                     R_(i, 1, k) = dblAcc
@@ -611,7 +611,7 @@ Private Function ReduceInternal(ByVal lDimension As Long, _
             For k = 1 To lOuterStride
                 For i = 1 To lInnerStride
                     dblAcc = A_(i, 1, k)
-                    For j = 1 To lOldSize
+                    For j = 2 To lOldSize
                         dblAcc = MaxDbl(dblAcc, A_(i, j, k))
                     Next j
                     R_(i, 1, k) = dblAcc

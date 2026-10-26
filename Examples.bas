@@ -21,7 +21,7 @@ Public Sub SetupAndTrainBackprop()
     lInputSize = 8
     lLabelSize = 1
     lBatchSize = 16
-    lNumEpochs = 20
+    lNumEpochs = 40
 
     'Prepare training data
     Set oFullSet = ImportDatasetFromWorksheet(ThisWorkbook, "Concrete", Array(lInputSize, lLabelSize), bHasHeaders:=True)
@@ -55,10 +55,12 @@ Public Sub SetupAndTrainBackprop()
 
     'Load the trainer
     Set oTrainer = Deserialize(TRAINER_NAME)
+    
+    'Check if validation loss is the same with the deserialized model
     MsgBox oTrainer.Evaluate(oValidationLoader)
 
     'Continue training with a lower learning rate
-    oTrainer.Optimizer.LearningRate = 0.0001
+    oTrainer.Optimizer.LearningRate = 0.0003
     oTrainer.Fit oTrainingLoader, lNumEpochs, True, oValidationLoader
 
     'Save the model only
@@ -74,7 +76,6 @@ Public Sub SetupAndTrainBackprop()
     Beep
 End Sub
 
-'Gradient boosted trees on the Binance sheet.
 Public Sub SetupAndTrainXGBoost()
     Const MODEL_NAME As String = "MyXGBoostModel"
     Dim lInputSize As Long
@@ -109,6 +110,8 @@ Public Sub SetupAndTrainXGBoost()
 
     'Load
     Set oModel = Deserialize(MODEL_NAME)
+    
+    'Check if validation loss is the same with the deserialized model
     MsgBox oModel.Evaluate(oValidationSet)
 
     'Predict the first 5 validation samples
@@ -138,7 +141,7 @@ Public Sub SetupAndTrainEvolutionaryStrategies()
     lInputSize = 8
     lLabelSize = 1
     lBatchSize = 16
-    lNumEpochs = 20
+    lNumEpochs = 40
 
     'Prepare training data
     Set oFullSet = ImportDatasetFromWorksheet(ThisWorkbook, "Concrete", Array(lInputSize, lLabelSize), bHasHeaders:=True)
@@ -170,10 +173,11 @@ Public Sub SetupAndTrainEvolutionaryStrategies()
 
     'Load the trainer
     Set oTrainer = Deserialize(TRAINER_NAME)
+    
+    'Check if validation loss is the same with the deserialized model
     MsgBox oTrainer.Evaluate(oValidationLoader)
 
     'Continue training with smaller mutations
-    'oTrainer.MutationSigma = 0.01
     oTrainer.Optimizer.LearningRate = 0.001
     oTrainer.Fit oTrainingLoader, lNumEpochs, True, oValidationLoader
 
