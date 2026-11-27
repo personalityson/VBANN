@@ -128,7 +128,7 @@ Private Sub ApplyGradients(ByVal W As Parameter)
     GetStates W, v
     dblLearningRate = W.LearningRateScale * m_dblLearningRate
     dblWeightDecay = W.WeightDecayScale * m_dblWeightDecay
-    If W.UseGradientClipping And m_dblGradientThreshold < DOUBLE_MAX_ABS Then
+    If m_dblGradientThreshold < DOUBLE_MAX_ABS Then
         dblGradientScale = m_dblGradientThreshold / MaxDbl(m_dblGradientThreshold, VecNorm2(W.Gradient) / W.NumAccumulatedSamples)
     Else
         dblGradientScale = 1

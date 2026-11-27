@@ -50,16 +50,16 @@ Public Sub WriteLong(ByVal lValue As Long)
     GetCell() = lValue
 End Sub
 
-Public Sub WriteLongArray(ByRef alArray() As Long)
-    WriteArray alArray
+Public Sub WriteLongArray(ByRef alValues() As Long)
+    WriteArray alValues
 End Sub
 
 Public Sub WriteDouble(ByVal dblValue As Double)
     GetCell() = dblValue
 End Sub
 
-Public Sub WriteDoubleArray(ByRef adblArray() As Double)
-    WriteArray adblArray
+Public Sub WriteDoubleArray(ByRef adblValues() As Double)
+    WriteArray adblValues
 End Sub
 
 Public Sub WriteString(ByVal sValue As String)
@@ -69,16 +69,16 @@ Public Sub WriteString(ByVal sValue As String)
     End With
 End Sub
 
-Public Sub WriteStringArray(ByRef asArray() As String)
-    WriteArray asArray
+Public Sub WriteStringArray(ByRef asValues() As String)
+    WriteArray asValues
 End Sub
 
 Public Sub WriteBoolean(ByVal bValue As Boolean)
     GetCell() = bValue
 End Sub
 
-Public Sub WriteBooleanArray(ByRef abArray() As Boolean)
-    WriteArray abArray
+Public Sub WriteBooleanArray(ByRef abValues() As Boolean)
+    WriteArray abValues
 End Sub
 
 Public Function ReadObject() As ISerializable
@@ -252,6 +252,8 @@ Private Function CreateInstance(ByVal sTypeName As String) As ISerializable
             Set CreateInstance = New DropoutLayer
         Case "FullyConnectedLayer"
             Set CreateInstance = New FullyConnectedLayer
+        Case "HuberLoss"
+            Set CreateInstance = New HuberLoss
         Case "L1Loss"
             Set CreateInstance = New L1Loss
         Case "L2Loss"

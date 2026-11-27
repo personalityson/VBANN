@@ -51,8 +51,8 @@ Public Sub Init(ByVal lInputSize As Long, _
     Clear
     m_lInputSize = lInputSize
     m_lOutputSize = lOutputSize
-    Set m_oWeights = Parameter(GlorotUniform(Array(m_lOutputSize, m_lInputSize), m_lInputSize, m_lOutputSize, 1), 1, 1, True)
-    Set m_oBias = Parameter(Zeros(Array(m_lOutputSize)), 1, 0, False)
+    Set m_oWeights = Parameter(GlorotUniform(Array(m_lOutputSize, m_lInputSize), m_lInputSize, m_lOutputSize, 1), 1, 1)
+    Set m_oBias = Parameter(Zeros(Array(m_lOutputSize)), 1, 0)
 End Sub
 
 Public Function Forward(ByVal X As Tensor, _

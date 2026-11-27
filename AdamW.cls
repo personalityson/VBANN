@@ -107,7 +107,7 @@ End Sub
 
 Private Sub GetStates(ByVal W As Parameter, _
                       ByRef lStep As Long, _
-                      ByRef m As Tensor, _
+                      ByRef M As Tensor, _
                       ByRef v As Tensor)
     With m_oStates
         If Not .Exists(W) Then
@@ -115,7 +115,7 @@ Private Sub GetStates(ByVal W As Parameter, _
         End If
         With .Item(W)
             lStep = .Item(KEY_STEP)
-            Set m = .Item(KEY_MOMENT1)
+            Set M = .Item(KEY_MOMENT1)
             Set v = .Item(KEY_MOMENT2)
         End With
     End With
@@ -123,7 +123,7 @@ End Sub
 
 Private Sub PutStates(ByVal W As Parameter, _
                       ByVal lStep As Long, _
-                      ByVal m As Tensor, _
+                      ByVal M As Tensor, _
                       ByVal v As Tensor)
     With m_oStates
         If Not .Exists(W) Then
@@ -131,7 +131,7 @@ Private Sub PutStates(ByVal W As Parameter, _
         End If
         With .Item(W)
             .Item(KEY_STEP) = lStep
-            Set .Item(KEY_MOMENT1) = m
+            Set .Item(KEY_MOMENT1) = M
             Set .Item(KEY_MOMENT2) = v
         End With
     End With
@@ -148,34 +148,34 @@ Private Sub ApplyGradients(ByVal W As Parameter)
     Dim dblAlpha As Double
     Dim dblWeightDecay As Double
     Dim dblGradientScale As Double
-    Dim m As Tensor
+    Dim M As Tensor
     Dim v As Tensor
 
     If W.NumAccumulatedSamples < 1 Then
         Exit Sub
     End If
-    GetStates W, lStep, m, v
+    GetStates W, lStep, M, v
     lStep = lStep + 1
     dblLearningRate = W.LearningRateScale * m_dblLearningRate
     dblAlpha = dblLearningRate * Sqr(1 - m_dblBeta2 ^ lStep) / (1 - m_dblBeta1 ^ lStep)
     dblWeightDecay = W.WeightDecayScale * m_dblWeightDecay
-    If W.UseGradientClipping And m_dblGradientThreshold < DOUBLE_MAX_ABS Then
+    If m_dblGradientThreshold < DOUBLE_MAX_ABS Then
         dblGradientScale = m_dblGradientThreshold / MaxDbl(m_dblGradientThreshold, VecNorm2(W.Gradient) / W.NumAccumulatedSamples)
     Else
         dblGradientScale = 1
     End If
-    VecLinComb_I m_dblBeta1, m, (1 - m_dblBeta1) * dblGradientScale / W.NumAccumulatedSamples, W.Gradient
+    VecLinComb_I m_dblBeta1, M, (1 - m_dblBeta1) * dblGradientScale / W.NumAccumulatedSamples, W.Gradient
     VecLinComb_I m_dblBeta2, v, (1 - m_dblBeta2) * dblGradientScale * dblGradientScale / W.NumAccumulatedSamples / W.NumAccumulatedSamples, VecPow2(W.Gradient)
-    VecLinComb_I 1 - dblLearningRate * dblWeightDecay, W.Tensor, -dblAlpha, VecDivRms(m, v, 0, m_dblEpsilon)
+    VecLinComb_I 1 - dblLearningRate * dblWeightDecay, W.Tensor, -dblAlpha, VecDivRms(M, v, 0, m_dblEpsilon)
     W.ResetGradient
-    PutStates W, lStep, m, v
+    PutStates W, lStep, M, v
 End Sub
 
 Private Sub Save(ByVal oSerializer As Serializer)
     Const PROCEDURE_NAME As String = "AdamW.Save"
     Dim W As Variant
     Dim lStep As Long
-    Dim m As Tensor
+    Dim M As Tensor
     Dim v As Tensor
     
     If oSerializer Is Nothing Then
@@ -190,10 +190,10 @@ Private Sub Save(ByVal oSerializer As Serializer)
         .WriteDouble m_dblGradientThreshold
         .WriteLong m_oStates.Count
         For Each W In m_oStates.Keys
-            GetStates W, lStep, m, v
+            GetStates W, lStep, M, v
             .WriteObject W
             .WriteLong lStep
-            .WriteObject m
+            .WriteObject M
             .WriteObject v
         Next W
     End With
@@ -205,7 +205,7 @@ Private Sub Load(ByVal oSerializer As Serializer)
     Dim lNumStates As Long
     Dim W As Parameter
     Dim lStep As Long
-    Dim m As Tensor
+    Dim M As Tensor
     Dim v As Tensor
     
     If oSerializer Is Nothing Then
@@ -223,9 +223,9 @@ Private Sub Load(ByVal oSerializer As Serializer)
         For i = 1 To lNumStates
             Set W = .ReadObject()
             lStep = .ReadLong()
-            Set m = .ReadObject()
+            Set M = .ReadObject()
             Set v = .ReadObject()
-            PutStates W, lStep, m, v
+            PutStates W, lStep, M, v
         Next i
     End With
 End Sub

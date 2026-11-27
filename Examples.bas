@@ -29,6 +29,10 @@ Public Sub SetupAndTrainBackprop()
     Set oTrainingLoader = DataLoader(oTrainingSet, lBatchSize)
     Set oValidationLoader = DataLoader(oValidationSet, oValidationSet.NumSamples)
 
+    'VBA uses column-major array layout -- the first index moves fastest (same as in Fortran, MATLAB, Julia etc)
+    'Because of that, samples go in the last dimension:
+    'Data is (features, samples)
+
     'Inputs are normalized on the way in, last layer maps outputs back to the label scale
     Set oModel = Sequential()
     oModel.Add NormalizationLayer(oTrainingSet, lIndex:=1)
@@ -42,7 +46,7 @@ Public Sub SetupAndTrainBackprop()
     oModel.Add NormalizationLayer(oTrainingSet, lIndex:=2, bInvert:=True)
 
     'SGDW optimizer with gradient clipping at a norm of 20
-    Set oTrainer = BackpropTrainer(oModel, L2Loss(), SGDW(0.001, 0.9, 0.0001, 20))
+    Set oTrainer = BackpropTrainer(oModel, L2Loss(), SGDW(0.01, 0.9, 0.001, 20))
 
     'With bVerbose = True the losses go to the "Log" worksheet
     oTrainer.Fit oTrainingLoader, lNumEpochs, True, oValidationLoader
@@ -55,12 +59,12 @@ Public Sub SetupAndTrainBackprop()
 
     'Load the trainer
     Set oTrainer = Deserialize(TRAINER_NAME)
-    
+
     'Check if validation loss is the same with the deserialized model
     MsgBox oTrainer.Evaluate(oValidationLoader)
 
     'Continue training with a lower learning rate
-    oTrainer.Optimizer.LearningRate = 0.0003
+    oTrainer.Optimizer.LearningRate = 0.003
     oTrainer.Fit oTrainingLoader, lNumEpochs, True, oValidationLoader
 
     'Save the model only
@@ -72,6 +76,82 @@ Public Sub SetupAndTrainBackprop()
     'Predict the first 5 validation samples
     Set oBatch = oValidationSet.Gather(Array(1, 2, 3, 4, 5))
     adblPrediction = oModel.Forward(oBatch.Tensors(1)).ToArray
+
+    Beep
+End Sub
+
+Public Sub SetupAndTrainBackpropClassification()
+    Const MODEL_NAME As String = "MyClassifierModel"
+    Dim lInputSize As Long
+    Dim lLabelSize As Long
+    Dim lNumClasses As Long
+    Dim lBatchSize As Long
+    Dim lNumEpochs As Long
+    Dim dblAccuracy As Double
+    Dim Y As Tensor
+    Dim P As Tensor
+    Dim L As Tensor
+    Dim oFullSet As TensorDataset
+    Dim oTrainingSet As SubsetDataset
+    Dim oTrainingLoader As DataLoader
+    Dim oValidationSet As SubsetDataset
+    Dim oValidationLoader As DataLoader
+    Dim oModel As Sequential
+    Dim oInferenceModel As Sequential
+    Dim oTrainer As BackpropTrainer
+
+    lInputSize = 4
+    lLabelSize = 1
+    lNumClasses = 3
+    lBatchSize = 8
+    lNumEpochs = 40
+
+    'The first column in training data is the ID, which we will skip
+    'The last label column holds class indices 1..lNumClasses
+    'Id  SepalLengthCm  SepalWidthCm    PetalLengthCm   PetalWidthCm    Species
+    '1   5,1            3,5             1,4             0,2             1
+    '2   4,9            3               1,4             0,2             1
+    Set oFullSet = ImportDatasetFromWorksheet(ThisWorkbook, "Iris", Array(1, lInputSize, 1), bHasHeaders:=True)
+    'OneHot turns 1, 2, 3 class indices into (1, 0, 0), (0, 1, 0), (0, 0, 1) targets
+    'oFullSet.Tensors(1) is not used
+    Set oFullSet = TensorDataset(Array(oFullSet.Tensors(2), OneHot(oFullSet.Tensors(3), lNumClasses)))
+    SplitDataset oFullSet, 0.8, oTrainingSet, oValidationSet, bRandomize:=True
+    Set oTrainingLoader = DataLoader(oTrainingSet, lBatchSize)
+    Set oValidationLoader = DataLoader(oValidationSet, oValidationSet.NumSamples)
+
+    'Inputs are normalized on the way in, the last layer outputs one logit per class
+    Set oModel = Sequential()
+    oModel.Add NormalizationLayer(oTrainingSet, lIndex:=1)
+    oModel.Add FullyConnectedLayer(lInputSize, 8)
+    oModel.Add LeakyReLULayer()
+    oModel.Add DropoutLayer(0.2)
+    oModel.Add FullyConnectedLayer(8, 4)
+    oModel.Add LeakyReLULayer()
+    oModel.Add FullyConnectedLayer(4, lNumClasses)
+
+    'CCELoss on logits applies softmax internally, which is more stable
+    Set oTrainer = BackpropTrainer(oModel, CCELoss(bFromLogits:=True), SGDW())
+
+    'With bVerbose = True the losses go to the "Log" worksheet
+    oTrainer.Fit oTrainingLoader, lNumEpochs, True, oValidationLoader
+
+    'Validation loss
+    MsgBox oTrainer.Evaluate(oValidationLoader)
+
+    'Accuracy
+    Set Y = oModel.Forward(oValidationSet.Tensors(1))
+    Set P = Y.Reduce(1, rtArgMax)
+    Set L = oValidationSet.Tensors(2).Reduce(1, rtArgMax)
+    dblAccuracy = 1 - VecSign(VecAbs(VecSub(P, L))).Mean
+    MsgBox Format(dblAccuracy, "0.0%")
+
+    'Softmax is added at the end for inference, so the saved model outputs probabilities
+    Set oInferenceModel = Sequential()
+    oInferenceModel.Add oModel
+    oInferenceModel.Add SoftmaxLayer()
+    
+    'Save the model
+    Serialize MODEL_NAME, oInferenceModel
 
     Beep
 End Sub
@@ -96,6 +176,10 @@ Public Sub SetupAndTrainXGBoost()
     Set oFullSet = ImportDatasetFromWorksheet(ThisWorkbook, "Concrete", Array(lInputSize, lLabelSize), bHasHeaders:=True)
     SplitDataset oFullSet, 0.8, oTrainingSet, oValidationSet, bRandomize:=True
 
+    'VBA uses column-major array layout -- the first index moves fastest (same as in Fortran, MATLAB, Julia etc)
+    'Because of that, samples go in the last dimension:
+    'Data is (features, samples)
+
     'XGBoost needs a loss that works on raw scores (FromLogits = True), L2Loss always does
     Set oModel = XGBoost(L2Loss(), dblLearningRate:=0.1, lMaxDepth:=6, dblSubsample:=0.75, dblColsample:=0.75)
 
@@ -110,7 +194,7 @@ Public Sub SetupAndTrainXGBoost()
 
     'Load
     Set oModel = Deserialize(MODEL_NAME)
-    
+
     'Check if validation loss is the same with the deserialized model
     MsgBox oModel.Evaluate(oValidationSet)
 
@@ -149,6 +233,10 @@ Public Sub SetupAndTrainEvolutionaryStrategies()
     Set oTrainingLoader = DataLoader(oTrainingSet, lBatchSize)
     Set oValidationLoader = DataLoader(oValidationSet, oValidationSet.NumSamples)
 
+    'VBA uses column-major array layout -- the first index moves fastest (same as in Fortran, MATLAB, Julia etc)
+    'Because of that, samples go in the last dimension:
+    'Data is (features, samples)
+
     'OpenES always runs the model in inference mode, so no dropout here
     Set oModel = Sequential()
     oModel.Add NormalizationLayer(oTrainingSet, lIndex:=1)
@@ -173,11 +261,11 @@ Public Sub SetupAndTrainEvolutionaryStrategies()
 
     'Load the trainer
     Set oTrainer = Deserialize(TRAINER_NAME)
-    
+
     'Check if validation loss is the same with the deserialized model
     MsgBox oTrainer.Evaluate(oValidationLoader)
 
-    'Continue training with smaller mutations
+    'Continue training with smaller learning rate
     oTrainer.Optimizer.LearningRate = 0.001
     oTrainer.Fit oTrainingLoader, lNumEpochs, True, oValidationLoader
 
@@ -219,7 +307,7 @@ Public Sub SetupAndTrainBackpropPretraining()
     lBatchSize = 16
     lNumEpochs = 40
 
-    'Prepare training data.
+    'Prepare training data
     Set oFullSet = ImportDatasetFromWorksheet(ThisWorkbook, "Concrete", Array(lInputSize, lLabelSize), bHasHeaders:=True)
     SplitDataset oFullSet, 0.8, oTrainingSet, oValidationSet, bRandomize:=True
     Set oTrainingLoader = DataLoader(oTrainingSet, lBatchSize)
@@ -275,121 +363,121 @@ Public Function PredictInWorksheet(ByVal oInput As Range) As Variant
     End If
     Set X = TensorFromRange(oInput, True)
     Set Y = s_oModel.Forward(X)
-    PredictInWorksheet = Transpose(Y).ToArray
+    PredictInWorksheet = Y.Transpose.ToArray
 End Function
 
 Public Sub WorkingWithTensors()
+    Dim i As Long
+    Dim M_() As Double
+    Dim F_() As Double
+    Dim adblArray() As Double
+    Dim M As Tensor
     Dim A As Tensor
     Dim B As Tensor
-    Dim A_() As Double
-    Dim B_() As Double
-    Dim adblArray() As Double
+    Dim X As Tensor
 
-    'Create a tensor A of zeros with shape (2, 3, 4).
+    'A tensor of zeros with shape (2, 3, 4)
     Set A = Zeros(Array(2, 3, 4))
+    Debug.Print A.NumDimensions         '3
+    Debug.Print A.Size(1)               '2
+    Debug.Print A.SizeBetween(1, 2)     '6 = 2 * 3
+    Debug.Print A.NumElements           '24
+    Debug.Print A.Address               'Pointer to the first element
 
-    'Basic properties of A.
-    MsgBox A.NumDimensions
-    MsgBox A.Size(1)
-    MsgBox A.Size(2)
-    MsgBox A.Size(3)
-    MsgBox A.NumElements
-    MsgBox A.Address 'Pointer to the first element
-
-    'Constant fills.
+    'Constant fills and the identity matrix
     Set A = Ones(Array(2, 3, 4))
     Set A = Full(Array(2, 3, 4), 777)
-
-    'Identity matrix.
     Set A = Eye(3)
 
-    'Random initializers.
+    'Random initializers
     Set A = Uniform(Array(2, 3, 4), 0, 1)
     Set A = Normal(Array(2, 3, 4), 0, 1)
     Set A = Bernoulli(Array(2, 3, 4), 0.5)
 
-    'Glorot and He initializers. FullyConnectedLayer uses GlorotUniform for its weights.
+    'Glorot and He initializers
     Set A = GlorotUniform(Array(2, 3, 4), 8, 4)
     Set A = HeNormal(Array(2, 3, 4), 8)
 
-    'Fill tensor A with a constant value.
-    A.Fill 777
+    'No dimensions means no elements
+    Set A = Zeros(Array())
+    Debug.Print A.NumElements           '0
+    Set A = Zeros(Array(1))
+    Debug.Print A.NumElements           '1
 
-    'Copy the values of A into an existing tensor B. B must have the same number of elements.
+    'Size-0 dimensions are allowed
+    Set A = Zeros(Array(0, 5))
+    Debug.Print A.NumElements           '0
+
+    'AsArray and AsFlatArray point a native array at the tensor's memory -- no copy
+    Set M = Zeros(Array(2, 3))
+    M.AsArray M_
+    M.AsFlatArray F_
+    For i = 1 To M.NumElements
+        F_(i) = i
+    Next i
+
+    'Memory order is (1,1), (2,1), (1,2), (2,2), (1,3), (2,3)
+    Debug.Print M_(2, 1)                '2
+    Debug.Print M_(1, 2)                '3
+
+    'View reads the same memory with a new shape
+    Set B = M.View(Array(3, 2))
+    Debug.Print B.ToArray()(3, 1)
+
+    'Writing to B changes the original M, because they share storage
+    Set B = M.Flatten
+    B.Fill 0
+    Debug.Print M_(2, 3)                '0
+
+    'A batch of 5 samples with 3 features each has shape (3, 5)
+    Set X = Normal(Array(3, 5))
+
+    'Pick samples 2 and 4 by gathering along the last dimension
+    Set B = X.Gather(2, Array(2, 4))    '(3, 2)
+
+    'One sample is a contiguous column of features
+    Set B = X.Slice(2, 1, 1)            '(3, 1)
+
+    'In a worksheet each row is usually a sample, bTranspose:=True turns rows into samples
+    Set B = TensorFromRange(Worksheets("Concrete").Range("A2:B4"))         '(3, 2)
+    Set B = TensorFromRange(Worksheets("Concrete").Range("A2:B4"), True)   '(2, 3)
+
+    'Indexing is 1-based and Slice includes its end
+    Set A = Uniform(Array(4, 6))
+    Set B = A.Slice(1, 2, 3)            'Rows 2 and 3
+    Set B = A.Gather(1, Array(4, 1))    'Rows 4 and 1
+
+    'Reductions keep the reduced dimension with size 1
+    Set B = A.Reduce(2, rtMean)         '(4, 1)
+    Set B = A.Reduce(1, rtArgMax)       '(1, 6)
+
+    'Views share storage, everything else copies
+    Set B = A.Flatten                   'View, shape (24)
+    Set B = A.View(Array(1, 24, 1))     'View, any shape with the same number of elements
+    Set B = A.Expand(3)                 'View, shape (4, 6, 1)
+    Set B = A.Transpose                 'Copy, shape (6, 4)
+    Set B = A.Tile(2, 3)                'Copy, shape (4, 18)
+
+    'Every element set to 777
+    A.Fill 777
+    
+    'Copies values, must have the same number of elements
     Set B = Zeros(A.Shape)
     B.Copy A
-
-    'Clone tensor A into a new tensor B with its own copy of the data.
+    
+    'Clone with its own copy of the data
     Set B = A.Clone
 
-    'Use ShapeEquals to check if A's shape matches (2, 3, 4).
-    MsgBox A.ShapeEquals(Array(2, 3, 4))
+    'Checking shapes
+    Debug.Print A.ShapeEquals(Array(4, 6))              'True
+    Debug.Print A.ShapeEquals(Array(4, spWildcard))     'True, spWildcard matches any size
+    Debug.Print A.ShapeEquals(Array(spEllipsis, 6))     'True, spEllipsis matches any number of dimensions
 
-    'spWildcard matches any size, spEllipsis matches any number of dimensions. Both return True.
-    MsgBox A.ShapeEquals(Array(2, spWildcard, 4))
-    MsgBox A.ShapeEquals(Array(spEllipsis, 4))
-
-    'Create a different view of A with a new shape (6, 4).
-    'This view shares the same underlying data, but has a different layout.
-    Set B = A.View(Array(6, 4))
-
-    'Create alias arrays for direct memory access.
-    A.CreateAlias A_
-    B.CreateAlias B_
-
-    'Modify an element via the alias from A's perspective.
-    A_(1, 1, 1) = 123
-
-    'Both return 123.
-    MsgBox A_(1, 1, 1)
-    MsgBox B_(1, 1)
-
-    'Erase the B_ alias to simulate clearing the fixed-size array.
-    Erase B_
-
-    'Both return 0.
-    MsgBox A_(1, 1, 1)
-    MsgBox B_(1, 1)
-
-    'Remove the aliases to avoid memory deallocation.
-    A.RemoveAlias A_
-    B.RemoveAlias B_
-
-    'Start from fresh values for the shape operations below.
-    Set A = Uniform(Array(2, 3, 4))
-
-    'Create a flattened view of A with shared underlying data. The new shape is (24).
-    Set A = A.Flatten
-
-    'Add singleton dimensions on both sides. The new shape is (1, 24, 1).
-    Set A = A.View(Array(1, 24, 1))
-
-    'Regroup the same 24 elements. The new shape is (4, 6).
-    Set A = A.View(Array(4, 6))
-
-    'Whole-tensor reductions return a Double.
-    MsgBox A.Mean
-
-    'Pick rows 4 and 1 along dimension 1, in that order. The new shape is (2, 6).
-    Set B = A.Gather(1, Array(4, 1))
-
-    'Reduce A along dimension 2 using mean reduction. The new shape is (4, 1).
-    Set A = A.Reduce(2, rtMean)
-
-    'Slice A along dimension 1 from index 3 to 4. The new shape is (2, 1).
-    Set A = A.Slice(1, 3, 4)
-
-    'Tile A along dimension 2, repeating it 3 times. The new shape is (2, 3).
-    Set A = A.Tile(2, 3)
-
-    'Copy tensor A to a native VBA array with the same shape.
+    'A copy with the same shape, any number of dimensions
     adblArray = A.ToArray
-
-    'Create tensor A from a native VBA array.
-    A.FromArray adblArray
-
-    'Create tensor A from an Excel range. The cells must be numbers or empty. The new shape is (3, 2).
-    A.FromRange ActiveSheet.Range("A1:B3")
+    
+    'Tensor from array
+    Set B = TensorFromArray(adblArray)
 
     Beep
 End Sub
@@ -432,7 +520,7 @@ Public Sub WorkingWithTensorOps()
     Set Y = VecSqrt(A)
     Set Y = VecExp(A)
     Set Y = VecLog(A)
-    Set Y = VecClamp(A, 0.2, 0.8)   'Y = Min(Max(A, 0.2), 0.8)
+    Set Y = VecClamp(A, 0.2, 0.8)
 
     'Activations and their derivatives
     Set Y = VecSigmoid(A)
@@ -443,12 +531,12 @@ Public Sub WorkingWithTensorOps()
     Set Y = VecLeakyReLUDerivative(A, 0.01)
     Set Y = VecSoftplus(A)
 
-    'Linear combination: Y = alpha * A + beta * B.
+    'Y = alpha * A + beta * B
     Set Y = VecLinComb(0.99, A, 0.01, B)
 
     'Y = A / (Sqrt(B + inner_epsilon) + outer_epsilon)
     Set C = VecPow2(B)
-    Set Y = VecDivRms(A, C, 0, 0.00000001)  'Used by AdamW
+    Set Y = VecDivRms(A, C, 0, 0.00000001)
     Set Y = VecDivRms(A, C, 0.00001, 0)
 
     'VecWhere selects element-wise Y = IIf(C <> 0, A, B)
@@ -476,11 +564,6 @@ Public Sub WorkingWithTensorOps()
     Set B = Uniform(Array(1, 4))
     Set Y = VecMul(A, B)             'Y is 3x4
 
-    'In-place ops can broadcast B but never A
-    'VecAdd_I A, B works
-    'VecAdd_I B, A would raise an error
-    VecAdd_I A, B
-
     'Standard matrix product
     Set A = Uniform(Array(3, 4))     '3x4
     Set B = Uniform(Array(4, 5))     '4x5
@@ -501,12 +584,6 @@ Public Sub WorkingWithTensorOps()
     Set A = Normal(Array(3, 4))
     Set Y = Softmax(A, 1)
     Set Y = LogSoftmax(A, 1)
-
-    'Transpose swaps dimensions 1 and 2 by default, or any two dimensions you name.
-    Set A = Uniform(Array(3, 4))
-    Set Y = Transpose(A)             'Y is 4x3
-    Set A = Uniform(Array(2, 3, 4))
-    Set Y = Transpose(A, 1, 3)       'Y is 4x3x2
 
     Beep
 End Sub

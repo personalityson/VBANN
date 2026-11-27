@@ -34,7 +34,7 @@ Private Declare PtrSafe Sub daxpby Lib "libopenblas.dll" (ByRef n As Long, _
 
 Private Declare PtrSafe Sub dgemm Lib "libopenblas.dll" (ByVal transA As String, _
                                                          ByVal transB As String, _
-                                                         ByRef m As Long, _
+                                                         ByRef M As Long, _
                                                          ByRef n As Long, _
                                                          ByRef k As Long, _
                                                          ByRef alpha As Double, _
@@ -45,16 +45,6 @@ Private Declare PtrSafe Sub dgemm Lib "libopenblas.dll" (ByVal transA As String,
                                                          ByRef beta As Double, _
                                                          ByVal C As LongPtr, _
                                                          ByRef ldC As Long)
-
-Private Declare PtrSafe Sub domatcopy Lib "libopenblas.dll" (ByVal order As String, _
-                                                             ByVal trans As String, _
-                                                             ByRef m As Long, _
-                                                             ByRef n As Long, _
-                                                             ByRef alpha As Double, _
-                                                             ByVal A As LongPtr, _
-                                                             ByRef ldA As Long, _
-                                                             ByVal B As LongPtr, _
-                                                             ByRef ldB As Long)
 
 Public Function IsBlasAvailable() As Boolean
     If Not m_bBlasInitialized Then
@@ -103,7 +93,8 @@ End Function
 'MatMul_I               C = C + A * B (In-place)
 'Softmax                Y = Exp(A) / Sum(Exp(A))
 'LogSoftmax             Y = A - Log(Sum(Exp(A)))
-'Transpose              Y = A^T
+'Concatenate            Y = A1, A2... joined along lDimension
+'OneHot                 Turns 1, 2, 3 into (1, 0, 0), (0, 1, 0), (0, 0, 1)
 
 'Y = Sum(A * B)
 Public Function VecDot(ByVal A As Tensor, _
@@ -780,6 +771,7 @@ Public Sub MatMul_I(ByVal C As Tensor, _
     End If
 End Sub
 
+'Y = Exp(A) / Sum(Exp(A))
 Public Function Softmax(ByVal A As Tensor, _
                         Optional ByVal lDimension As Long = 1) As Tensor
     Const PROCEDURE_NAME As String = "TensorOps.Softmax"
@@ -795,6 +787,7 @@ Public Function Softmax(ByVal A As Tensor, _
     Set Softmax = VecDiv(oExp, oExp.Reduce(lDimension, rtSum))
 End Function
 
+'Y = A - Log(Sum(Exp(A)))
 Public Function LogSoftmax(ByVal A As Tensor, _
                            Optional ByVal lDimension As Long = 1) As Tensor
     Const PROCEDURE_NAME As String = "TensorOps.LogSoftmax"
@@ -810,28 +803,113 @@ Public Function LogSoftmax(ByVal A As Tensor, _
     Set LogSoftmax = VecSub(oShifted, VecLog(VecExp(oShifted).Reduce(lDimension, rtSum)))
 End Function
 
-Public Function Transpose(ByVal A As Tensor, _
-                          Optional ByVal lDimension1 As Long = 1, _
-                          Optional ByVal lDimension2 As Long = 2) As Tensor
-    Const PROCEDURE_NAME As String = "TensorOps.Transpose"
+'Y = A1, A2... joined along lDimension
+Public Function Concatenate(ByVal vTensors As Variant, _
+                            ByVal lDimension As Long) As Tensor
+    Const PROCEDURE_NAME As String = "TensorOps.Concatenate"
+    Dim i As Long
+    Dim k As Long
+    Dim lNumTensors As Long
+    Dim lNumDimensions As Long
+    Dim lNewSize As Long
+    Dim alNewShape() As Long
+    Dim apSource() As LongPtr
+    Dim apBlockBytes() As LongPtr
+    Dim pTarget As LongPtr
+    Dim vTensor As Variant
+    Dim oFirst As Tensor
+    Dim oResult As Tensor
+
+    If lDimension < 1 Then
+        Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
+    End If
+    lNumDimensions = lDimension
+    For Each vTensor In EnsureIterable(vTensors)
+        If Not IsObject(vTensor) Then
+            Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+        End If
+        If vTensor Is Nothing Then
+            Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+        End If
+        If Not TypeOf vTensor Is Tensor Then
+            Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+        End If
+        If vTensor.NumDimensions < 1 Then
+            Err.Raise 5, PROCEDURE_NAME, "Tensor must have at least one dimension."
+        End If
+        If oFirst Is Nothing Then
+            Set oFirst = vTensor
+        End If
+        lNumDimensions = MaxLng(lNumDimensions, vTensor.NumDimensions)
+        alNewShape = oFirst.Expand(lNumDimensions).Shape
+        alNewShape(lDimension) = spWildcard
+        If Not vTensor.Expand(lNumDimensions).ShapeEquals(alNewShape) Then
+            Err.Raise 5, PROCEDURE_NAME, "Tensors must have the same size in every dimension except the one being joined."
+        End If
+        lNumTensors = lNumTensors + 1
+        ReDim Preserve apSource(1 To lNumTensors)
+        ReDim Preserve apBlockBytes(1 To lNumTensors)
+        apSource(lNumTensors) = vTensor.Address
+        apBlockBytes(lNumTensors) = CLngPtr(vTensor.SizeBetween(1, lDimension)) * SIZEOF_DOUBLE
+        lNewSize = lNewSize + vTensor.SizeBetween(lDimension, lDimension)
+    Next vTensor
+    If oFirst Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "At least one tensor is required."
+    End If
+    alNewShape(lDimension) = lNewSize
+    Set oResult = Zeros(alNewShape)
+    pTarget = oResult.Address
+    For i = 1 To oResult.SizeBetween(lDimension + 1, lNumDimensions)
+        For k = 1 To lNumTensors
+            CopyMemory ByVal pTarget, ByVal apSource(k) + (i - 1) * apBlockBytes(k), apBlockBytes(k)
+            pTarget = pTarget + apBlockBytes(k)
+        Next k
+    Next i
+    Set Concatenate = oResult
+End Function
+
+'Turns 1, 2, 3 into (1, 0, 0), (0, 1, 0), (0, 0, 1)
+Public Function OneHot(ByVal A As Tensor, _
+                       ByVal lNumClasses As Long) As Tensor
+    Const PROCEDURE_NAME As String = "TensorOps.OneHot"
+    Dim i As Long
+    Dim lClass As Long
+    Dim alNewShape() As Long
+    Dim A_() As Double
+    Dim Y_() As Double
+    Dim Y As Tensor
 
     If A Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If lDimension1 < 1 Or lDimension1 > A.NumDimensions Then
-        Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
+    If A.NumDimensions < 1 Then
+        Err.Raise 5, PROCEDURE_NAME, "Tensor must have at least one dimension."
     End If
-    If lDimension2 < 1 Or lDimension2 > A.NumDimensions Then
-        Err.Raise 9, PROCEDURE_NAME, "Dimension index is out of range."
+    If lNumClasses < 1 Then
+        Err.Raise 5, PROCEDURE_NAME, "Number of classes must be >= 1."
     End If
-    Select Case True
-        Case lDimension1 = lDimension2
-            Set Transpose = A.Clone
-        Case IsBlasAvailable() And A.NumDimensions = 2
-            Set Transpose = TransposeBlas(A)
-        Case Else
-            Set Transpose = TransposeNaive(A, MinLng(lDimension1, lDimension2), MaxLng(lDimension1, lDimension2))
-    End Select
+    If A.NumDimensions = 1 Then
+        Set A = A.View(Array(1, A.Size(1)))
+    End If
+    If A.Size(1) <> 1 Then
+        Err.Raise 5, PROCEDURE_NAME, "Tensor's first dimension must have size 1."
+    End If
+    alNewShape = A.Shape
+    alNewShape(1) = lNumClasses
+    Set Y = Zeros(alNewShape)
+    A.AsFlatArray A_
+    Y.AsFlatArray Y_
+    For i = 1 To A.NumElements
+        If A_(i) < 1 Or A_(i) > lNumClasses Then
+            Err.Raise 9, PROCEDURE_NAME, "Class index is out of range."
+        End If
+        If A_(i) <> Int(A_(i)) Then
+            Err.Raise 5, PROCEDURE_NAME, "Class index must be a whole number."
+        End If
+        lClass = A_(i)
+        Y_((i - 1) * lNumClasses + lClass) = 1
+    Next i
+    Set OneHot = Y
 End Function
 
 'Broadcasts A and B to a common shape, shapes align from dimension 1 from left to right
@@ -892,13 +970,11 @@ Private Function VecDotNaive(ByVal A As Tensor, _
     Dim B_() As Double
     Dim dblSum As Double
 
-    A.CreateFlatAlias A_
-    B.CreateFlatAlias B_
+    A.AsFlatArray A_
+    B.AsFlatArray B_
     For i = 1 To A.NumElements
         dblSum = dblSum + A_(i) * B_(i)
     Next i
-    A.RemoveAlias A_
-    B.RemoveAlias B_
     VecDotNaive = dblSum
 End Function
 
@@ -912,11 +988,10 @@ Private Function VecNorm2Naive(ByVal A As Tensor) As Double
     Dim dblSum As Double
     Dim A_() As Double
 
-    A.CreateFlatAlias A_
+    A.AsFlatArray A_
     For i = 1 To A.NumElements
         dblSum = dblSum + A_(i) * A_(i)
     Next i
-    A.RemoveAlias A_
     VecNorm2Naive = Sqr(dblSum)
 End Function
 
@@ -930,13 +1005,11 @@ Private Sub VecAddNaive_I(ByVal A As Tensor, _
     Dim A_() As Double
     Dim B_() As Double
 
-    A.CreateFlatAlias A_
-    B.CreateFlatAlias B_
+    A.AsFlatArray A_
+    B.AsFlatArray B_
     For i = 1 To A.NumElements
         A_(i) = A_(i) + B_(i)
     Next i
-    A.RemoveAlias A_
-    B.RemoveAlias B_
 End Sub
 
 Private Sub VecAddCNaive_I(ByVal A As Tensor, _
@@ -944,11 +1017,10 @@ Private Sub VecAddCNaive_I(ByVal A As Tensor, _
     Dim i As Long
     Dim A_() As Double
 
-    A.CreateFlatAlias A_
+    A.AsFlatArray A_
     For i = 1 To A.NumElements
         A_(i) = A_(i) + dblScalar
     Next i
-    A.RemoveAlias A_
 End Sub
 
 Private Sub VecAddCBlas_I(ByVal A As Tensor, _
@@ -962,13 +1034,11 @@ Private Sub VecSubNaive_I(ByVal A As Tensor, _
     Dim A_() As Double
     Dim B_() As Double
 
-    A.CreateFlatAlias A_
-    B.CreateFlatAlias B_
+    A.AsFlatArray A_
+    B.AsFlatArray B_
     For i = 1 To A.NumElements
         A_(i) = A_(i) - B_(i)
     Next i
-    A.RemoveAlias A_
-    B.RemoveAlias B_
 End Sub
 
 Private Sub VecSubCNaive_I(ByVal A As Tensor, _
@@ -976,11 +1046,10 @@ Private Sub VecSubCNaive_I(ByVal A As Tensor, _
     Dim i As Long
     Dim A_() As Double
 
-    A.CreateFlatAlias A_
+    A.AsFlatArray A_
     For i = 1 To A.NumElements
         A_(i) = A_(i) - dblScalar
     Next i
-    A.RemoveAlias A_
 End Sub
 
 Private Sub VecSubCBlas_I(ByVal A As Tensor, _
@@ -993,11 +1062,10 @@ Private Sub VecSubCRevNaive_I(ByVal A As Tensor, _
     Dim i As Long
     Dim A_() As Double
 
-    A.CreateFlatAlias A_
+    A.AsFlatArray A_
     For i = 1 To A.NumElements
         A_(i) = dblScalar - A_(i)
     Next i
-    A.RemoveAlias A_
 End Sub
 
 Private Sub VecSubCRevBlas_I(ByVal A As Tensor, _
@@ -1011,13 +1079,11 @@ Private Sub VecMulNaive_I(ByVal A As Tensor, _
     Dim A_() As Double
     Dim B_() As Double
 
-    A.CreateFlatAlias A_
-    B.CreateFlatAlias B_
+    A.AsFlatArray A_
+    B.AsFlatArray B_
     For i = 1 To A.NumElements
         A_(i) = A_(i) * B_(i)
     Next i
-    A.RemoveAlias A_
-    B.RemoveAlias B_
 End Sub
 
 Private Sub VecMulCNaive_I(ByVal A As Tensor, _
@@ -1025,11 +1091,10 @@ Private Sub VecMulCNaive_I(ByVal A As Tensor, _
     Dim i As Long
     Dim A_() As Double
 
-    A.CreateFlatAlias A_
+    A.AsFlatArray A_
     For i = 1 To A.NumElements
         A_(i) = dblScalar * A_(i)
     Next i
-    A.RemoveAlias A_
 End Sub
 
 Private Sub VecMulCBlas_I(ByVal A As Tensor, _
@@ -1043,13 +1108,11 @@ Private Sub VecDivNaive_I(ByVal A As Tensor, _
     Dim A_() As Double
     Dim B_() As Double
 
-    A.CreateFlatAlias A_
-    B.CreateFlatAlias B_
+    A.AsFlatArray A_
+    B.AsFlatArray B_
     For i = 1 To A.NumElements
         A_(i) = A_(i) / B_(i)
     Next i
-    A.RemoveAlias A_
-    B.RemoveAlias B_
 End Sub
 
 Private Sub VecDivCRevNaive_I(ByVal A As Tensor, _
@@ -1057,11 +1120,10 @@ Private Sub VecDivCRevNaive_I(ByVal A As Tensor, _
     Dim i As Long
     Dim A_() As Double
 
-    A.CreateFlatAlias A_
+    A.AsFlatArray A_
     For i = 1 To A.NumElements
         A_(i) = dblScalar / A_(i)
     Next i
-    A.RemoveAlias A_
 End Sub
 
 Private Sub VecDivRmsNaive_I(ByVal A As Tensor, _
@@ -1072,68 +1134,61 @@ Private Sub VecDivRmsNaive_I(ByVal A As Tensor, _
     Dim A_() As Double
     Dim B_() As Double
 
-    A.CreateFlatAlias A_
-    B.CreateFlatAlias B_
+    A.AsFlatArray A_
+    B.AsFlatArray B_
     For i = 1 To A.NumElements
         A_(i) = A_(i) / (Sqr(B_(i) + dblInnerEpsilon) + dblOuterEpsilon)
     Next i
-    A.RemoveAlias A_
-    B.RemoveAlias B_
 End Sub
 
 Private Sub VecAbsNaive_I(ByVal A As Tensor)
     Dim i As Long
     Dim A_() As Double
 
-    A.CreateFlatAlias A_
+    A.AsFlatArray A_
     For i = 1 To A.NumElements
         A_(i) = Abs(A_(i))
     Next i
-    A.RemoveAlias A_
 End Sub
 
 Private Sub VecSignNaive_I(ByVal A As Tensor)
     Dim i As Long
     Dim A_() As Double
 
-    A.CreateFlatAlias A_
+    A.AsFlatArray A_
     For i = 1 To A.NumElements
         A_(i) = Sgn(A_(i))
     Next i
-    A.RemoveAlias A_
 End Sub
 
 Private Sub VecSqrtNaive_I(ByVal A As Tensor)
     Dim i As Long
     Dim A_() As Double
 
-    A.CreateFlatAlias A_
+    A.AsFlatArray A_
     For i = 1 To A.NumElements
         A_(i) = Sqr(A_(i))
     Next i
-    A.RemoveAlias A_
 End Sub
 
 Private Sub VecExpNaive_I(ByVal A As Tensor)
     Dim i As Long
     Dim A_() As Double
 
-    A.CreateFlatAlias A_
+    A.AsFlatArray A_
     For i = 1 To A.NumElements
         A_(i) = Exp(A_(i))
     Next i
-    A.RemoveAlias A_
 End Sub
 
 Private Sub VecLogNaive_I(ByVal A As Tensor)
     Dim i As Long
     Dim A_() As Double
 
-    A.CreateFlatAlias A_
+    A.AsFlatArray A_
     For i = 1 To A.NumElements
         A_(i) = Log(A_(i))
     Next i
-    A.RemoveAlias A_
 End Sub
 
 Private Sub VecClampNaive_I(ByVal A As Tensor, _
@@ -1142,7 +1197,7 @@ Private Sub VecClampNaive_I(ByVal A As Tensor, _
     Dim i As Long
     Dim A_() As Double
 
-    A.CreateFlatAlias A_
+    A.AsFlatArray A_
     For i = 1 To A.NumElements
         If A_(i) < dblMin Then
             A_(i) = dblMin
@@ -1150,28 +1205,24 @@ Private Sub VecClampNaive_I(ByVal A As Tensor, _
             A_(i) = dblMax
         End If
     Next i
-    A.RemoveAlias A_
 End Sub
 
 Private Sub VecWhereNaive_I(ByVal C As Tensor, _
                             ByVal A As Tensor, _
                             ByVal B As Tensor)
     Dim i As Long
-    Dim C_() As Double
     Dim A_() As Double
     Dim B_() As Double
-
-    C.CreateFlatAlias C_
-    A.CreateFlatAlias A_
-    B.CreateFlatAlias B_
+    Dim C_() As Double
+    
+    A.AsFlatArray A_
+    B.AsFlatArray B_
+    C.AsFlatArray C_
     For i = 1 To A.NumElements
         If C_(i) = 0 Then
             A_(i) = B_(i)
         End If
     Next i
-    C.RemoveAlias C_
-    A.RemoveAlias A_
-    B.RemoveAlias B_
 End Sub
 
 Private Sub VecLeakyReLUNaive_I(ByVal A As Tensor, _
@@ -1179,13 +1230,12 @@ Private Sub VecLeakyReLUNaive_I(ByVal A As Tensor, _
     Dim i As Long
     Dim A_() As Double
 
-    A.CreateFlatAlias A_
+    A.AsFlatArray A_
     For i = 1 To A.NumElements
         If A_(i) < 0 Then
             A_(i) = dblNegativeSlope * A_(i)
         End If
     Next i
-    A.RemoveAlias A_
 End Sub
 
 Private Sub VecLeakyReLUDerivativeNaive_I(ByVal A As Tensor, _
@@ -1193,7 +1243,7 @@ Private Sub VecLeakyReLUDerivativeNaive_I(ByVal A As Tensor, _
     Dim i As Long
     Dim A_() As Double
 
-    A.CreateFlatAlias A_
+    A.AsFlatArray A_
     For i = 1 To A.NumElements
         If A_(i) > 0 Then
             A_(i) = 1
@@ -1201,62 +1251,56 @@ Private Sub VecLeakyReLUDerivativeNaive_I(ByVal A As Tensor, _
             A_(i) = dblNegativeSlope
         End If
     Next i
-    A.RemoveAlias A_
 End Sub
 
 Private Sub VecSigmoidNaive_I(ByVal A As Tensor)
     Dim i As Long
     Dim A_() As Double
 
-    A.CreateFlatAlias A_
+    A.AsFlatArray A_
     For i = 1 To A.NumElements
         A_(i) = SafeSigmoid(A_(i))
     Next i
-    A.RemoveAlias A_
 End Sub
 
 Private Sub VecSigmoidDerivativeNaive_I(ByVal A As Tensor)
     Dim i As Long
     Dim A_() As Double
 
-    A.CreateFlatAlias A_
+    A.AsFlatArray A_
     For i = 1 To A.NumElements
         A_(i) = A_(i) * (1 - A_(i))
     Next i
-    A.RemoveAlias A_
 End Sub
 
 Private Sub VecSoftplusNaive_I(ByVal A As Tensor)
     Dim i As Long
     Dim A_() As Double
 
-    A.CreateFlatAlias A_
+    A.AsFlatArray A_
     For i = 1 To A.NumElements
         A_(i) = SafeSoftplus(A_(i))
     Next i
-    A.RemoveAlias A_
 End Sub
 
 Private Sub VecTanhNaive_I(ByVal A As Tensor)
     Dim i As Long
     Dim A_() As Double
 
-    A.CreateFlatAlias A_
+    A.AsFlatArray A_
     For i = 1 To A.NumElements
         A_(i) = SafeTanh(A_(i))
     Next i
-    A.RemoveAlias A_
 End Sub
 
 Private Sub VecTanhDerivativeNaive_I(ByVal A As Tensor)
     Dim i As Long
     Dim A_() As Double
 
-    A.CreateFlatAlias A_
+    A.AsFlatArray A_
     For i = 1 To A.NumElements
         A_(i) = 1 - A_(i) * A_(i)
     Next i
-    A.RemoveAlias A_
 End Sub
 
 Private Sub VecLinCombNaive_I(ByVal dblAlpha As Double, _
@@ -1267,13 +1311,11 @@ Private Sub VecLinCombNaive_I(ByVal dblAlpha As Double, _
     Dim A_() As Double
     Dim B_() As Double
 
-    A.CreateFlatAlias A_
-    B.CreateFlatAlias B_
+    A.AsFlatArray A_
+    B.AsFlatArray B_
     For i = 1 To A.NumElements
         A_(i) = dblAlpha * A_(i) + dblBeta * B_(i)
     Next i
-    A.RemoveAlias A_
-    B.RemoveAlias B_
 End Sub
 
 Private Sub VecLinCombBlas_I(ByVal dblAlpha As Double, _
@@ -1290,8 +1332,8 @@ Private Sub MatMulNaive_I(ByVal C As Tensor, _
                           ByVal bTransposeB As Boolean)
     Dim i As Long
     Dim j As Long
-    Dim p As Long
-    Dim m As Long
+    Dim P As Long
+    Dim M As Long
     Dim n As Long
     Dim k As Long
     Dim dblSum As Double
@@ -1299,57 +1341,54 @@ Private Sub MatMulNaive_I(ByVal C As Tensor, _
     Dim B_() As Double
     Dim C_() As Double
 
-    m = C.Size(1)
+    M = C.Size(1)
     n = C.Size(2)
     k = IIf(bTransposeA, A.Size(1), A.Size(2))
-    A.CreateAlias A_
-    B.CreateAlias B_
-    C.CreateAlias C_
+    A.AsArray A_
+    B.AsArray B_
+    C.AsArray C_
     Select Case True
         Case Not bTransposeA And Not bTransposeB
-            For i = 1 To m
+            For i = 1 To M
                 For j = 1 To n
                     dblSum = 0
-                    For p = 1 To k
-                        dblSum = dblSum + A_(i, p) * B_(p, j)
-                    Next p
+                    For P = 1 To k
+                        dblSum = dblSum + A_(i, P) * B_(P, j)
+                    Next P
                     C_(i, j) = C_(i, j) + dblSum
                 Next j
             Next i
         Case bTransposeA And Not bTransposeB
-            For i = 1 To m
+            For i = 1 To M
                 For j = 1 To n
                     dblSum = 0
-                    For p = 1 To k
-                        dblSum = dblSum + A_(p, i) * B_(p, j)
-                    Next p
+                    For P = 1 To k
+                        dblSum = dblSum + A_(P, i) * B_(P, j)
+                    Next P
                     C_(i, j) = C_(i, j) + dblSum
                 Next j
             Next i
         Case Not bTransposeA And bTransposeB
-            For i = 1 To m
+            For i = 1 To M
                 For j = 1 To n
                     dblSum = 0
-                    For p = 1 To k
-                        dblSum = dblSum + A_(i, p) * B_(j, p)
-                    Next p
+                    For P = 1 To k
+                        dblSum = dblSum + A_(i, P) * B_(j, P)
+                    Next P
                     C_(i, j) = C_(i, j) + dblSum
                 Next j
             Next i
         Case bTransposeA And bTransposeB
-            For i = 1 To m
+            For i = 1 To M
                 For j = 1 To n
                     dblSum = 0
-                    For p = 1 To k
-                        dblSum = dblSum + A_(p, i) * B_(j, p)
-                    Next p
+                    For P = 1 To k
+                        dblSum = dblSum + A_(P, i) * B_(j, P)
+                    Next P
                     C_(i, j) = C_(i, j) + dblSum
                 Next j
             Next i
     End Select
-    A.RemoveAlias A_
-    B.RemoveAlias B_
-    C.RemoveAlias C_
 End Sub
 
 Private Sub MatMulBlas_I(ByVal C As Tensor, _
@@ -1359,84 +1398,14 @@ Private Sub MatMulBlas_I(ByVal C As Tensor, _
                          ByVal bTransposeB As Boolean)
     Dim sTransposeA As String
     Dim sTransposeB As String
-    Dim m As Long
+    Dim M As Long
     Dim n As Long
     Dim k As Long
 
     sTransposeA = IIf(bTransposeA, "T", "N")
     sTransposeB = IIf(bTransposeB, "T", "N")
-    m = C.Size(1)
+    M = C.Size(1)
     n = C.Size(2)
     k = IIf(bTransposeA, A.Size(1), A.Size(2))
-    dgemm sTransposeA, sTransposeB, m, n, k, 1#, A.Address, A.Size(1), B.Address, B.Size(1), 1#, C.Address, m
+    dgemm sTransposeA, sTransposeB, M, n, k, 1#, A.Address, A.Size(1), B.Address, B.Size(1), 1#, C.Address, M
 End Sub
-
-Private Function TransposeNaive(ByVal A As Tensor, _
-                                ByVal lDimension1 As Long, _
-                                ByVal lDimension2 As Long) As Tensor
-    Dim i As Long
-    Dim j As Long
-    Dim p As Long
-    Dim q As Long
-    Dim s As Long
-    Dim m As Long
-    Dim n As Long
-    Dim lBefore As Long
-    Dim lBetween As Long
-    Dim lAfter As Long
-    Dim alNewShape() As Long
-    Dim X_() As Double
-    Dim Y_() As Double
-    Dim X As Tensor
-    Dim Y As Tensor
-    Dim R As Tensor
-
-    lBefore = 1
-    For i = 1 To lDimension1 - 1
-        lBefore = lBefore * A.Size(i)
-    Next i
-    lBetween = 1
-    For i = lDimension1 + 1 To lDimension2 - 1
-        lBetween = lBetween * A.Size(i)
-    Next i
-    lAfter = 1
-    For i = lDimension2 + 1 To A.NumDimensions
-        lAfter = lAfter * A.Size(i)
-    Next i
-    m = A.Size(lDimension1)
-    n = A.Size(lDimension2)
-    alNewShape = A.Shape
-    alNewShape(lDimension1) = n
-    alNewShape(lDimension2) = m
-    Set R = Zeros(alNewShape)
-    Set X = A.View(Array(lBefore, m, lBetween, n, lAfter))
-    Set Y = R.View(Array(lBefore, n, lBetween, m, lAfter))
-    X.CreateAlias X_
-    Y.CreateAlias Y_
-    For s = 1 To lAfter
-        For i = 1 To m
-            For q = 1 To lBetween
-                For j = 1 To n
-                    For p = 1 To lBefore
-                        Y_(p, j, q, i, s) = X_(p, i, q, j, s)
-                    Next p
-                Next j
-            Next q
-        Next i
-    Next s
-    X.RemoveAlias X_
-    Y.RemoveAlias Y_
-    Set TransposeNaive = R
-End Function
-
-Private Function TransposeBlas(ByVal A As Tensor) As Tensor
-    Dim m As Long
-    Dim n As Long
-    Dim Y As Tensor
-
-    m = A.Size(1)
-    n = A.Size(2)
-    Set Y = Zeros(Array(n, m))
-    domatcopy "C", "T", m, n, 1#, A.Address, m, Y.Address, n
-    Set TransposeBlas = Y
-End Function

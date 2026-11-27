@@ -14,9 +14,8 @@ Implements ISerializable
 
 #Const USE_LATE_BINDING_IN_INTERFACES = True
 
-'State
+'Structure
 Private m_oLayers As Collection
-Private m_vLearnables As Variant
 
 Public Property Get NumLayers() As Long
     NumLayers = m_oLayers.Count
@@ -32,7 +31,14 @@ Public Property Get Layers(ByVal lIndex As Long) As ILayer
 End Property
 
 Public Property Get Learnables() As Variant
-    Learnables = m_vLearnables
+    Dim oLayer As ILayer
+    Dim vResult As Variant
+
+    vResult = Array()
+    For Each oLayer In m_oLayers
+        vResult = Combine(vResult, oLayer.Learnables)
+    Next oLayer
+    Learnables = vResult
 End Property
 
 Public Sub Init()
@@ -46,7 +52,6 @@ Public Sub Add(ByVal oLayer As ILayer)
         Err.Raise 5, PROCEDURE_NAME, "Valid ILayer object is required."
     End If
     m_oLayers.Add oLayer
-    m_vLearnables = Combine(m_vLearnables, oLayer.Learnables)
 End Sub
 
 Public Function Forward(ByVal X As Tensor, _
@@ -78,7 +83,6 @@ End Function
 
 Private Sub Clear()
     Set m_oLayers = New Collection
-    m_vLearnables = Array()
 End Sub
 
 Private Sub Save(ByVal oSerializer As Serializer)

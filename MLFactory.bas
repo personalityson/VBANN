@@ -46,6 +46,11 @@ Public Function FullyConnectedLayer(ByVal lInputSize As Long, _
     FullyConnectedLayer.Init lInputSize, lOutputSize
 End Function
 
+Public Function HuberLoss(Optional ByVal dblDelta As Double = 1) As HuberLoss
+    Set HuberLoss = New HuberLoss
+    HuberLoss.Init dblDelta
+End Function
+
 Public Function NormalizationLayer(ByVal oTrainingSet As IDataset, _
                                    ByVal lIndex As Long, _
                                    Optional ByVal bInvert As Boolean) As NormalizationLayer
@@ -79,10 +84,9 @@ End Function
 
 Public Function Parameter(ByVal oTensor As Tensor, _
                           Optional ByVal dblLearningRateScale As Double = 1, _
-                          Optional ByVal dblWeightDecayScale As Double = 1, _
-                          Optional ByVal bUseGradientClipping As Boolean = True) As Parameter
+                          Optional ByVal dblWeightDecayScale As Double = 1) As Parameter
     Set Parameter = New Parameter
-    Parameter.Init oTensor, dblLearningRateScale, dblWeightDecayScale, bUseGradientClipping
+    Parameter.Init oTensor, dblLearningRateScale, dblWeightDecayScale
 End Function
 
 Public Function Sequential() As Sequential
@@ -148,6 +152,7 @@ End Sub
 Public Function Deserialize(ByVal sName As String) As ISerializable
     Const PROCEDURE_NAME As String = "MLFactory.Deserialize"
     
+    sName = SanitizeWorksheetName(sName)
     If Not WorksheetExists(ThisWorkbook, sName) Then
         Err.Raise 9, PROCEDURE_NAME, "Specified worksheet does not exist."
     End If

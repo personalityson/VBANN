@@ -16,11 +16,10 @@ Implements ISerializable
 'Hyperparameters
 Private m_dblLearningRateScale As Double
 Private m_dblWeightDecayScale As Double
-Private m_bUseGradientClipping As Boolean
 
 'State
 Private m_oTensor As Tensor
-Private m_Gradient As Tensor
+Private m_oGradient As Tensor
 Private m_lNumAccumulatedSamples As Long
 
 Public Property Get Tensor() As Tensor
@@ -43,7 +42,7 @@ Public Property Set Tensor(ByVal oTensor As Tensor)
 End Property
 
 Public Property Get Gradient() As Tensor
-    Set Gradient = m_Gradient
+    Set Gradient = m_oGradient
 End Property
 
 Public Property Set Gradient(ByVal oGradient As Tensor)
@@ -52,13 +51,13 @@ Public Property Set Gradient(ByVal oGradient As Tensor)
     If oGradient Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
     End If
-    If m_Gradient Is Nothing Then
+    If m_oGradient Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Parameter has not been initialized."
     End If
-    If Not oGradient.ShapeEquals(m_Gradient.Shape) Then
+    If Not oGradient.ShapeEquals(m_oGradient.Shape) Then
         Err.Raise 5, PROCEDURE_NAME, "New gradient must have the same shape as the existing gradient."
     End If
-    Set m_Gradient = oGradient
+    Set m_oGradient = oGradient
 End Property
 
 Public Property Get NumAccumulatedSamples() As Long
@@ -85,18 +84,9 @@ Public Property Let WeightDecayScale(ByVal dblWeightDecayScale As Double)
     m_dblWeightDecayScale = dblWeightDecayScale
 End Property
 
-Public Property Get UseGradientClipping() As Boolean
-    UseGradientClipping = m_bUseGradientClipping
-End Property
-
-Public Property Let UseGradientClipping(ByVal bUseGradientClipping As Boolean)
-    m_bUseGradientClipping = bUseGradientClipping
-End Property
-
 Public Sub Init(ByVal oTensor As Tensor, _
                 Optional ByVal dblLearningRateScale As Double = 1, _
-                Optional ByVal dblWeightDecayScale As Double = 1, _
-                Optional ByVal bUseGradientClipping As Boolean = True)
+                Optional ByVal dblWeightDecayScale As Double = 1)
     Const PROCEDURE_NAME As String = "Parameter.Init"
     
     If oTensor Is Nothing Then
@@ -104,25 +94,23 @@ Public Sub Init(ByVal oTensor As Tensor, _
     End If
     Clear
     Set m_oTensor = oTensor
-    Set m_Gradient = Zeros(m_oTensor.Shape)
+    Set m_oGradient = Zeros(m_oTensor.Shape)
     m_lNumAccumulatedSamples = 0
     m_dblLearningRateScale = dblLearningRateScale
     m_dblWeightDecayScale = dblWeightDecayScale
-    m_bUseGradientClipping = bUseGradientClipping
 End Sub
 
 Public Sub ResetGradient()
-    m_Gradient.Fill 0
+    m_oGradient.Fill 0
     m_lNumAccumulatedSamples = 0
 End Sub
 
 Private Sub Clear()
     Set m_oTensor = Nothing
-    Set m_Gradient = Nothing
+    Set m_oGradient = Nothing
     m_lNumAccumulatedSamples = 0
     m_dblLearningRateScale = 0
     m_dblWeightDecayScale = 0
-    m_bUseGradientClipping = False
 End Sub
 
 Private Sub Save(ByVal oSerializer As Serializer)
@@ -133,11 +121,10 @@ Private Sub Save(ByVal oSerializer As Serializer)
     End If
     With oSerializer
         .WriteObject m_oTensor
-        .WriteObject m_Gradient
+        .WriteObject m_oGradient
         .WriteLong m_lNumAccumulatedSamples
         .WriteDouble m_dblLearningRateScale
         .WriteDouble m_dblWeightDecayScale
-        .WriteBoolean m_bUseGradientClipping
     End With
 End Sub
 
@@ -150,11 +137,10 @@ Private Sub Load(ByVal oSerializer As Serializer)
     Clear
     With oSerializer
         Set m_oTensor = .ReadObject()
-        Set m_Gradient = .ReadObject()
+        Set m_oGradient = .ReadObject()
         m_lNumAccumulatedSamples = .ReadLong()
         m_dblLearningRateScale = .ReadDouble()
         m_dblWeightDecayScale = .ReadDouble()
-        m_bUseGradientClipping = .ReadBoolean()
     End With
 End Sub
 

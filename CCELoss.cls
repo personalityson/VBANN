@@ -111,9 +111,11 @@ Public Function Hessian(ByVal Y As Tensor, _
     End If
 End Function
 
-'Log(M), M is the mean over samples
+'Logit:       Log(M), M is the mean over samples
+'Probability: M
 Public Function Intercept(ByVal T As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "CCELoss.Intercept"
+    Dim oClamped As Tensor
 
     If T Is Nothing Then
         Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
@@ -127,11 +129,27 @@ Public Function Intercept(ByVal T As Tensor) As Tensor
     If T.Size(T.NumDimensions) < 1 Then
         Err.Raise 5, PROCEDURE_NAME, "Target tensor must contain at least one sample."
     End If
-    Set Intercept = VecLog(VecClamp(T.Reduce(T.NumDimensions, rtMean), CCE_EPSILON, 1))
+    Set oClamped = VecClamp(T.Reduce(T.NumDimensions, rtMean), CCE_EPSILON, 1)
+    If m_bFromLogits Then
+        Set Intercept = VecLog(oClamped)
+    Else
+        Set Intercept = oClamped
+    End If
 End Function
 
+'Logit:       P = Softmax(Y)
+'Probability: P = Y
 Public Function Transform(ByVal Y As Tensor) As Tensor
-    Set Transform = Softmax(Y, 1)
+    Const PROCEDURE_NAME As String = "CCELoss.Transform"
+
+    If Y Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If m_bFromLogits Then
+        Set Transform = Softmax(Y, 1)
+    Else
+        Set Transform = Y
+    End If
 End Function
 
 Private Function CalculateLossFromProbabilities(ByVal Y As Tensor, _
@@ -144,16 +162,13 @@ Private Function CalculateLossFromProbabilities(ByVal Y As Tensor, _
     Dim L As Tensor
     
     Set L = Zeros(Y.Shape)
-    Y.CreateFlatAlias Y_
-    T.CreateFlatAlias T_
-    L.CreateFlatAlias L_
+    Y.AsFlatArray Y_
+    T.AsFlatArray T_
+    L.AsFlatArray L_
     For i = 1 To Y.NumElements
         dblY = ClampDbl(Y_(i), CCE_EPSILON, 1)
         L_(i) = -T_(i) * Log(dblY)
     Next i
-    Y.RemoveAlias Y_
-    T.RemoveAlias T_
-    L.RemoveAlias L_
     Set CalculateLossFromProbabilities = L
 End Function
 
@@ -167,16 +182,13 @@ Private Function CalculateGradientFromProbabilities(ByVal Y As Tensor, _
     Dim dLdY As Tensor
     
     Set dLdY = Zeros(Y.Shape)
-    Y.CreateFlatAlias Y_
-    T.CreateFlatAlias T_
-    dLdY.CreateFlatAlias dLdY_
+    Y.AsFlatArray Y_
+    T.AsFlatArray T_
+    dLdY.AsFlatArray dLdY_
     For i = 1 To Y.NumElements
         dblY = ClampDbl(Y_(i), CCE_EPSILON, 1)
         dLdY_(i) = -T_(i) / dblY
     Next i
-    Y.RemoveAlias Y_
-    T.RemoveAlias T_
-    dLdY.RemoveAlias dLdY_
     Set CalculateGradientFromProbabilities = dLdY
 End Function
 
@@ -190,16 +202,13 @@ Private Function CalculateHessianFromProbabilities(ByVal Y As Tensor, _
     Dim d2LdY2 As Tensor
     
     Set d2LdY2 = Zeros(Y.Shape)
-    Y.CreateFlatAlias Y_
-    T.CreateFlatAlias T_
-    d2LdY2.CreateFlatAlias d2LdY2_
+    Y.AsFlatArray Y_
+    T.AsFlatArray T_
+    d2LdY2.AsFlatArray d2LdY2_
     For i = 1 To Y.NumElements
         dblY = ClampDbl(Y_(i), CCE_EPSILON, 1)
         d2LdY2_(i) = T_(i) / (dblY * dblY)
     Next i
-    Y.RemoveAlias Y_
-    T.RemoveAlias T_
-    d2LdY2.RemoveAlias d2LdY2_
     Set CalculateHessianFromProbabilities = d2LdY2
 End Function
 

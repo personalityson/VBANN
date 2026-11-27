@@ -193,7 +193,7 @@ Private Sub FitOne(ByVal oTrainingLoader As DataLoader)
             Set X = oBatch.Tensors(1)
             Set T = oBatch.Tensors(2)
             Evolve X, T
-            m_oOptimizer.Update m_oModel.Learnables
+            m_oOptimizer.Update m_oParameters
             lNumSamples = lNumSamples + oBatch.NumSamples
             Application.StatusBar = "FitOne progress: " & Format(lNumSamples / .NumSamples, "0.0%")
             DoEvents

@@ -262,8 +262,8 @@ Private Function PredictRaw(ByVal X As Tensor) As Tensor
 
     lNumSamples = X.Size(2)
     Set Y = m_oBaseScore.Tile(2, lNumSamples)
-    X.CreateAlias X_
-    Y.CreateAlias Y_
+    X.AsArray X_
+    Y.AsArray Y_
     For i = 1 To m_lNumRounds
         For k = 1 To m_lNumOutputs
             Set oTree = m_aoTrees(k, i)
@@ -272,8 +272,6 @@ Private Function PredictRaw(ByVal X As Tensor) As Tensor
             Next j
         Next k
     Next i
-    X.RemoveAlias X_
-    Y.RemoveAlias Y_
     Set PredictRaw = Y
 End Function
 
@@ -293,17 +291,13 @@ Private Sub FitOne(ByVal lRound As Long, _
     lNumSamples = X.Size(2)
     Set G = m_oLossFunction.Gradient(Y, T)
     Set H = m_oLossFunction.Hessian(Y, T)
-    X.CreateAlias X_
-    Y.CreateAlias Y_
-    G.CreateAlias G_
-    H.CreateAlias H_
+    X.AsArray X_
+    Y.AsArray Y_
+    G.AsArray G_
+    H.AsArray H_
     For k = 1 To m_lNumOutputs
         Set m_aoTrees(k, lRound) = BuildTree(k, lNumSamples, X_, Y_, G_, H_)
     Next k
-    X.RemoveAlias X_
-    Y.RemoveAlias Y_
-    G.RemoveAlias G_
-    H.RemoveAlias H_
 End Sub
 
 Private Function BuildTree(ByVal lOutput As Long, _
@@ -505,7 +499,7 @@ Private Sub BuildHistogram(ByRef auHist() As Bucket, _
     Next j
 End Sub
 
-'auSibling = auParent - auChild, bin by bin.
+'auSibling = auParent - auChild, bin by bin
 Private Sub SubtractHistogram(ByRef auParent() As Bucket, _
                               ByRef auChild() As Bucket, _
                               ByRef auSibling() As Bucket, _
@@ -584,7 +578,7 @@ Private Sub BuildBins(ByVal X As Tensor)
     ReDim m_adblCuts(1 To m_lNumFeatures, 1 To m_lNumBins - 1)
     ReDim m_alBins(1 To m_lNumFeatures, 1 To lNumSamples)
     m_lMaxBins = 1
-    X.CreateAlias X_
+    X.AsArray X_
     For i = 1 To m_lNumFeatures
         k = 0
         For j = 1 To lNumSamples Step lStride
@@ -600,42 +594,41 @@ Private Sub BuildBins(ByVal X As Tensor)
         Application.StatusBar = "Binning progress: " & Format(i / m_lNumFeatures, "0.0%")
         DoEvents
     Next i
-    X.RemoveAlias X_
 End Sub
 
 Private Function BuildCuts(ByVal lFeature As Long, _
                            ByRef adblSorted() As Double, _
                            ByVal lNumSorted As Long) As Long
     Dim k As Long
-    Dim p As Long
+    Dim P As Long
     Dim lLastCut As Long
     Dim lNumBoundaries As Long
     Dim lNumCuts As Long
 
-    For p = 1 To lNumSorted - 1
-        If adblSorted(p) < adblSorted(p + 1) Then
+    For P = 1 To lNumSorted - 1
+        If adblSorted(P) < adblSorted(P + 1) Then
             lNumBoundaries = lNumBoundaries + 1
         End If
-    Next p
+    Next P
     If lNumBoundaries <= m_lNumBins - 1 Then
-        For p = 1 To lNumSorted - 1
-            If adblSorted(p) < adblSorted(p + 1) Then
+        For P = 1 To lNumSorted - 1
+            If adblSorted(P) < adblSorted(P + 1) Then
                 lNumCuts = lNumCuts + 1
-                m_adblCuts(lFeature, lNumCuts) = (adblSorted(p) + adblSorted(p + 1)) / 2
+                m_adblCuts(lFeature, lNumCuts) = (adblSorted(P) + adblSorted(P + 1)) / 2
             End If
-        Next p
+        Next P
     Else
         For k = 1 To m_lNumBins - 1
-            p = Int(CDbl(k) * lNumSorted / m_lNumBins)
-            If p > lLastCut Then
-                Do While p < lNumSorted
-                    If adblSorted(p) < adblSorted(p + 1) Then Exit Do
-                    p = p + 1
+            P = Int(CDbl(k) * lNumSorted / m_lNumBins)
+            If P > lLastCut Then
+                Do While P < lNumSorted
+                    If adblSorted(P) < adblSorted(P + 1) Then Exit Do
+                    P = P + 1
                 Loop
-                If p >= lNumSorted Then Exit For
+                If P >= lNumSorted Then Exit For
                 lNumCuts = lNumCuts + 1
-                m_adblCuts(lFeature, lNumCuts) = (adblSorted(p) + adblSorted(p + 1)) / 2
-                lLastCut = p
+                m_adblCuts(lFeature, lNumCuts) = (adblSorted(P) + adblSorted(P + 1)) / 2
+                lLastCut = P
             End If
         Next k
     End If

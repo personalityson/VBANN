@@ -30,11 +30,10 @@ Public Function Eye(ByVal lSize As Long) As Tensor
     Set Eye = New Tensor
     With Eye
         .Init Array(lSize, lSize)
-        .CreateAlias A_
+        .AsArray A_
         For i = 1 To lSize
             A_(i, i) = 1
         Next i
-        .RemoveAlias A_
     End With
 End Function
 
@@ -47,11 +46,10 @@ Public Function Uniform(ByVal vShape As Variant, _
     Set Uniform = New Tensor
     With Uniform
         .Init vShape
-        .CreateFlatAlias A_
+        .AsFlatArray A_
         For i = 1 To .NumElements
             A_(i) = dblLow + (dblHigh - dblLow) * Rnd()
         Next i
-        .RemoveAlias A_
     End With
 End Function
 
@@ -64,11 +62,10 @@ Public Function Normal(ByVal vShape As Variant, _
     Set Normal = New Tensor
     With Normal
         .Init vShape
-        .CreateFlatAlias A_
+        .AsFlatArray A_
         For i = 1 To .NumElements
             A_(i) = dblMu + dblSigma * NormRand()
         Next i
-        .RemoveAlias A_
     End With
 End Function
 
@@ -80,11 +77,10 @@ Public Function Bernoulli(ByVal vShape As Variant, _
     Set Bernoulli = New Tensor
     With Bernoulli
         .Init vShape
-        .CreateFlatAlias A_
+        .AsFlatArray A_
         For i = 1 To .NumElements
             A_(i) = -(Rnd() < dblProbability)
         Next i
-        .RemoveAlias A_
     End With
 End Function
 

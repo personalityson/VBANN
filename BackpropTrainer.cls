@@ -18,6 +18,9 @@ Private m_oModel As ILayer
 Private m_oLossFunction As ILossFunction
 Private m_oOptimizer As IOptimizer
 
+'Training state
+Private m_vLearnables As Variant
+
 Public Property Get Model() As ILayer
     Set Model = m_oModel
 End Property
@@ -68,6 +71,7 @@ Public Sub Fit(ByVal oTrainingLoader As DataLoader, _
     If lNumEpochs < 1 Then
         Err.Raise 5, PROCEDURE_NAME, "Number of epochs must be >= 1."
     End If
+    m_vLearnables = m_oModel.Learnables
     For i = 1 To lNumEpochs
         FitOne oTrainingLoader
         If bVerbose Then
@@ -122,6 +126,7 @@ Private Sub Clear()
     Set m_oModel = Nothing
     Set m_oLossFunction = Nothing
     Set m_oOptimizer = Nothing
+    m_vLearnables = Empty
 End Sub
 
 Private Sub Backpropagate(ByVal X As Tensor, _
@@ -132,7 +137,7 @@ Private Sub Backpropagate(ByVal X As Tensor, _
     Set Y = m_oModel.Forward(X, True)
     Set dLdY = m_oLossFunction.Gradient(Y, T)
     m_oModel.Backward dLdY
-    m_oOptimizer.Update m_oModel.Learnables
+    m_oOptimizer.Update m_vLearnables
 End Sub
 
 Private Sub FitOne(ByVal oTrainingLoader As DataLoader)

@@ -102,7 +102,8 @@ Public Function Hessian(ByVal Y As Tensor, _
     End If
 End Function
 
-'Log(M / (1 - M)), M is the mean over samples
+'Logit:       Log(M / (1 - M)), M is the mean over samples
+'Probability: M
 Public Function Intercept(ByVal T As Tensor) As Tensor
     Const PROCEDURE_NAME As String = "BCELoss.Intercept"
     Dim oClamped As Tensor
@@ -117,11 +118,26 @@ Public Function Intercept(ByVal T As Tensor) As Tensor
         Err.Raise 5, PROCEDURE_NAME, "Target tensor must contain at least one sample."
     End If
     Set oClamped = VecClamp(T.Reduce(T.NumDimensions, rtMean), BCE_EPSILON, 1 - BCE_EPSILON)
-    Set Intercept = VecLog(VecDiv(oClamped, VecSubCRev(oClamped, 1)))
+    If m_bFromLogits Then
+        Set Intercept = VecLog(VecDiv(oClamped, VecSubCRev(oClamped, 1)))
+    Else
+        Set Intercept = oClamped
+    End If
 End Function
 
+'Logit:       P = Sigmoid(Y)
+'Probability: P = Y
 Public Function Transform(ByVal Y As Tensor) As Tensor
-    Set Transform = VecSigmoid(Y)
+    Const PROCEDURE_NAME As String = "BCELoss.Transform"
+
+    If Y Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Tensor object is required."
+    End If
+    If m_bFromLogits Then
+        Set Transform = VecSigmoid(Y)
+    Else
+        Set Transform = Y
+    End If
 End Function
 
 Private Function CalculateLossFromProbabilities(ByVal Y As Tensor, _
@@ -134,16 +150,13 @@ Private Function CalculateLossFromProbabilities(ByVal Y As Tensor, _
     Dim L As Tensor
     
     Set L = Zeros(Y.Shape)
-    Y.CreateFlatAlias Y_
-    T.CreateFlatAlias T_
-    L.CreateFlatAlias L_
+    Y.AsFlatArray Y_
+    T.AsFlatArray T_
+    L.AsFlatArray L_
     For i = 1 To Y.NumElements
         dblY = ClampDbl(Y_(i), BCE_EPSILON, 1 - BCE_EPSILON)
         L_(i) = -T_(i) * Log(dblY) - (1 - T_(i)) * Log(1 - dblY)
     Next i
-    Y.RemoveAlias Y_
-    T.RemoveAlias T_
-    L.RemoveAlias L_
     Set CalculateLossFromProbabilities = L
 End Function
 
@@ -157,16 +170,13 @@ Private Function CalculateGradientFromProbabilities(ByVal Y As Tensor, _
     Dim dLdY As Tensor
     
     Set dLdY = Zeros(Y.Shape)
-    Y.CreateFlatAlias Y_
-    T.CreateFlatAlias T_
-    dLdY.CreateFlatAlias dLdY_
+    Y.AsFlatArray Y_
+    T.AsFlatArray T_
+    dLdY.AsFlatArray dLdY_
     For i = 1 To Y.NumElements
         dblY = ClampDbl(Y_(i), BCE_EPSILON, 1 - BCE_EPSILON)
         dLdY_(i) = (dblY - T_(i)) / (dblY * (1 - dblY))
     Next i
-    Y.RemoveAlias Y_
-    T.RemoveAlias T_
-    dLdY.RemoveAlias dLdY_
     Set CalculateGradientFromProbabilities = dLdY
 End Function
 
@@ -180,16 +190,13 @@ Private Function CalculateHessianFromProbabilities(ByVal Y As Tensor, _
     Dim d2LdY2 As Tensor
     
     Set d2LdY2 = Zeros(Y.Shape)
-    Y.CreateFlatAlias Y_
-    T.CreateFlatAlias T_
-    d2LdY2.CreateFlatAlias d2LdY2_
+    Y.AsFlatArray Y_
+    T.AsFlatArray T_
+    d2LdY2.AsFlatArray d2LdY2_
     For i = 1 To Y.NumElements
         dblY = ClampDbl(Y_(i), BCE_EPSILON, 1 - BCE_EPSILON)
         d2LdY2_(i) = T_(i) / (dblY * dblY) + (1 - T_(i)) / ((1 - dblY) * (1 - dblY))
     Next i
-    Y.RemoveAlias Y_
-    T.RemoveAlias T_
-    d2LdY2.RemoveAlias d2LdY2_
     Set CalculateHessianFromProbabilities = d2LdY2
 End Function
 

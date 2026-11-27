@@ -2,7 +2,7 @@ Attribute VB_Name = "UtilityFunctions"
 '---------------------------------------------------------------------------------------
 ' Module    : UtilityFunctions
 ' Author    : personalityson
-' Date      : 01.05.2026
+' Date      : 01.11.2026
 ' Purpose   :
 '---------------------------------------------------------------------------------------
 
@@ -39,6 +39,14 @@ Public Const SIZEOF_DOUBLE As Long = 8
     Public Const SIZEOF_VARIANT As Long = 16
 #End If
 
+Public Enum RoundingType
+    rdNearest
+    rdDown
+    rdUp
+    rdTowardsZero
+    rdTowardsInfinity
+End Enum
+
 Private Type SYSTEMTIME
     wYear As Integer
     wMonth As Integer
@@ -50,8 +58,15 @@ Private Type SYSTEMTIME
     wMillisecond As Integer
 End Type
 
+Private Type GUID_TYPE
+    Data1 As Long
+    Data2 As Integer
+    Data3 As Integer
+    Data4(1 To 8) As Byte
+End Type
+
 Public Declare PtrSafe Sub CopyMemory Lib "kernel32.dll" Alias "RtlMoveMemory" (ByRef Destination As Any, _
-                                                                                ByRef source As Any, _
+                                                                                ByRef Source As Any, _
                                                                                 ByVal Length As LongPtr)
 
 Public Declare PtrSafe Sub ZeroMemory Lib "kernel32.dll" Alias "RtlZeroMemory" (ByRef Destination As Any, _
@@ -64,6 +79,8 @@ Public Declare PtrSafe Function GetTickCount Lib "kernel32.dll" () As Long
 Public Declare PtrSafe Sub Sleep Lib "kernel32.dll" (ByVal dwMilliseconds As Long)
 
 Private Declare PtrSafe Sub GetSystemTime Lib "kernel32.dll" (ByRef lpSystemTime As SYSTEMTIME)
+
+Private Declare PtrSafe Function CoCreateGuid Lib "ole32" (ByRef pGuid As GUID_TYPE) As Long
 
 Public Function MinLng(ByVal A As Long, _
                        ByVal B As Long) As Long
@@ -131,9 +148,72 @@ Public Function ClampDbl(ByVal dblValue As Double, _
     End If
 End Function
 
-Public Function NormRand() As Double
-    NormRand = Sqr(-2 * Log(1 - Rnd())) * Cos(MATH_2PI * Rnd())
+Public Function RoundToMultiple(ByVal dblValue As Double, _
+                                ByVal dblMultiple As Double, _
+                                ByVal eRoundingType As RoundingType) As Double
+    If dblMultiple = 0 Then
+        RoundToMultiple = dblValue
+        Exit Function
+    End If
+    dblMultiple = Abs(dblMultiple)
+    Select Case eRoundingType
+        Case rdNearest
+            RoundToMultiple = Round(dblValue / dblMultiple) * dblMultiple
+        Case rdDown
+            RoundToMultiple = Int(dblValue / dblMultiple) * dblMultiple
+        Case rdUp
+            RoundToMultiple = -Int(-dblValue / dblMultiple) * dblMultiple
+        Case rdTowardsZero
+            RoundToMultiple = Sgn(dblValue) * Int(Abs(dblValue) / dblMultiple) * dblMultiple
+        Case rdTowardsInfinity
+            RoundToMultiple = Sgn(dblValue) * -Int(-Abs(dblValue) / dblMultiple) * dblMultiple
+    End Select
 End Function
+
+Public Function RoundToSignificantDigits(ByVal dblValue As Double, _
+                                         ByVal lNumDigits As Long, _
+                                         ByVal eRoundingType As RoundingType) As Double
+    Dim dblMultiple As Double
+    
+    If dblValue = 0 Then
+        Exit Function
+    End If
+    If lNumDigits < 1 Then
+        Exit Function
+    End If
+    dblMultiple = 10 ^ (Int(Log(Abs(dblValue)) / Log(10)) + 1 - lNumDigits)
+    RoundToSignificantDigits = RoundToMultiple(dblValue, dblMultiple, eRoundingType)
+End Function
+
+Public Sub TileMemory(ByVal pTarget As LongPtr, _
+                      ByVal pTargetLength As LongPtr, _
+                      ByVal pSource As LongPtr, _
+                      ByVal pSourceLength As LongPtr)
+    Const PROCEDURE_NAME As String = "UtilityFunctions.TileMemory"
+    Dim i As LongPtr
+    Dim pLength As LongPtr
+
+    If pTargetLength < 1 Then
+        Exit Sub
+    End If
+    If pTarget = NULL_PTR Then
+        Err.Raise 5, PROCEDURE_NAME, "Target memory address cannot be NULL."
+    End If
+    If pSourceLength < 1 Then
+        Err.Raise 5, PROCEDURE_NAME, "Source memory length must be > 0."
+    End If
+    If pSource = NULL_PTR Then
+        Err.Raise 5, PROCEDURE_NAME, "Source memory address cannot be NULL."
+    End If
+    pLength = MinPtr(pTargetLength, pSourceLength)
+    CopyMemory ByVal pTarget, ByVal pSource, pLength
+    i = pLength
+    Do While i < pTargetLength
+        pLength = MinPtr(i, pTargetLength - i)
+        CopyMemory ByVal pTarget + i, ByVal pTarget, pLength
+        i = i + pLength
+    Loop
+End Sub
 
 Private Function GetSafeArrayPtr(ByRef vArray As Variant, _
                                  ByRef pSafeArray As LongPtr) As Boolean
@@ -335,6 +415,10 @@ Public Sub ParseVariantToDoubleArray(ByVal vArray As Variant, _
     End If
 End Sub
 
+Public Function NormRand() As Double
+    NormRand = Sqr(-2 * Log(1 - Rnd())) * Cos(MATH_2PI * Rnd())
+End Function
+
 Public Function GetIdentityPermutation(ByVal lNumElements As Long) As Long()
     Dim i As Long
     Dim alResult() As Long
@@ -403,76 +487,108 @@ Public Sub QuickSortDoubles(ByRef adblValues() As Double, _
     End If
 End Sub
 
-Public Function GetFirstRow(ByVal oWorksheet As Worksheet, _
-                            Optional ByVal lColumn As Long) As Long
-    Const PROCEDURE_NAME As String = "UtilityFunctions.GetFirstRow"
-    Dim oNonEmptyCell As Range
-    
-    If oWorksheet Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Worksheet object is required."
-    End If
-    If lColumn > 0 Then
-        Set oNonEmptyCell = oWorksheet.Columns(lColumn).Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
+'Wirth's method for median reduction
+Public Function MedianInPlace(ByRef adblValues() As Double, _
+                              ByVal lNumValues As Long) As Double
+    Dim i As Long
+    Dim j As Long
+    Dim k As Long
+    Dim lLeft As Long
+    Dim lRight As Long
+    Dim dblPivot As Double
+    Dim dblTemp As Double
+    Dim dblUpper As Double
+
+    k = (lNumValues + 1) \ 2
+    lLeft = 1
+    lRight = lNumValues
+    Do While lLeft < lRight
+        dblPivot = adblValues(k)
+        i = lLeft
+        j = lRight
+        Do
+            Do While adblValues(i) < dblPivot
+                i = i + 1
+            Loop
+            Do While dblPivot < adblValues(j)
+                j = j - 1
+            Loop
+            If i <= j Then
+                dblTemp = adblValues(i)
+                adblValues(i) = adblValues(j)
+                adblValues(j) = dblTemp
+                i = i + 1
+                j = j - 1
+            End If
+        Loop While i <= j
+        If j < k Then
+            lLeft = i
+        End If
+        If k < i Then
+            lRight = j
+        End If
+    Loop
+    If lNumValues Mod 2 = 1 Then
+        MedianInPlace = adblValues(k)
     Else
-        Set oNonEmptyCell = oWorksheet.Cells.Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
-    End If
-    If Not oNonEmptyCell Is Nothing Then
-        GetFirstRow = oNonEmptyCell.Row
+        dblUpper = adblValues(k + 1)
+        For i = k + 2 To lNumValues
+            If adblValues(i) < dblUpper Then
+                dblUpper = adblValues(i)
+            End If
+        Next i
+        MedianInPlace = (adblValues(k) + dblUpper) / 2
     End If
 End Function
 
-Public Function GetLastRow(ByVal oWorksheet As Worksheet, _
-                           Optional ByVal lColumn As Long) As Long
-    Const PROCEDURE_NAME As String = "UtilityFunctions.GetLastRow"
-    Dim oNonEmptyCell As Range
+Public Function GetUtcTime() As Date
+    Dim uNow As SYSTEMTIME
     
-    If oWorksheet Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Worksheet object is required."
-    End If
-    If lColumn > 0 Then
-        Set oNonEmptyCell = oWorksheet.Columns(lColumn).Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
-    Else
-        Set oNonEmptyCell = oWorksheet.Cells.Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
-    End If
-    If Not oNonEmptyCell Is Nothing Then
-        GetLastRow = oNonEmptyCell.Row
-    End If
+    GetSystemTime uNow
+    With uNow
+        GetUtcTime = DateSerial(.wYear, .wMonth, .wDay) + TimeSerial(.wHour, .wMinute, .wSecond)
+    End With
 End Function
 
-Public Function GetFirstColumn(ByVal oWorksheet As Worksheet, _
-                               Optional ByVal lRow As Long) As Long
-    Const PROCEDURE_NAME As String = "UtilityFunctions.GetFirstColumn"
-    Dim oNonEmptyCell As Range
+Public Function GetUtcTimestamp() As String
+    Dim uNow As SYSTEMTIME
     
-    If oWorksheet Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Worksheet object is required."
-    End If
-    If lRow > 0 Then
-        Set oNonEmptyCell = oWorksheet.Rows(lRow).Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
-    Else
-        Set oNonEmptyCell = oWorksheet.Cells.Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
-    End If
-    If Not oNonEmptyCell Is Nothing Then
-        GetFirstColumn = oNonEmptyCell.Column
-    End If
+    GetSystemTime uNow
+    With uNow
+        GetUtcTimestamp = Format$(DateDiff("s", DateSerial(1970, 1, 1), DateSerial(.wYear, .wMonth, .wDay) + TimeSerial(.wHour, .wMinute, .wSecond)), "0000000000") & Format$(.wMillisecond, "000")
+    End With
 End Function
 
-Public Function GetLastColumn(ByVal oWorksheet As Worksheet, _
-                              Optional ByVal lRow As Long) As Long
-    Const PROCEDURE_NAME As String = "UtilityFunctions.GetLastColumn"
-    Dim oNonEmptyCell As Range
-    
-    If oWorksheet Is Nothing Then
-        Err.Raise 5, PROCEDURE_NAME, "Valid Worksheet object is required."
+Public Function ConvertDateToTimestamp(ByVal dtmDate As Date) As Long
+    ConvertDateToTimestamp = DateDiff("s", DateSerial(1970, 1, 1), dtmDate)
+End Function
+
+Public Function ConvertTimestampToDate(ByVal lTimestamp As Long) As Date
+    ConvertTimestampToDate = DateAdd("s", lTimestamp, DateSerial(1970, 1, 1))
+End Function
+
+Public Function CreateGuid(Optional ByVal bHyphens As Boolean) As String
+    Const PROCEDURE_NAME As String = "UtilityFunctions.CreateGuid"
+    Dim i As Long
+    Dim uGuid As GUID_TYPE
+    Dim sSeparator As String
+    Dim sNode As String
+
+    If CoCreateGuid(uGuid) <> 0 Then
+        Err.Raise 5, PROCEDURE_NAME, "Failed to generate GUID."
     End If
-    If lRow > 0 Then
-        Set oNonEmptyCell = oWorksheet.Rows(lRow).Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
-    Else
-        Set oNonEmptyCell = oWorksheet.Cells.Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
+    If bHyphens Then
+        sSeparator = "-"
     End If
-    If Not oNonEmptyCell Is Nothing Then
-        GetLastColumn = oNonEmptyCell.Column
-    End If
+    For i = 3 To 8
+        sNode = sNode & Right$("0" & Hex$(uGuid.Data4(i)), 2)
+    Next i
+    CreateGuid = Right$("00000000" & Hex$(uGuid.Data1), 8) & sSeparator & _
+                 Right$("0000" & Hex$(CLng(uGuid.Data2) And &HFFFF&), 4) & sSeparator & _
+                 Right$("0000" & Hex$(CLng(uGuid.Data3) And &HFFFF&), 4) & sSeparator & _
+                 Right$("0" & Hex$(uGuid.Data4(1)), 2) & _
+                 Right$("0" & Hex$(uGuid.Data4(2)), 2) & sSeparator & _
+                 sNode
 End Function
 
 Public Function Fso() As Object
@@ -540,7 +656,7 @@ Public Function FormatExtension(ByVal lFileFormat As XlFileFormat) As String
         Case xlCSV: FormatExtension = "csv"
         Case xlCSVMac: FormatExtension = "csv"
         Case xlCSVMSDOS: FormatExtension = "csv"
-        'Case xlCSVUTF8: FormatExtension = "csv"
+        Case xlCSVUTF8: FormatExtension = "csv"
         Case xlCSVWindows: FormatExtension = "csv"
         Case xlCurrentPlatformText: FormatExtension = "txt"
         Case xlDBF2: FormatExtension = "dbf"
@@ -562,7 +678,7 @@ Public Function FormatExtension(ByVal lFileFormat As XlFileFormat) As String
         Case xlIntlMacro: FormatExtension = ""
         Case xlOpenDocumentSpreadsheet: FormatExtension = "ods"
         Case xlOpenXMLAddIn: FormatExtension = "xlam"
-        'Case xlOpenXMLStrictWorkbook: FormatExtension = "xlsx"
+        Case xlOpenXMLStrictWorkbook: FormatExtension = "xlsx"
         Case xlOpenXMLTemplate: FormatExtension = "xltx"
         Case xlOpenXMLTemplateMacroEnabled: FormatExtension = "xltm"
         Case xlOpenXMLWorkbook: FormatExtension = "xlsx"
@@ -705,30 +821,76 @@ Public Function CreateWorksheet(ByVal oWorkbook As Workbook, _
     Set CreateWorksheet = oResult
 End Function
 
-Public Function GetUtcTime() As Date
-    Dim uNow As SYSTEMTIME
+Public Function GetFirstRow(ByVal oWorksheet As Worksheet, _
+                            Optional ByVal lColumn As Long) As Long
+    Const PROCEDURE_NAME As String = "UtilityFunctions.GetFirstRow"
+    Dim oNonEmptyCell As Range
     
-    GetSystemTime uNow
-    With uNow
-        GetUtcTime = DateSerial(.wYear, .wMonth, .wDay) + TimeSerial(.wHour, .wMinute, .wSecond)
-    End With
+    If oWorksheet Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Worksheet object is required."
+    End If
+    If lColumn > 0 Then
+        Set oNonEmptyCell = oWorksheet.Columns(lColumn).Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
+    Else
+        Set oNonEmptyCell = oWorksheet.Cells.Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
+    End If
+    If Not oNonEmptyCell Is Nothing Then
+        GetFirstRow = oNonEmptyCell.Row
+    End If
 End Function
 
-Public Function GetUtcTimestamp() As String
-    Dim uNow As SYSTEMTIME
+Public Function GetLastRow(ByVal oWorksheet As Worksheet, _
+                           Optional ByVal lColumn As Long) As Long
+    Const PROCEDURE_NAME As String = "UtilityFunctions.GetLastRow"
+    Dim oNonEmptyCell As Range
     
-    GetSystemTime uNow
-    With uNow
-        GetUtcTimestamp = Format$(DateDiff("s", DateSerial(1970, 1, 1), DateSerial(.wYear, .wMonth, .wDay) + TimeSerial(.wHour, .wMinute, .wSecond)), "0000000000") & Format$(.wMillisecond, "000")
-    End With
+    If oWorksheet Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Worksheet object is required."
+    End If
+    If lColumn > 0 Then
+        Set oNonEmptyCell = oWorksheet.Columns(lColumn).Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
+    Else
+        Set oNonEmptyCell = oWorksheet.Cells.Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
+    End If
+    If Not oNonEmptyCell Is Nothing Then
+        GetLastRow = oNonEmptyCell.Row
+    End If
 End Function
 
-Public Function ConvertDateToTimestamp(ByVal dtmDate As Date) As Long
-    ConvertDateToTimestamp = DateDiff("s", DateSerial(1970, 1, 1), dtmDate)
+Public Function GetFirstColumn(ByVal oWorksheet As Worksheet, _
+                               Optional ByVal lRow As Long) As Long
+    Const PROCEDURE_NAME As String = "UtilityFunctions.GetFirstColumn"
+    Dim oNonEmptyCell As Range
+    
+    If oWorksheet Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Worksheet object is required."
+    End If
+    If lRow > 0 Then
+        Set oNonEmptyCell = oWorksheet.Rows(lRow).Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
+    Else
+        Set oNonEmptyCell = oWorksheet.Cells.Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
+    End If
+    If Not oNonEmptyCell Is Nothing Then
+        GetFirstColumn = oNonEmptyCell.Column
+    End If
 End Function
 
-Public Function ConvertTimestampToDate(ByVal lTimestamp As Long) As Date
-    ConvertTimestampToDate = DateAdd("s", lTimestamp, DateSerial(1970, 1, 1))
+Public Function GetLastColumn(ByVal oWorksheet As Worksheet, _
+                              Optional ByVal lRow As Long) As Long
+    Const PROCEDURE_NAME As String = "UtilityFunctions.GetLastColumn"
+    Dim oNonEmptyCell As Range
+    
+    If oWorksheet Is Nothing Then
+        Err.Raise 5, PROCEDURE_NAME, "Valid Worksheet object is required."
+    End If
+    If lRow > 0 Then
+        Set oNonEmptyCell = oWorksheet.Rows(lRow).Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
+    Else
+        Set oNonEmptyCell = oWorksheet.Cells.Find(what:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious, MatchCase:=False, SearchFormat:=False)
+    End If
+    If Not oNonEmptyCell Is Nothing Then
+        GetLastColumn = oNonEmptyCell.Column
+    End If
 End Function
 
 Public Function MatchLiteral(ByVal vNeedle As Variant, _
@@ -749,20 +911,27 @@ Public Function MatchLiteral(ByVal vNeedle As Variant, _
     End If
 End Function
 
-Public Sub WriteRange(ByVal oCell As Range, _
+Private Sub WriteCell(ByVal oWorksheet As Worksheet, _
+                      ByVal i As Long, _
+                      ByVal j As Long, _
                       ByVal vValue As Variant)
     Const PROCEDURE_NAME As String = "UtilityFunctions.WriteCell"
-    
-    Select Case VarType(vValue)
-        Case vbEmpty
-            oCell.ClearContents
-        Case vbInteger, vbLong, vbSingle, vbDouble, vbCurrency, vbDate, vbBoolean, vbDecimal, vbByte, vbLongLong
-            oCell.Value = vValue
-        Case vbString
-            oCell.Value = "'" & vValue
-        Case Else
-            Err.Raise 5, PROCEDURE_NAME, "Unsupported value type for writing to worksheet."
-    End Select
+
+'    If oWorksheet Is Nothing Then
+'        Err.Raise 5, PROCEDURE_NAME, "A valid Worksheet object is required."
+'    End If
+    With oWorksheet.Cells(i, j)
+        Select Case VarType(vValue)
+            Case vbEmpty
+                .ClearContents
+            Case vbInteger, vbLong, vbSingle, vbDouble, vbCurrency, vbDate, vbBoolean, vbDecimal, vbByte, vbLongLong
+                .Value = vValue
+            Case vbString
+                .Value = "'" & vValue
+            Case Else
+                Err.Raise 5, PROCEDURE_NAME, "Unsupported value type for writing to worksheet."
+        End Select
+    End With
 End Sub
 
 Public Sub WriteLog(ByVal sName As String, _
@@ -774,7 +943,7 @@ Public Sub WriteLog(ByVal sName As String, _
     Dim lHeaderCol As Long
     Dim bWorksheetIsNew As Boolean
     Dim oLog As Worksheet
-        
+    
     Set oLog = CreateWorksheet(ThisWorkbook, sName, False, bWorksheetIsNew)
     lLastRow = MaxLng(1, GetLastRow(oLog))
     If bNewRow Or lLastRow < 2 Then
@@ -788,9 +957,9 @@ Public Sub WriteLog(ByVal sName As String, _
             lHeaderCol = MatchLiteral(avArgs(i), .Rows(1))
             If lHeaderCol = 0 Then
                 lHeaderCol = GetLastColumn(oLog) + 1
-                WriteRange .Cells(1, lHeaderCol), avArgs(i)
+                WriteCell oLog, 1, lHeaderCol, avArgs(i)
             End If
-            WriteRange .Cells(lLastRow, lHeaderCol), avArgs(i + 1)
+            WriteCell oLog, lLastRow, lHeaderCol, avArgs(i + 1)
             Application.Goto .Cells(lLastRow, lHeaderCol)
             DoEvents
         Next i
@@ -801,4 +970,3 @@ Public Sub WriteLog(ByVal sName As String, _
         End If
     End With
 End Sub
-
